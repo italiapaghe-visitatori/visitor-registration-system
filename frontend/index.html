@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title id="page-title">Registrazione</title>
+  <style id="dynamic-styles"></style>
+  <style>
+    * { margin:0; padding:0; box-sizing: border-box; }
+    
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      min-height: 100vh; 
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .container { 
+      max-width: 700px; 
+      width: 100%;
+      background: white; 
+      padding: 40px; 
+      border-radius: 16px; 
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity:0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .logo { 
+      text-align: center; 
+      margin-bottom: 30px; 
+      padding-bottom: 30px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .logo img { 
+      max-height: 100px; 
+      width: auto;
+      object-fit: contain;
+    }
+    
+    .logo:empty { display: none; border: none; margin:0; padding: 0; }
+    
+    h1 { 
+      text-align: center; 
+      margin-bottom: 30px; 
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    
+    .form-group { margin-bottom: 24px; }
+    
+    label { 
+      display: block; 
+      margin-bottom: 8px; 
+      font-weight: 600;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    input, select { 
+      width: 100%; 
+      padding: 14px 16px; 
+      border: 2px solid #e2e8f0; 
+      border-radius: 8px; 
+      font-size: 16px;
+      transition: all 0.3s ease;
+      background: #f7fafc;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .row { display: flex; gap: 16px; }
+    .row .form-group { flex: 1; }
+    
+    .checkbox-group { 
+      display: flex; 
+      align-items: flex-start; 
+      gap: 12px; 
+      padding: 16px;
+      background: #f7fafc;
+      border-radius: 8px;
+      border: 2px solid #e2e8f0;
+    }
+    
+    .checkbox-group input { 
+      width: 20px; 
+      height: 20px; 
+      margin-top: 2px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    
+    .checkbox-group label { 
+      margin: 0; 
+      font-size: 13px;
+      text-transform: none;
+      letter-spacing: 0;
+      cursor: pointer;
+      line-height: 1.5;
+    }
+    
+    button { 
+      width: 100%; 
+      padding: 16px; 
+      color: white; 
+      border: none; 
+      border-radius: 8px; 
+      font-size: 16px; 
+      font-weight: 600;
+      cursor: pointer; 
+      transition: all 0.3s ease;
+    }
+    
+    button:hover { transform: translateY(-2px); }
+    button:active { transform: translateY(0); }
+    button:disabled { cursor: not-allowed; transform: none; box-shadow: none; }
+    
+    .message { 
+      padding: 16px; 
+      margin-top: 20px; 
+      border-radius: 8px; 
+      text-align: center; 
+      display: none;
+      font-weight: 500;
+      animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+      from { opacity:0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .success { background: #c6f6d5; color: #22543d; border: 2px solid #48bb78; }
+    .error { background: #fed7d7; color: #742a2a; border: 2px solid #fc8181; }
+    
+    #signature-pad { 
+      border: 2px solid #e2e8f0; 
+      border-radius: 8px; 
+      cursor: crosshair; 
+      background: #f7fafc; 
+      touch-action: none;
+      display: block;
+      width: 100%;
+    }
+    
+    .signature-label { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      margin-bottom: 8px;
+    }
+    
+    .signature-label button { 
+      width: auto; 
+      padding: 8px 16px; 
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .required { margin-left: 4px; }
+    
+    /* Tablet Portrait */
+    @media (max-width: 768px) {
+      body { padding: 10px; }
+      .container { padding: 24px; }
+      h1 { font-size: 24px; }
+      .row { flex-direction: column; gap: 0; }
+    }
+    
+    /* Tablet Landscape & Small Desktop */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .container { max-width: 800px; }
+    }
+    
+    /* Mobile */
+    @media (max-width: 480px) {
+      .container { padding: 20px; }
+      h1 { font-size: 20px; }
+      input, select { padding: 12px 14px; font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo" id="logo-container">
+      <img id="company-logo" src="" alt="Logo">
+    </div>
+    <h1 id="header-title">Registrazione</h1>
+    <form id="visitor-form">
+      <div class="row" id="name-row">
+        <div class="form-group" id="first-name-group">
+          <label for="first_name">Nome<span class="required">*</span></label>
+          <input type="text" id="first_name" name="first_name" required autocomplete="given-name">
+        </div>
+        <div class="form-group" id="last-name-group">
+          <label for="last_name">Cognome<span class="required">*</span></label>
+          <input type="text" id="last_name" name="last_name" required autocomplete="family-name">
+        </div>
+      </div>
+
+      <div class="row" id="datetime-row">
+        <div class="form-group" id="visit-date-group">
+          <label for="visit_date">Data Visita<span class="required">*</span></label>
+          <input type="date" id="visit_date" name="visit_date" required>
+        </div>
+        <div class="form-group" id="entry-time-group">
+          <label for="entry_time">Ora Ingresso<span class="required">*</span></label>
+          <input type="time" id="entry_time" name="entry_time" required>
+        </div>
+      </div>
+
+      <div class="form-group" id="exit-time-group">
+        <label for="exit_time">Ora Uscita Prevista</label>
+        <input type="time" id="exit_time" name="exit_time">
+      </div>
+
+      <div class="form-group" id="person-to-visit-group">
+        <label for="person_to_visit">Persona da Visitare</label>
+        <input type="text" id="person_to_visit" name="person_to_visit" autocomplete="off">
+      </div>
+
+      <div class="form-group" id="visit-reason-group">
+        <label for="visit_reason">Motivo della Visita<span class="required">*</span></label>
+        <select id="visit_reason" name="visit_reason" required>
+          <option value="">Seleziona...</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="badge-number-group">
+        <label for="badge_number">Numero Badge</label>
+        <input type="text" id="badge_number" name="badge_number" autocomplete="off">
+      </div>
+
+      <div class="form-group" id="department-group">
+        <label for="department">Reparto/Ufficio</label>
+        <input type="text" id="department" name="department" autocomplete="off">
+      </div>
+
+      <div class="form-group" id="vehicle-plate-group">
+        <label for="vehicle_plate">Targa Veicolo</label>
+        <input type="text" id="vehicle_plate" name="vehicle_plate" autocomplete="off">
+      </div>
+
+      <div class="form-group" id="signature-group">
+        <div class="signature-label">
+          <label for="signature-pad">Firma del Visitatore<span class="required">*</span></label>
+          <button type="button" id="clear-sig">Pulisci</button>
+        </div>
+        <canvas id="signature-pad" width="670" height="180"></canvas>
+      </div>
+
+      <div class="form-group" id="consent-group">
+        <div class="checkbox-group">
+          <input type="checkbox" id="data_consent" name="data_consent" required>
+          <label for="data_consent" id="consent-label">Acconsento al trattamento dei dati personali</label>
+        </div>
+      </div>
+
+      <button type="submit" id="submit-btn">Registra</button>
+    </form>
+    <div id="message" class="message"></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    // Apply configuration
+    (function() {
+      // Apply colors
+      const root = document.documentElement;
+      const styles = `
+        body { background: linear-gradient(135deg, ${CONFIG.colors.primary} 0%, ${CONFIG.colors.secondary} 100%); }
+        button { background: linear-gradient(135deg, ${CONFIG.colors.primary} 0%, ${CONFIG.colors.secondary} 100%); box-shadow: 0 4px 12px ${CONFIG.colors.primary}40; }
+        button:hover { box-shadow: 0 6px 20px ${CONFIG.colors.primary}60; }
+        h1 { color: ${CONFIG.colors.text}; }
+        button:disabled { background: #cbd5e0; }
+      `;
+      document.getElementById('dynamic-styles').textContent = styles;
+
+      // Apply title
+      document.getElementById('page-title').textContent = CONFIG.appTitle;
+      document.getElementById('header-title').textContent = CONFIG.headerTitle;
+
+      // Apply logo
+      const logoImg = document.getElementById('company-logo');
+      const logoContainer = document.getElementById('logo-container');
+      if (CONFIG.logoPath && CONFIG.logoPath !== '') {
+        logoImg.src = CONFIG.logoPath;
+      } else {
+        logoContainer.style.display = 'none';
+      }
+
+      // Apply field visibility and labels
+      for (const [key, field] of Object.entries(CONFIG.fields)) {
+        const group = document.getElementById(key.replace(/([A-Z])/g, '-$1').toLowerCase() + '-group');
+        if (group) {
+          group.style.display = field.enabled ? 'block' : 'none';
+          if (field.label) {
+            const label = group.querySelector('label');
+            if (label) {
+              label.textContent = field.label;
+              if (field.required) {
+                label.innerHTML = field.label + '<span class="required">*</span>';
+              }
+            }
+          }
+        }
+      }
+
+      // Apply visit reasons (alphabetical order)
+      const select = document.getElementById('visit_reason');
+      select.innerHTML = '';
+      CONFIG.visitReasons.forEach(reason => {
+        const option = document.createElement('option');
+        option.value = reason.value;
+        option.textContent = reason.label;
+        select.appendChild(option);
+      });
+
+      // Apply consent label
+      document.getElementById('consent-label').textContent = CONFIG.fields.dataConsent.label;
+    })();
+
+    // Supabase config
+    const SUPABASE_URL = CONFIG.supabase.url;
+    const SUPABASE_ANON_KEY = CONFIG.supabase.anonKey;
+
+    // Signature pad
+    const canvas = document.getElementById('signature-pad');
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+    let lastX = 0, lastY = 0;
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * 2;
+      canvas.height = rect.height * 2;
+      ctx.scale(2, 2);
+      ctx.fillStyle = '#f7fafc';
+      ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
+      ctx.strokeStyle = '#2d3748';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function getPosition(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / 2 / rect.width;
+      const scaleY = canvas.height / 2 / rect.height;
+      
+      if (e.touches) {
+        return {
+          x: (e.touches[0].clientX - rect.left) * scaleX,
+          y: (e.touches[0].clientY - rect.top) * scaleY
+        };
+      }
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      drawing = true;
+      const pos = getPosition(e);
+      [lastX, lastY] = [pos.x, pos.y];
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!drawing) return;
+      const pos = getPosition(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      [lastX, lastY] = [pos.x, pos.y];
+    });
+
+    canvas.addEventListener('mouseup', () => drawing = false);
+    canvas.addEventListener('mouseleave', () => drawing = false);
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      drawing = true;
+      const pos = getPosition(e);
+      [lastX, lastY] = [pos.x, pos.y];
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!drawing) return;
+      const pos = getPosition(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      [lastX, lastY] = [pos.x, pos.y];
+    });
+
+    canvas.addEventListener('touchend', () => drawing = false);
+
+    document.getElementById('clear-sig').addEventListener('click', () => {
+      ctx.fillStyle = '#f7fafc';
+      ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
+      ctx.strokeStyle = '#2d3748';
+    });
+
+    // Form submission
+    document.getElementById('visitor-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (!document.getElementById('data_consent').checked) {
+        alert('Devi acconsentire al trattamento dei dati personali');
+        return;
+      }
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Salvataggio in corso...';
+
+      const formData = {
+        first_name: document.getElementById('first_name').value,
+        last_name: document.getElementById('last_name').value,
+        visit_date: document.getElementById('visit_date').value,
+        entry_time: document.getElementById('entry_time').value,
+        exit_time: document.getElementById('exit_time').value || null,
+        person_to_visit: document.getElementById('person_to_visit').value || null,
+        visit_reason: document.getElementById('visit_reason').value,
+        badge_number: document.getElementById('badge_number').value || null,
+        department: document.getElementById('department').value || null,
+        vehicle_plate: document.getElementById('vehicle_plate').value || null,
+        data_consent: document.getElementById('data_consent').checked,
+        signature: canvas.toDataURL('image/png'),
+        ip_address: null,
+        user_agent: navigator.userAgent
+      };
+
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/visitor_registrations`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const msg = document.getElementById('message');
+        if (response.ok) {
+          msg.className = 'message success';
+          msg.textContent = 'Registrazione completata con successo!';
+          msg.style.display = 'block';
+          document.getElementById('visitor-form').reset();
+          ctx.fillStyle = '#f7fafc';
+          ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
+          setTimeout(() => { msg.style.display = 'none'; }, 3000);
+        } else {
+          const error = await response.json();
+          throw new Error(error.message || 'Errore durante il salvataggio');
+        }
+      } catch (error) {
+        const msg = document.getElementById('message');
+        msg.className = 'message error';
+        msg.textContent = 'Errore: ' + error.message;
+        msg.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Registra';
+      }
+    });
+
+    // Set default date and time
+    document.getElementById('visit_date').valueAsDate = new Date();
+    document.getElementById('entry_time').value = new Date().toTimeString().slice(0,5);
+  </script>
+</body>
+</html>

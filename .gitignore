@@ -1,0 +1,23 @@
+# Node modules (if you add build tools later)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Env files (if you add server-side later)
+.env
+.env.local
+
+# Supabase local (if you use Supabase CLI)
+.supabase/
