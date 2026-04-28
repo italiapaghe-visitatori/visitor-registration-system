@@ -56,7 +56,7 @@ const CONFIG = {
   // ===== SUPABASE =====
   supabase: {
     url: 'https://sebhatzxsxuafsmbdtsx.supabase.co',
-    anonKey: 'YOUR_SUPABASE_ANON_KEY'  // <-- sostituire con la anon key da Supabase → Settings → API Keys → Legacy → anon
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlYmhhdHp4c3h1YWZzbWJkdHN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNjM0ODYsImV4cCI6MjA5MjkzOTQ4Nn0.5nvuSf8sxRcVPTEbgQe8mRERvEuGXCYs4fPogzhjYTI'
   },
   
   // ===== CONTESTO (auto-genera placeholder) =====
