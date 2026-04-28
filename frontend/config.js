@@ -53,10 +53,10 @@ const CONFIG = {
     { value: 'Altro', label: 'Altro' }
   ],
   
-  // ===== SUPABASE (Da compilare) =====
+  // ===== SUPABASE =====
   supabase: {
-    url: 'YOUR_SUPABASE_URL',
-    anonKey: 'YOUR_SUPABASE_ANON_KEY'
+    url: 'https://sebhatzxsxuafsmbdtsx.supabase.co',
+    anonKey: 'YOUR_SUPABASE_ANON_KEY'  // <-- sostituire con la anon key da Supabase → Settings → API Keys → Legacy → anon
   },
   
   // ===== CONTESTO (auto-genera placeholder) =====

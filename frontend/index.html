@@ -42,31 +42,90 @@
     /* ── HEADER ── */
     .card-header {
       background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-      padding: 26px 32px;
+      padding: 36px 32px 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 0;
+      position: relative;
+    }
+
+    /* Decorazione geometrica sfondo */
+    .card-header::before {
+      content: '';
+      position: absolute;
+      top: -30px; right: -30px;
+      width: 140px; height: 140px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.07);
+      pointer-events: none;
+    }
+
+    .card-header::after {
+      content: '';
+      position: absolute;
+      bottom: -20px; left: -20px;
+      width: 100px; height: 100px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+      pointer-events: none;
+    }
+
+    .logo-ring {
+      width: 90px;
+      height: 90px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 50%;
       display: flex;
       align-items: center;
-      gap: 18px;
+      justify-content: center;
+      margin-bottom: 16px;
+      backdrop-filter: blur(4px);
+      border: 2px solid rgba(255,255,255,0.25);
+    }
+
+    .logo-ring.has-logo {
+      background: #fff;
+      padding: 10px;
+      border-color: rgba(255,255,255,0.5);
     }
 
     #company-logo {
-      height: 52px;
-      width: auto;
+      width: 68px;
+      height: 68px;
       object-fit: contain;
-      flex-shrink: 0;
+    }
+
+    .logo-icon {
+      font-size: 36px;
+      line-height: 1;
+      color: #fff;
+      user-select: none;
     }
 
     .header-text h1 {
       color: #fff;
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-      line-height: 1.2;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.15;
+      margin-bottom: 8px;
     }
 
     .header-text p {
-      color: rgba(255,255,255,0.75);
-      font-size: 13px;
-      margin-top: 5px;
+      color: rgba(255,255,255,0.72);
+      font-size: 14px;
+      line-height: 1.4;
+      max-width: 340px;
+    }
+
+    .header-divider {
+      width: 40px;
+      height: 3px;
+      background: rgba(255,255,255,0.35);
+      border-radius: 2px;
+      margin: 14px auto 0;
     }
 
     /* ── BODY ── */
@@ -299,16 +358,204 @@
     @media (min-width: 769px) {
       body { padding: 36px 20px 52px; }
     }
+
+    /* ── SCREENSAVER ── */
+    #screensaver {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    #screensaver.active { display: flex; }
+
+    /* Cerchi decorativi */
+    .ss-circle {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+      animation: ssPulse 4s ease-in-out infinite;
+    }
+    .ss-circle:nth-child(1) { width:500px; height:500px; top:-100px; right:-100px; animation-delay:0s; }
+    .ss-circle:nth-child(2) { width:350px; height:350px; bottom:-80px; left:-80px; animation-delay:1.5s; }
+    .ss-circle:nth-child(3) { width:200px; height:200px; bottom:100px; right:60px; animation-delay:3s; }
+
+    @keyframes ssPulse {
+      0%,100% { transform: scale(1); opacity:.6; }
+      50%      { transform: scale(1.08); opacity:1; }
+    }
+
+    /* Logo fluttuante */
+    .ss-logo-wrap {
+      position: relative;
+      z-index: 1;
+      animation: ssFloat 3.5s ease-in-out infinite;
+      margin-bottom: 36px;
+    }
+
+    @keyframes ssFloat {
+      0%,100% { transform: translateY(0px); }
+      50%      { transform: translateY(-18px); }
+    }
+
+    .ss-logo-ring {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      border: 3px solid rgba(255,255,255,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25), 0 0 0 20px rgba(255,255,255,0.04);
+    }
+
+    .ss-logo-ring.has-logo { background: #fff; border-color: rgba(255,255,255,0.6); }
+
+    #ss-logo-img {
+      width: 110px;
+      height: 110px;
+      object-fit: contain;
+    }
+
+    .ss-logo-icon { font-size: 64px; }
+
+    /* Testo centrale */
+    .ss-center {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+    }
+
+    .ss-company {
+      color: #fff;
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      margin-bottom: 10px;
+    }
+
+    .ss-subtitle {
+      color: rgba(255,255,255,0.75);
+      font-size: 17px;
+      font-weight: 400;
+      margin-bottom: 40px;
+    }
+
+    /* Clock */
+    .ss-clock {
+      color: #fff;
+      font-size: 64px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1;
+      text-shadow: 0 4px 24px rgba(0,0,0,0.2);
+      margin-bottom: 8px;
+      animation: ssFadeSlide 0.6s ease;
+    }
+
+    .ss-date {
+      color: rgba(255,255,255,0.8);
+      font-size: 18px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      margin-bottom: 48px;
+    }
+
+    /* Pulsante tap */
+    .ss-tap {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      animation: ssBlink 2s ease-in-out infinite;
+    }
+
+    @keyframes ssBlink {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.5; }
+    }
+
+    .ss-tap-ring {
+      width: 60px;
+      height: 60px;
+      border: 2px solid rgba(255,255,255,0.6);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: ssRipple 2s ease-out infinite;
+    }
+
+    @keyframes ssRipple {
+      0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+      70%  { box-shadow: 0 0 0 20px rgba(255,255,255,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+    }
+
+    .ss-tap-icon { font-size: 28px; }
+
+    .ss-tap-text {
+      color: rgba(255,255,255,0.85);
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+
+    @keyframes ssFadeSlide {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
+
+  <!-- SCREENSAVER -->
+  <div id="screensaver" onclick="dismissScreensaver()" ontouchstart="dismissScreensaver()">
+    <div class="ss-circle"></div>
+    <div class="ss-circle"></div>
+    <div class="ss-circle"></div>
+
+    <div class="ss-logo-wrap">
+      <div class="ss-logo-ring" id="ss-logo-ring">
+        <span class="ss-logo-icon" id="ss-logo-icon">🏢</span>
+        <img id="ss-logo-img" src="" alt="Logo" style="display:none;">
+      </div>
+    </div>
+
+    <div class="ss-center">
+      <div class="ss-clock" id="ss-clock">00:00</div>
+      <div class="ss-date"  id="ss-date">Lunedì 1 Gennaio</div>
+      <div class="ss-company" id="ss-company">Registrazione Visitatori</div>
+      <div class="ss-subtitle">Sistema di accesso</div>
+    </div>
+
+    <div class="ss-tap">
+      <div class="ss-tap-ring"><span class="ss-tap-icon">👆</span></div>
+      <span class="ss-tap-text">Tocca lo schermo per iniziare</span>
+    </div>
+  </div>
   <div class="card">
     <div class="card-header">
-      <img id="company-logo" src="" alt="Logo" style="display:none;">
+      <div class="logo-ring" id="logo-ring">
+        <span class="logo-icon" id="logo-icon">🏢</span>
+        <img id="company-logo" src="" alt="Logo" style="display:none;">
+      </div>
       <div class="header-text">
         <h1 id="header-title">Registrazione Visitatore</h1>
-        <p>Compila il modulo per registrare la tua visita</p>
+        <p>Benvenuto/a — compila il modulo per registrare la tua visita</p>
       </div>
+      <div class="header-divider"></div>
     </div>
 
     <div class="card-body">
@@ -409,8 +656,15 @@
       s.setProperty('--bg',        CONFIG.colors.background);
       s.setProperty('--text',      CONFIG.colors.text);
 
-      const logoEl = document.getElementById('company-logo');
-      if (CONFIG.logoPath) { logoEl.src = CONFIG.logoPath; logoEl.style.display = 'block'; }
+      const logoEl   = document.getElementById('company-logo');
+      const logoIcon = document.getElementById('logo-icon');
+      const logoRing = document.getElementById('logo-ring');
+      if (CONFIG.logoPath) {
+        logoEl.src = CONFIG.logoPath;
+        logoEl.style.display = 'block';
+        logoIcon.style.display = 'none';
+        logoRing.classList.add('has-logo');
+      }
 
       // Field visibility / labels (excluding dataConsent, handled below)
       const fieldMap = {
@@ -641,6 +895,65 @@
     });
 
     setDefaults();
+
+    // ── SCREENSAVER ──────────────────────────────────
+    const SS_TIMEOUT = 60; // secondi di inattività prima dello screensaver
+    let ssTimer = null;
+    let ssClockInterval = null;
+    const ss = document.getElementById('screensaver');
+
+    // Inizializza logo screensaver uguale al form
+    (function initSsLogo() {
+      if (CONFIG.logoPath) {
+        const img = document.getElementById('ss-logo-img');
+        img.src = CONFIG.logoPath;
+        img.style.display = 'block';
+        document.getElementById('ss-logo-icon').style.display = 'none';
+        document.getElementById('ss-logo-ring').classList.add('has-logo');
+      }
+      document.getElementById('ss-company').textContent = CONFIG.headerTitle || 'Registrazione Visitatori';
+    })();
+
+    function updateSsClock() {
+      const now = new Date();
+      const hh  = String(now.getHours()).padStart(2, '0');
+      const mm  = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('ss-clock').textContent = `${hh}:${mm}`;
+
+      const giorni = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+      const mesi   = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                      'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+      document.getElementById('ss-date').textContent =
+        `${giorni[now.getDay()]} ${now.getDate()} ${mesi[now.getMonth()]} ${now.getFullYear()}`;
+    }
+
+    function showScreensaver() {
+      ss.classList.add('active');
+      updateSsClock();
+      ssClockInterval = setInterval(updateSsClock, 10000);
+    }
+
+    function dismissScreensaver() {
+      ss.classList.remove('active');
+      clearInterval(ssClockInterval);
+      resetSsTimer();
+      // Riporta l'ora di ingresso all'ora corrente
+      document.getElementById('entry_time').value = new Date().toTimeString().slice(0, 5);
+    }
+
+    function resetSsTimer() {
+      clearTimeout(ssTimer);
+      ssTimer = setTimeout(showScreensaver, SS_TIMEOUT * 1000);
+    }
+
+    // Ripristina il timer ad ogni interazione
+    ['touchstart','touchmove','mousedown','mousemove','keydown','scroll'].forEach(evt => {
+      document.addEventListener(evt, () => {
+        if (!ss.classList.contains('active')) resetSsTimer();
+      }, { passive: true });
+    });
+
+    resetSsTimer(); // Avvia il timer al caricamento
   </script>
 </body>
 </html>
