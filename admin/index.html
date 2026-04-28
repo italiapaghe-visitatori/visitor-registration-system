@@ -650,7 +650,7 @@
           <td>${esc(row.phone) || '—'}</td>
           <td>${sigHtml}</td>
           <td style="text-align:center;">${consentHtml}</td>
-          <td><button type="button" class="btn-delete" onclick="deleteRecord(${row.id}, this)">Elimina</button></td>
+          <td><button type="button" class="btn-delete" data-id="${esc(row.id)}" onclick="deleteRecord(this)">Elimina</button></td>
         `;
         tbody.appendChild(tr);
       });
@@ -745,12 +745,14 @@
     }
 
     // ── DELETE ───────────────────────────────────────
-    async function deleteRecord(id, btn) {
+    async function deleteRecord(btn) {
+      const id = btn.dataset.id;
+      if (!id) { alert('ID record non trovato.'); return; }
       if (!confirm('Eliminare questo record? L\'operazione non è reversibile.')) return;
       btn.disabled = true;
       btn.textContent = '...';
       try {
-        const res = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${id}`, {
+        const res = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(id)}`, {
           method: 'DELETE',
           headers: { 'Prefer': 'return=representation' }
         });
@@ -760,10 +762,10 @@
           throw new Error(body?.message || body?.hint || `Errore ${res.status}`);
         }
         if (!Array.isArray(body) || body.length === 0) {
-          throw new Error('Nessun record eliminato — verifica le autorizzazioni nel database (policy RLS).');
+          throw new Error('Nessun record eliminato — verifica le policy RLS in Supabase.');
         }
         btn.closest('tr').remove();
-        currentData = currentData.filter(r => r.id !== id);
+        currentData = currentData.filter(r => String(r.id) !== String(id));
         updateStats();
       } catch (err) {
         alert('Errore: ' + err.message);
