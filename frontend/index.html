@@ -286,6 +286,26 @@
       text-transform: none;
     }
 
+    .consent-box.invalid {
+      border-color: #e53e3e;
+      background: #fff5f5;
+      box-shadow: 0 0 0 3px rgba(229,62,62,0.12);
+    }
+
+    .field-error {
+      display: block;
+      font-size: 12px;
+      color: #e53e3e;
+      margin-top: 5px;
+      font-weight: 500;
+    }
+
+    input.invalid, select.invalid {
+      border-color: #e53e3e !important;
+      box-shadow: 0 0 0 3px rgba(229,62,62,0.12) !important;
+      background: #fff5f5 !important;
+    }
+
     /* ── SUBMIT ── */
     .btn-submit {
       width: 100%;
@@ -629,8 +649,8 @@
         </div>
 
         <div class="consent-wrap" id="consent-group">
-          <p class="section-label">Consenso privacy</p>
-          <label class="consent-box" for="data_consent">
+          <p class="section-label">Consenso privacy <span class="req">*</span></p>
+          <label class="consent-box" for="data_consent" id="consent-box">
             <input type="checkbox" id="data_consent" name="data_consent">
             <span id="consent-label">Acconsento al trattamento dei dati personali ai sensi del Regolamento UE 2016/679 (GDPR)</span>
           </label>
@@ -828,21 +848,84 @@
       m.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
+    // ── VALIDATION ───────────────────────────────────
+    function setFieldValid(el) {
+      el.classList.remove('invalid');
+    }
+    function setFieldInvalid(el) {
+      el.classList.add('invalid');
+    }
+
+    function validateForm() {
+      let valid = true;
+      const f = CONFIG.fields;
+
+      function check(key, id) {
+        const field = f[key];
+        if (!field || field.enabled === false || !field.required) return;
+        const el = document.getElementById(id);
+        if (!el) return;
+        const empty = !el.value || el.value.trim() === '';
+        if (empty) { setFieldInvalid(el); valid = false; }
+        else        { setFieldValid(el); }
+        // clear invalid on change
+        el.addEventListener('input',  () => setFieldValid(el), { once: true });
+        el.addEventListener('change', () => setFieldValid(el), { once: true });
+      }
+
+      check('firstName',     'first_name');
+      check('lastName',      'last_name');
+      check('visitDate',     'visit_date');
+      check('entryTime',     'entry_time');
+      check('visitReason',   'visit_reason');
+      check('personToVisit', 'person_to_visit');
+      check('badgeNumber',   'badge_number');
+      check('department',    'department');
+      check('vehiclePlate',  'vehicle_plate');
+
+      // Signature
+      const signatureOn = f.signature?.enabled !== false && f.signature?.required !== false;
+      const sigWrapper = document.querySelector('.sig-wrapper');
+      if (signatureOn && !hasDrawn) {
+        if (sigWrapper) sigWrapper.style.borderColor = '#e53e3e';
+        valid = false;
+      } else {
+        if (sigWrapper) sigWrapper.style.borderColor = '';
+      }
+
+      // Consent
+      const consentOn = f.dataConsent?.enabled !== false;
+      const consentBox = document.getElementById('consent-box');
+      const consentEl  = document.getElementById('data_consent');
+      if (consentOn && !consentEl.checked) {
+        if (consentBox) consentBox.classList.add('invalid');
+        valid = false;
+      } else {
+        if (consentBox) consentBox.classList.remove('invalid');
+      }
+
+      return valid;
+    }
+
+    // Reset stili di validazione quando l'utente tocca i campi
+    document.getElementById('data_consent').addEventListener('change', () => {
+      const consentBox = document.getElementById('consent-box');
+      if (consentBox) consentBox.classList.remove('invalid');
+    });
+
     document.getElementById('visitor-form').addEventListener('submit', async e => {
       e.preventDefault();
 
-      const consentEl   = document.getElementById('data_consent');
-      const consentOn   = CONFIG.fields.dataConsent?.enabled !== false;
-      const signatureOn = CONFIG.fields.signature?.enabled   !== false;
+      if (!validateForm()) {
+        showMsg('error', 'Compila tutti i campi obbligatori (evidenziati in rosso) e acconsenti al trattamento dei dati.');
+        // Scroll al primo campo invalido
+        const firstInvalid = document.querySelector('.invalid, .sig-wrapper[style*="e53e3e"]');
+        if (firstInvalid) firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
 
-      if (consentOn && !consentEl.checked) {
-        showMsg('error', 'Devi acconsentire al trattamento dei dati per procedere.');
-        return;
-      }
-      if (signatureOn && !hasDrawn) {
-        showMsg('error', 'La firma è obbligatoria. Firma nell\'apposito spazio prima di inviare.');
-        return;
-      }
+      const consentEl   = document.getElementById('data_consent');
+      const signatureOn = CONFIG.fields.signature?.enabled !== false;
 
       const btn = document.getElementById('submit-btn');
       btn.disabled = true;
@@ -860,12 +943,11 @@
         department:      document.getElementById('department').value.trim() || null,
         vehicle_plate:   document.getElementById('vehicle_plate').value.trim().toUpperCase() || null,
         data_consent:    consentEl.checked,
-        signature:       (signatureOn && hasDrawn) ? canvas.toDataURL('image/jpeg', 0.7) : null,
-        user_agent:      navigator.userAgent
+        signature:       (signatureOn && hasDrawn) ? canvas.toDataURL('image/jpeg', 0.7) : null
       };
 
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/visitor_registrations`, {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/visitors`, {
           method: 'POST',
           headers: {
             'Content-Type':  'application/json',
