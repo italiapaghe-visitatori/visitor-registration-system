@@ -270,19 +270,49 @@
     .consent-box:hover { border-color: var(--primary); }
 
     .consent-box input[type=checkbox] {
-      width: 20px;
-      height: 20px;
-      min-width: 20px;
-      border: 2px solid #cbd5e0;
-      border-radius: 5px;
-      cursor: pointer;
-      accent-color: var(--primary);
-      margin-top: 2px;
-      flex-shrink: 0;
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
     }
 
-    .consent-box input[type=checkbox]:focus { outline: none; box-shadow: none; }
-    .consent-box:has(input:checked) { border-color: var(--primary); background: #eef2ff; }
+    .chk {
+      width: 26px;
+      height: 26px;
+      min-width: 26px;
+      border: 2px solid #cbd5e0;
+      border-radius: 7px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+      flex-shrink: 0;
+      transition: background 0.18s, border-color 0.18s;
+    }
+
+    .chk::after {
+      content: '';
+      display: none;
+      width: 7px;
+      height: 13px;
+      border: 3px solid #fff;
+      border-top: none;
+      border-left: none;
+      transform: rotate(45deg) translateY(-2px);
+    }
+
+    .consent-box input[type=checkbox]:checked + .chk {
+      background: #38a169;
+      border-color: #38a169;
+    }
+
+    .consent-box input[type=checkbox]:checked + .chk::after {
+      display: block;
+    }
+
+    .consent-box:has(input:checked) { border-color: #38a169; background: #f0fff4; }
 
     .consent-box span {
       font-size: 13px;
@@ -442,6 +472,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      -webkit-backdrop-filter: blur(8px);
       backdrop-filter: blur(8px);
       box-shadow: 0 20px 60px rgba(0,0,0,0.25), 0 0 0 20px rgba(255,255,255,0.04);
     }
@@ -666,6 +697,7 @@
           <p class="section-label">Consenso privacy <span class="req">*</span></p>
           <label class="consent-box" for="data_consent" id="consent-box">
             <input type="checkbox" id="data_consent" name="data_consent">
+            <span class="chk"></span>
             <span id="consent-label">Acconsento al trattamento dei dati personali ai sensi del Regolamento UE 2016/679 (GDPR)</span>
           </label>
         </div>
