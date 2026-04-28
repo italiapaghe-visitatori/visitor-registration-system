@@ -3,494 +3,644 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title id="page-title">Registrazione</title>
-  <style id="dynamic-styles"></style>
+  <title id="page-title">Registrazione Visitatore</title>
   <style>
-    * { margin:0; padding:0; box-sizing: border-box; }
-    
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-      min-height: 100vh; 
-      padding: 20px;
+    :root {
+      --primary:   #667eea;
+      --secondary: #764ba2;
+      --bg:        #f7fafc;
+      --text:      #2d3748;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 16px 44px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 720px;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 30px 70px rgba(0,0,0,0.28);
+      overflow: hidden;
+      animation: slideUp 0.4s cubic-bezier(0.22,1,0.36,1);
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── HEADER ── */
+    .card-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      padding: 26px 32px;
       display: flex;
       align-items: center;
-      justify-content: center;
+      gap: 18px;
     }
-    
-    .container { 
-      max-width: 700px; 
-      width: 100%;
-      background: white; 
-      padding: 40px; 
-      border-radius: 16px; 
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      animation: fadeIn 0.5s ease-in;
-    }
-    
-    @keyframes fadeIn {
-      from { opacity:0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .logo { 
-      text-align: center; 
-      margin-bottom: 30px; 
-      padding-bottom: 30px;
-      border-bottom: 2px solid #f0f0f0;
-    }
-    
-    .logo img { 
-      max-height: 100px; 
+
+    #company-logo {
+      height: 52px;
       width: auto;
       object-fit: contain;
+      flex-shrink: 0;
     }
-    
-    .logo:empty { display: none; border: none; margin:0; padding: 0; }
-    
-    h1 { 
-      text-align: center; 
-      margin-bottom: 30px; 
-      font-size: 28px;
+
+    .header-text h1 {
+      color: #fff;
+      font-size: 22px;
       font-weight: 700;
-      letter-spacing: -0.5px;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
     }
-    
-    .form-group { margin-bottom: 24px; }
-    
-    label { 
-      display: block; 
-      margin-bottom: 8px; 
-      font-weight: 600;
-      font-size: 14px;
+
+    .header-text p {
+      color: rgba(255,255,255,0.75);
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    /* ── BODY ── */
+    .card-body { padding: 32px; }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 1px;
+      color: #a0aec0;
+      margin: 0 0 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #edf0f5;
     }
-    
-    input, select { 
-      width: 100%; 
-      padding: 14px 16px; 
-      border: 2px solid #e2e8f0; 
-      border-radius: 8px; 
+
+    .section-label + .section-label,
+    .form-group + .section-label,
+    .row-2 + .section-label,
+    #signature-group + .consent-wrap .section-label {
+      margin-top: 24px;
+    }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-group { margin-bottom: 18px; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 7px;
+    }
+
+    .req { color: #e53e3e; margin-left: 2px; }
+
+    input, select {
+      width: 100%;
+      height: 52px;
+      padding: 0 15px;
+      border: 2px solid #e8ecf4;
+      border-radius: 10px;
       font-size: 16px;
-      transition: all 0.3s ease;
-      background: #f7fafc;
+      color: var(--text);
+      background: #fafbfd;
+      transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+      -webkit-appearance: none;
+      appearance: none;
     }
-    
+
     input:focus, select:focus {
       outline: none;
       border-color: var(--primary);
-      background: white;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(102,126,234,0.12);
     }
-    
-    .row { display: flex; gap: 16px; }
-    .row .form-group { flex: 1; }
-    
-    .checkbox-group { 
-      display: flex; 
-      align-items: flex-start; 
-      gap: 12px; 
-      padding: 16px;
-      background: #f7fafc;
-      border-radius: 8px;
-      border: 2px solid #e2e8f0;
-    }
-    
-    .checkbox-group input { 
-      width: 20px; 
-      height: 20px; 
-      margin-top: 2px;
+
+    select {
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 13px center;
+      background-size: 20px;
+      padding-right: 44px;
       cursor: pointer;
-      flex-shrink: 0;
     }
-    
-    .checkbox-group label { 
-      margin: 0; 
-      font-size: 13px;
-      text-transform: none;
-      letter-spacing: 0;
-      cursor: pointer;
-      line-height: 1.5;
+
+    /* ── SIGNATURE ── */
+    .sig-wrapper {
+      border: 2px solid #e8ecf4;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 6px;
     }
-    
-    button { 
-      width: 100%; 
-      padding: 16px; 
-      color: white; 
-      border: none; 
-      border-radius: 8px; 
-      font-size: 16px; 
+
+    .sig-toolbar {
+      background: #f7f9fc;
+      border-bottom: 1px solid #e8ecf4;
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sig-toolbar span {
+      font-size: 12px;
+      color: #718096;
+      font-style: italic;
+    }
+
+    #clear-sig {
+      background: none;
+      border: 1.5px solid #cbd5e0;
+      color: #718096;
+      padding: 5px 14px;
+      border-radius: 7px;
+      font-size: 12px;
       font-weight: 600;
-      cursor: pointer; 
-      transition: all 0.3s ease;
+      cursor: pointer;
+      transition: all 0.18s;
     }
-    
-    button:hover { transform: translateY(-2px); }
-    button:active { transform: translateY(0); }
-    button:disabled { cursor: not-allowed; transform: none; box-shadow: none; }
-    
-    .message { 
-      padding: 16px; 
-      margin-top: 20px; 
-      border-radius: 8px; 
-      text-align: center; 
-      display: none;
-      font-weight: 500;
-      animation: slideIn 0.3s ease;
+
+    #clear-sig:hover {
+      border-color: #e53e3e;
+      color: #e53e3e;
+      background: #fff5f5;
     }
-    
-    @keyframes slideIn {
-      from { opacity:0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .success { background: #c6f6d5; color: #22543d; border: 2px solid #48bb78; }
-    .error { background: #fed7d7; color: #742a2a; border: 2px solid #fc8181; }
-    
-    #signature-pad { 
-      border: 2px solid #e2e8f0; 
-      border-radius: 8px; 
-      cursor: crosshair; 
-      background: #f7fafc; 
-      touch-action: none;
+
+    #signature-pad {
       display: block;
       width: 100%;
+      height: 160px;
+      cursor: crosshair;
+      touch-action: none;
+      background: #fff;
     }
-    
-    .signature-label { 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center; 
-      margin-bottom: 8px;
+
+    /* ── CONSENT ── */
+    .consent-wrap { margin-bottom: 24px; }
+
+    .consent-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+      background: #f8f9ff;
+      border: 2px solid #e8ecf4;
+      border-radius: 10px;
+      padding: 15px 16px;
+      cursor: pointer;
+      transition: border-color 0.18s;
+      user-select: none;
     }
-    
-    .signature-label button { 
-      width: auto; 
-      padding: 8px 16px; 
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+
+    .consent-box:hover { border-color: var(--primary); }
+
+    .consent-box input[type=checkbox] {
+      width: 20px;
+      height: 20px;
+      min-width: 20px;
+      border: 2px solid #cbd5e0;
+      border-radius: 5px;
+      cursor: pointer;
+      accent-color: var(--primary);
+      margin-top: 2px;
+      flex-shrink: 0;
     }
-    
-    .required { margin-left: 4px; }
-    
-    /* Tablet Portrait */
-    @media (max-width: 768px) {
-      body { padding: 10px; }
-      .container { padding: 24px; }
-      h1 { font-size: 24px; }
-      .row { flex-direction: column; gap: 0; }
+
+    .consent-box span {
+      font-size: 13px;
+      color: #4a5568;
+      line-height: 1.55;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
     }
-    
-    /* Tablet Landscape & Small Desktop */
-    @media (min-width: 769px) and (max-width: 1024px) {
-      .container { max-width: 800px; }
+
+    /* ── SUBMIT ── */
+    .btn-submit {
+      width: 100%;
+      height: 56px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.22s, box-shadow 0.22s;
+      box-shadow: 0 4px 14px rgba(102,126,234,0.4);
+      letter-spacing: 0.2px;
     }
-    
-    /* Mobile */
-    @media (max-width: 480px) {
-      .container { padding: 20px; }
-      h1 { font-size: 20px; }
-      input, select { padding: 12px 14px; font-size: 14px; }
+
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(102,126,234,0.5);
+    }
+
+    .btn-submit:active { transform: translateY(0); }
+
+    .btn-submit:disabled {
+      background: #e2e8f0;
+      color: #a0aec0;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ── MESSAGES ── */
+    .message {
+      display: none;
+      margin-top: 20px;
+      padding: 18px 22px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 500;
+      text-align: center;
+      animation: popIn 0.3s cubic-bezier(0.22,1,0.36,1);
+    }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.97); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .message.success {
+      background: #f0fff4;
+      color: #22543d;
+      border: 2px solid #68d391;
+    }
+
+    .message.error {
+      background: #fff5f5;
+      color: #742a2a;
+      border: 2px solid #fc8181;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 580px) {
+      body { padding: 16px 10px 32px; }
+      .card-header { padding: 20px 22px; }
+      .header-text h1 { font-size: 19px; }
+      .card-body { padding: 22px 20px; }
+      .row-2 { grid-template-columns: 1fr; }
+    }
+
+    @media (min-width: 769px) {
+      body { padding: 36px 20px 52px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="logo" id="logo-container">
-      <img id="company-logo" src="" alt="Logo">
+  <div class="card">
+    <div class="card-header">
+      <img id="company-logo" src="" alt="Logo" style="display:none;">
+      <div class="header-text">
+        <h1 id="header-title">Registrazione Visitatore</h1>
+        <p>Compila il modulo per registrare la tua visita</p>
+      </div>
     </div>
-    <h1 id="header-title">Registrazione</h1>
-    <form id="visitor-form">
-      <div class="row" id="name-row">
-        <div class="form-group" id="first-name-group">
-          <label for="first_name">Nome<span class="required">*</span></label>
-          <input type="text" id="first_name" name="first_name" required autocomplete="given-name">
+
+    <div class="card-body">
+      <form id="visitor-form" novalidate>
+
+        <p class="section-label">Dati visitatore</p>
+
+        <div class="row-2" id="name-row">
+          <div class="form-group" id="first-name-group">
+            <label for="first_name">Nome <span class="req">*</span></label>
+            <input type="text" id="first_name" name="first_name" autocomplete="given-name" placeholder="Mario">
+          </div>
+          <div class="form-group" id="last-name-group">
+            <label for="last_name">Cognome <span class="req">*</span></label>
+            <input type="text" id="last_name" name="last_name" autocomplete="family-name" placeholder="Rossi">
+          </div>
         </div>
-        <div class="form-group" id="last-name-group">
-          <label for="last_name">Cognome<span class="required">*</span></label>
-          <input type="text" id="last_name" name="last_name" required autocomplete="family-name">
+
+        <p class="section-label">Dettagli visita</p>
+
+        <div class="row-2" id="datetime-row">
+          <div class="form-group" id="visit-date-group">
+            <label for="visit_date">Data Visita <span class="req">*</span></label>
+            <input type="date" id="visit_date" name="visit_date">
+          </div>
+          <div class="form-group" id="entry-time-group">
+            <label for="entry_time">Ora Ingresso <span class="req">*</span></label>
+            <input type="time" id="entry_time" name="entry_time">
+          </div>
         </div>
-      </div>
 
-      <div class="row" id="datetime-row">
-        <div class="form-group" id="visit-date-group">
-          <label for="visit_date">Data Visita<span class="required">*</span></label>
-          <input type="date" id="visit_date" name="visit_date" required>
+        <div class="form-group" id="visit-reason-group">
+          <label for="visit_reason">Motivo della Visita <span class="req">*</span></label>
+          <select id="visit_reason" name="visit_reason"></select>
         </div>
-        <div class="form-group" id="entry-time-group">
-          <label for="entry_time">Ora Ingresso<span class="required">*</span></label>
-          <input type="time" id="entry_time" name="entry_time" required>
+
+        <div class="form-group" id="person-to-visit-group">
+          <label for="person_to_visit">Persona da Visitare</label>
+          <input type="text" id="person_to_visit" name="person_to_visit" autocomplete="off" placeholder="Nome del referente aziendale">
         </div>
-      </div>
 
-      <div class="form-group" id="exit-time-group">
-        <label for="exit_time">Ora Uscita Prevista</label>
-        <input type="time" id="exit_time" name="exit_time">
-      </div>
-
-      <div class="form-group" id="person-to-visit-group">
-        <label for="person_to_visit">Persona da Visitare</label>
-        <input type="text" id="person_to_visit" name="person_to_visit" autocomplete="off">
-      </div>
-
-      <div class="form-group" id="visit-reason-group">
-        <label for="visit_reason">Motivo della Visita<span class="required">*</span></label>
-        <select id="visit_reason" name="visit_reason" required>
-          <option value="">Seleziona...</option>
-        </select>
-      </div>
-
-      <div class="form-group" id="badge-number-group">
-        <label for="badge_number">Numero Badge</label>
-        <input type="text" id="badge_number" name="badge_number" autocomplete="off">
-      </div>
-
-      <div class="form-group" id="department-group">
-        <label for="department">Reparto/Ufficio</label>
-        <input type="text" id="department" name="department" autocomplete="off">
-      </div>
-
-      <div class="form-group" id="vehicle-plate-group">
-        <label for="vehicle_plate">Targa Veicolo</label>
-        <input type="text" id="vehicle_plate" name="vehicle_plate" autocomplete="off">
-      </div>
-
-      <div class="form-group" id="signature-group">
-        <div class="signature-label">
-          <label for="signature-pad">Firma del Visitatore<span class="required">*</span></label>
-          <button type="button" id="clear-sig">Pulisci</button>
+        <div class="form-group" id="badge-number-group">
+          <label for="badge_number">Numero Badge</label>
+          <input type="text" id="badge_number" name="badge_number" autocomplete="off" placeholder="Badge assegnato in portineria">
         </div>
-        <canvas id="signature-pad" width="670" height="180"></canvas>
-      </div>
 
-      <div class="form-group" id="consent-group">
-        <div class="checkbox-group">
-          <input type="checkbox" id="data_consent" name="data_consent" required>
-          <label for="data_consent" id="consent-label">Acconsento al trattamento dei dati personali</label>
+        <div class="form-group" id="department-group">
+          <label for="department">Reparto / Ufficio</label>
+          <input type="text" id="department" name="department" autocomplete="off" placeholder="Es. Amministrazione, Direzione">
         </div>
-      </div>
 
-      <button type="submit" id="submit-btn">Registra</button>
-    </form>
-    <div id="message" class="message"></div>
+        <div class="form-group" id="vehicle-plate-group">
+          <label for="vehicle_plate">Targa Veicolo</label>
+          <input type="text" id="vehicle_plate" name="vehicle_plate" autocomplete="off" placeholder="Es. AB 123 CD">
+        </div>
+
+        <div class="form-group" id="exit-time-group">
+          <label for="exit_time">Ora Uscita Prevista</label>
+          <input type="time" id="exit_time" name="exit_time">
+        </div>
+
+        <div id="signature-group">
+          <p class="section-label" id="signature-section-label">Firma</p>
+          <div class="sig-wrapper">
+            <div class="sig-toolbar">
+              <span>Firma nell'area sottostante usando il dito o uno stilo</span>
+              <button type="button" id="clear-sig">Pulisci</button>
+            </div>
+            <canvas id="signature-pad"></canvas>
+          </div>
+        </div>
+
+        <div class="consent-wrap" id="consent-group">
+          <p class="section-label">Consenso privacy</p>
+          <label class="consent-box" for="data_consent">
+            <input type="checkbox" id="data_consent" name="data_consent">
+            <span id="consent-label">Acconsento al trattamento dei dati personali ai sensi del Regolamento UE 2016/679 (GDPR)</span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn-submit" id="submit-btn">Registra Visita</button>
+      </form>
+
+      <div id="message" class="message"></div>
+    </div>
   </div>
 
   <script src="config.js"></script>
   <script>
-    // Apply configuration
+    // ── APPLY CONFIG ──────────────────────────────────
     (function() {
-      // Apply colors
-      const root = document.documentElement;
-      const styles = `
-        body { background: linear-gradient(135deg, ${CONFIG.colors.primary} 0%, ${CONFIG.colors.secondary} 100%); }
-        button { background: linear-gradient(135deg, ${CONFIG.colors.primary} 0%, ${CONFIG.colors.secondary} 100%); box-shadow: 0 4px 12px ${CONFIG.colors.primary}40; }
-        button:hover { box-shadow: 0 6px 20px ${CONFIG.colors.primary}60; }
-        h1 { color: ${CONFIG.colors.text}; }
-        button:disabled { background: #cbd5e0; }
-      `;
-      document.getElementById('dynamic-styles').textContent = styles;
-
-      // Apply title
-      document.getElementById('page-title').textContent = CONFIG.appTitle;
+      document.getElementById('page-title').textContent   = CONFIG.appTitle;
       document.getElementById('header-title').textContent = CONFIG.headerTitle;
 
-      // Apply logo
-      const logoImg = document.getElementById('company-logo');
-      const logoContainer = document.getElementById('logo-container');
-      if (CONFIG.logoPath && CONFIG.logoPath !== '') {
-        logoImg.src = CONFIG.logoPath;
-      } else {
-        logoContainer.style.display = 'none';
-      }
+      const s = document.documentElement.style;
+      s.setProperty('--primary',   CONFIG.colors.primary);
+      s.setProperty('--secondary', CONFIG.colors.secondary);
+      s.setProperty('--bg',        CONFIG.colors.background);
+      s.setProperty('--text',      CONFIG.colors.text);
 
-      // Apply field visibility and labels
-      for (const [key, field] of Object.entries(CONFIG.fields)) {
-        const group = document.getElementById(key.replace(/([A-Z])/g, '-$1').toLowerCase() + '-group');
-        if (group) {
-          group.style.display = field.enabled ? 'block' : 'none';
-          if (field.label) {
-            const label = group.querySelector('label');
-            if (label) {
-              label.textContent = field.label;
-              if (field.required) {
-                label.innerHTML = field.label + '<span class="required">*</span>';
-              }
-            }
+      const logoEl = document.getElementById('company-logo');
+      if (CONFIG.logoPath) { logoEl.src = CONFIG.logoPath; logoEl.style.display = 'block'; }
+
+      // Field visibility / labels (excluding dataConsent, handled below)
+      const fieldMap = {
+        firstName:     'first-name-group',
+        lastName:      'last-name-group',
+        visitDate:     'visit-date-group',
+        entryTime:     'entry-time-group',
+        exitTime:      'exit-time-group',
+        personToVisit: 'person-to-visit-group',
+        visitReason:   'visit-reason-group',
+        badgeNumber:   'badge-number-group',
+        department:    'department-group',
+        vehiclePlate:  'vehicle-plate-group',
+      };
+
+      for (const [key, id] of Object.entries(fieldMap)) {
+        const field = CONFIG.fields[key];
+        const el    = document.getElementById(id);
+        if (!field || !el) continue;
+        if (!field.enabled) { el.style.display = 'none'; continue; }
+        if (field.label) {
+          const lbl = el.querySelector('label');
+          if (lbl) {
+            lbl.innerHTML = field.label + (field.required ? ' <span class="req">*</span>' : '');
           }
         }
       }
 
-      // Apply visit reasons (alphabetical order)
-      const select = document.getElementById('visit_reason');
-      select.innerHTML = '';
-      CONFIG.visitReasons.forEach(reason => {
-        const option = document.createElement('option');
-        option.value = reason.value;
-        option.textContent = reason.label;
-        select.appendChild(option);
-      });
+      // Signature section
+      const sigField = CONFIG.fields.signature;
+      const sigGroup = document.getElementById('signature-group');
+      if (!sigField?.enabled) {
+        sigGroup.style.display = 'none';
+      } else if (sigField.label) {
+        document.getElementById('signature-section-label').textContent = sigField.label;
+      }
 
-      // Apply consent label
-      document.getElementById('consent-label').textContent = CONFIG.fields.dataConsent.label;
+      // Consent section
+      const consentField = CONFIG.fields.dataConsent;
+      const consentGroup = document.getElementById('consent-group');
+      if (!consentField?.enabled) {
+        consentGroup.style.display = 'none';
+      } else if (consentField.label) {
+        document.getElementById('consent-label').textContent = consentField.label;
+      }
+
+      // Visit reasons
+      const sel = document.getElementById('visit_reason');
+      sel.innerHTML = '';
+      CONFIG.visitReasons.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.value;
+        opt.textContent = r.label;
+        sel.appendChild(opt);
+      });
     })();
 
-    // Supabase config
-    const SUPABASE_URL = CONFIG.supabase.url;
-    const SUPABASE_ANON_KEY = CONFIG.supabase.anonKey;
-
-    // Signature pad
+    // ── SIGNATURE PAD ────────────────────────────────
     const canvas = document.getElementById('signature-pad');
-    const ctx = canvas.getContext('2d');
-    let drawing = false;
-    let lastX = 0, lastY = 0;
+    const ctx    = canvas.getContext('2d');
+    let drawing  = false;
+    let hasDrawn = false;
+    let lx = 0, ly = 0;
 
-    function resizeCanvas() {
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * 2;
-      canvas.height = rect.height * 2;
-      ctx.scale(2, 2);
-      ctx.fillStyle = '#f7fafc';
-      ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
-      ctx.strokeStyle = '#2d3748';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-    }
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    function getPosition(e) {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / 2 / rect.width;
-      const scaleY = canvas.height / 2 / rect.height;
-      
-      if (e.touches) {
-        return {
-          x: (e.touches[0].clientX - rect.left) * scaleX,
-          y: (e.touches[0].clientY - rect.top) * scaleY
-        };
-      }
-      return {
-        x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY
-      };
+    function setupCtx() {
+      ctx.strokeStyle = '#1a202c';
+      ctx.lineWidth   = 2.5;
+      ctx.lineCap     = 'round';
+      ctx.lineJoin    = 'round';
     }
 
-    canvas.addEventListener('mousedown', (e) => {
-      drawing = true;
-      const pos = getPosition(e);
-      [lastX, lastY] = [pos.x, pos.y];
+    function fillBg() {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height);
+    }
+
+    function initCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr  = window.devicePixelRatio || 1;
+      canvas.width  = Math.round(rect.width  * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      ctx.scale(dpr, dpr);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      setupCtx();
+    }
+
+    function clearSig() {
+      const rect = canvas.getBoundingClientRect();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      setupCtx();
+      hasDrawn = false;
+    }
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const src  = e.touches ? e.touches[0] : e;
+      return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+    }
+
+    canvas.addEventListener('mousedown', e => {
+      drawing = hasDrawn = true;
+      const p = getPos(e); lx = p.x; ly = p.y;
     });
-
-    canvas.addEventListener('mousemove', (e) => {
+    canvas.addEventListener('mousemove', e => {
       if (!drawing) return;
-      const pos = getPosition(e);
-      ctx.beginPath();
-      ctx.moveTo(lastX, lastY);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
-      [lastX, lastY] = [pos.x, pos.y];
+      const p = getPos(e);
+      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(p.x, p.y); ctx.stroke();
+      lx = p.x; ly = p.y;
     });
-
-    canvas.addEventListener('mouseup', () => drawing = false);
+    canvas.addEventListener('mouseup',    () => drawing = false);
     canvas.addEventListener('mouseleave', () => drawing = false);
 
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      drawing = true;
-      const pos = getPosition(e);
-      [lastX, lastY] = [pos.x, pos.y];
-    });
-
-    canvas.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      if (!drawing) return;
-      const pos = getPosition(e);
-      ctx.beginPath();
-      ctx.moveTo(lastX, lastY);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
-      [lastX, lastY] = [pos.x, pos.y];
-    });
-
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault(); drawing = hasDrawn = true;
+      const p = getPos(e); lx = p.x; ly = p.y;
+    }, { passive: false });
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault(); if (!drawing) return;
+      const p = getPos(e);
+      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(p.x, p.y); ctx.stroke();
+      lx = p.x; ly = p.y;
+    }, { passive: false });
     canvas.addEventListener('touchend', () => drawing = false);
 
-    document.getElementById('clear-sig').addEventListener('click', () => {
-      ctx.fillStyle = '#f7fafc';
-      ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
-      ctx.strokeStyle = '#2d3748';
+    document.getElementById('clear-sig').addEventListener('click', clearSig);
+
+    // Preserve signature across orientation change
+    window.addEventListener('orientationchange', () => {
+      if (!hasDrawn) { setTimeout(initCanvas, 250); return; }
+      const saved = canvas.toDataURL('image/png');
+      setTimeout(() => {
+        initCanvas();
+        const img = new Image();
+        img.onload = () => {
+          const r = canvas.getBoundingClientRect();
+          ctx.drawImage(img, 0, 0, r.width, r.height);
+          setupCtx();
+        };
+        img.src = saved;
+      }, 250);
     });
 
-    // Form submission
-    document.getElementById('visitor-form').addEventListener('submit', async (e) => {
+    requestAnimationFrame(initCanvas);
+
+    // ── FORM ─────────────────────────────────────────
+    const SUPABASE_URL      = CONFIG.supabase.url;
+    const SUPABASE_ANON_KEY = CONFIG.supabase.anonKey;
+
+    function setDefaults() {
+      document.getElementById('visit_date').valueAsDate = new Date();
+      document.getElementById('entry_time').value = new Date().toTimeString().slice(0, 5);
+    }
+
+    function showMsg(type, text) {
+      const m = document.getElementById('message');
+      m.className = 'message ' + type;
+      m.textContent = text;
+      m.style.display = 'block';
+      m.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    document.getElementById('visitor-form').addEventListener('submit', async e => {
       e.preventDefault();
 
-      if (!document.getElementById('data_consent').checked) {
-        alert('Devi acconsentire al trattamento dei dati personali');
+      const consentEl   = document.getElementById('data_consent');
+      const consentOn   = CONFIG.fields.dataConsent?.enabled !== false;
+      const signatureOn = CONFIG.fields.signature?.enabled   !== false;
+
+      if (consentOn && !consentEl.checked) {
+        showMsg('error', 'Devi acconsentire al trattamento dei dati per procedere.');
+        return;
+      }
+      if (signatureOn && !hasDrawn) {
+        showMsg('error', 'La firma è obbligatoria. Firma nell\'apposito spazio prima di inviare.');
         return;
       }
 
       const btn = document.getElementById('submit-btn');
       btn.disabled = true;
-      btn.textContent = 'Salvataggio in corso...';
+      btn.textContent = 'Salvataggio...';
 
-      const formData = {
-        first_name: document.getElementById('first_name').value,
-        last_name: document.getElementById('last_name').value,
-        visit_date: document.getElementById('visit_date').value,
-        entry_time: document.getElementById('entry_time').value,
-        exit_time: document.getElementById('exit_time').value || null,
-        person_to_visit: document.getElementById('person_to_visit').value || null,
-        visit_reason: document.getElementById('visit_reason').value,
-        badge_number: document.getElementById('badge_number').value || null,
-        department: document.getElementById('department').value || null,
-        vehicle_plate: document.getElementById('vehicle_plate').value || null,
-        data_consent: document.getElementById('data_consent').checked,
-        signature: canvas.toDataURL('image/png'),
-        ip_address: null,
-        user_agent: navigator.userAgent
+      const payload = {
+        first_name:      document.getElementById('first_name').value.trim(),
+        last_name:       document.getElementById('last_name').value.trim(),
+        visit_date:      document.getElementById('visit_date').value,
+        entry_time:      document.getElementById('entry_time').value,
+        exit_time:       document.getElementById('exit_time').value || null,
+        person_to_visit: document.getElementById('person_to_visit').value.trim() || null,
+        visit_reason:    document.getElementById('visit_reason').value,
+        badge_number:    document.getElementById('badge_number').value.trim() || null,
+        department:      document.getElementById('department').value.trim() || null,
+        vehicle_plate:   document.getElementById('vehicle_plate').value.trim().toUpperCase() || null,
+        data_consent:    consentEl.checked,
+        signature:       (signatureOn && hasDrawn) ? canvas.toDataURL('image/jpeg', 0.7) : null,
+        user_agent:      navigator.userAgent
       };
 
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/visitor_registrations`, {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/visitor_registrations`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type':  'application/json',
+            'apikey':        SUPABASE_ANON_KEY,
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Prefer': 'return=minimal'
+            'Prefer':        'return=minimal'
           },
-          body: JSON.stringify(formData)
+          body: JSON.stringify(payload)
         });
 
-        const msg = document.getElementById('message');
-        if (response.ok) {
-          msg.className = 'message success';
-          msg.textContent = 'Registrazione completata con successo!';
-          msg.style.display = 'block';
+        if (res.ok) {
+          showMsg('success', '✓ Registrazione completata con successo! Benvenuto/a.');
           document.getElementById('visitor-form').reset();
-          ctx.fillStyle = '#f7fafc';
-          ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
-          setTimeout(() => { msg.style.display = 'none'; }, 3000);
+          clearSig();
+          setDefaults();
+          setTimeout(() => { document.getElementById('message').style.display = 'none'; }, 4500);
         } else {
-          const error = await response.json();
-          throw new Error(error.message || 'Errore durante il salvataggio');
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || `Errore del server (${res.status})`);
         }
-      } catch (error) {
-        const msg = document.getElementById('message');
-        msg.className = 'message error';
-        msg.textContent = 'Errore: ' + error.message;
-        msg.style.display = 'block';
+      } catch (err) {
+        showMsg('error', 'Errore: ' + err.message);
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Registra';
+        btn.textContent = 'Registra Visita';
       }
     });
 
-    // Set default date and time
-    document.getElementById('visit_date').valueAsDate = new Date();
-    document.getElementById('entry_time').value = new Date().toTimeString().slice(0,5);
+    setDefaults();
   </script>
 </body>
 </html>
