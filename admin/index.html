@@ -692,23 +692,39 @@
 
     // ── EXPORT CSV ───────────────────────────────────
     function exportCSV() {
-      const headers = ['Nome','Cognome','Data','Ingresso','Uscita',
-                       'Persona da Visitare','Motivo','Badge','Telefono','Consenso'];
+      function fmtDate(d) {
+        if (!d) return '';
+        const [y, m, g] = d.split('-');
+        return `${g}/${m}/${y}`;
+      }
+      function fmtTime(t) {
+        if (!t) return '';
+        return t.slice(0, 5); // HH:MM
+      }
+      function val(v) { return v ?? ''; }
+
+      const headers = ['Nome','Cognome','Data visita','Ora ingresso','Ora uscita',
+                       'Persona da visitare','Motivo visita','N° badge','Telefono','Consenso privacy'];
       const rows = currentData.map(r => [
-        r.first_name, r.last_name, r.visit_date, r.entry_time,
-        r.exit_time, r.person_to_visit, r.visit_reason,
-        r.badge_number, r.phone,
+        val(r.first_name),
+        val(r.last_name),
+        fmtDate(r.visit_date),
+        fmtTime(r.entry_time),
+        fmtTime(r.exit_time),
+        val(r.person_to_visit),
+        val(r.visit_reason),
+        val(r.badge_number),
+        val(r.phone),
         r.data_consent ? 'Sì' : 'No'
       ]);
       const csv = [headers, ...rows]
-        .map(row => row.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
+        .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
         .join('\r\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
       const url  = URL.createObjectURL(blob);
-      const a    = Object.assign(document.createElement('a'), {
-        href: url,
-        download: `visitatori_${new Date().toISOString().slice(0,10)}.csv`
-      });
+      const today = new Date();
+      const fname = `visitatori_${String(today.getDate()).padStart(2,'0')}-${String(today.getMonth()+1).padStart(2,'0')}-${today.getFullYear()}.csv`;
+      const a    = Object.assign(document.createElement('a'), { href: url, download: fname });
       a.click();
       URL.revokeObjectURL(url);
     }
