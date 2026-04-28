@@ -752,14 +752,21 @@
       try {
         const res = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${id}`, {
           method: 'DELETE',
-          headers: { 'Prefer': 'return=minimal' }
+          headers: { 'Prefer': 'return=representation' }
         });
-        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        if (!res) return;
+        const body = await res.json().catch(() => []);
+        if (!res.ok) {
+          throw new Error(body?.message || body?.hint || `Errore ${res.status}`);
+        }
+        if (!Array.isArray(body) || body.length === 0) {
+          throw new Error('Nessun record eliminato — verifica le autorizzazioni nel database (policy RLS).');
+        }
         btn.closest('tr').remove();
         currentData = currentData.filter(r => r.id !== id);
         updateStats();
       } catch (err) {
-        alert('Errore durante la cancellazione: ' + err.message);
+        alert('Errore: ' + err.message);
         btn.disabled = false;
         btn.textContent = 'Elimina';
       }
