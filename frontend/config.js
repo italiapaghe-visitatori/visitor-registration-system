@@ -30,7 +30,7 @@ const CONFIG = {
     phone: { enabled: true, label: 'Numero di Telefono', required: false },
     department: { enabled: false, label: 'Reparto/Ufficio', required: false },
     vehiclePlate: { enabled: false, label: 'Targa Veicolo', required: false },
-    signature: { enabled: true, label: 'Firma del Visitatore', required: false },
+    signature: { enabled: true, label: 'Firma del Visitatore', required: true },
     dataConsent: { enabled: true, label: 'Acconsento al trattamento dei dati personali ai sensi del Regolamento UE 2016/679 (GDPR)', required: true }
   },
   
