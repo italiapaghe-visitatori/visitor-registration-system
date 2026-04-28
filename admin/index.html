@@ -372,12 +372,8 @@
           <input type="text" id="f-lastname" placeholder="Cerca...">
         </div>
         <div class="filter-group">
-          <label>Reparto</label>
-          <input type="text" id="f-dept" placeholder="Cerca...">
-        </div>
-        <div class="filter-group">
-          <label>Targa</label>
-          <input type="text" id="f-plate" placeholder="Cerca...">
+          <label>Telefono</label>
+          <input type="text" id="f-phone" placeholder="Cerca...">
         </div>
         <div class="filter-group">
           <label>Motivo</label>
@@ -414,7 +410,6 @@
         <table>
           <thead>
             <tr>
-              <th onclick="sortBy('id')">ID</th>
               <th onclick="sortBy('first_name')">Nome</th>
               <th onclick="sortBy('last_name')">Cognome</th>
               <th onclick="sortBy('visit_date')">Data</th>
@@ -423,8 +418,7 @@
               <th>Persona da Visitare</th>
               <th>Motivo</th>
               <th>Badge</th>
-              <th>Reparto</th>
-              <th>Targa</th>
+              <th>Telefono</th>
               <th>Firma</th>
               <th>Consenso</th>
             </tr>
@@ -532,16 +526,14 @@
       const reason = document.getElementById('f-reason').value;
       const ds     = document.getElementById('f-date-start').value;
       const de     = document.getElementById('f-date-end').value;
-      const dept   = document.getElementById('f-dept').value.trim();
-      const plate  = document.getElementById('f-plate').value.trim();
+      const phone  = document.getElementById('f-phone').value.trim();
 
       if (name)   url += `&first_name=ilike.*${encodeURIComponent(name)}*`;
       if (last)   url += `&last_name=ilike.*${encodeURIComponent(last)}*`;
       if (reason) url += `&visit_reason=eq.${encodeURIComponent(reason)}`;
       if (ds)     url += `&visit_date=gte.${ds}`;
       if (de)     url += `&visit_date=lte.${de}`;
-      if (dept)   url += `&department=ilike.*${encodeURIComponent(dept)}*`;
-      if (plate)  url += `&vehicle_plate=ilike.*${encodeURIComponent(plate)}*`;
+      if (phone)  url += `&phone=ilike.*${encodeURIComponent(phone)}*`;
 
       url += `&limit=${PAGE_SIZE}&offset=${currentPage * PAGE_SIZE}`;
       return url;
@@ -567,7 +559,7 @@
     function applyFilters() { currentPage = 0; loadData(); }
 
     function resetFilters() {
-      ['f-date-start','f-date-end','f-name','f-lastname','f-dept','f-plate'].forEach(id => {
+      ['f-date-start','f-date-end','f-name','f-lastname','f-phone'].forEach(id => {
         document.getElementById(id).value = '';
       });
       document.getElementById('f-reason').value = '';
@@ -633,7 +625,6 @@
           : '<span class="consent-no">✗ No</span>';
 
         tr.innerHTML = `
-          <td>${esc(row.id)}</td>
           <td><strong>${esc(row.first_name)}</strong></td>
           <td><strong>${esc(row.last_name)}</strong></td>
           <td>${esc(row.visit_date)}</td>
@@ -642,8 +633,7 @@
           <td>${esc(row.person_to_visit) || '—'}</td>
           <td><span class="badge ${badgeClass(row.visit_reason)}">${esc(row.visit_reason)}</span></td>
           <td>${esc(row.badge_number) || '—'}</td>
-          <td>${esc(row.department) || '—'}</td>
-          <td>${esc(row.vehicle_plate) || '—'}</td>
+          <td>${esc(row.phone) || '—'}</td>
           <td>${sigHtml}</td>
           <td style="text-align:center;">${consentHtml}</td>
         `;
@@ -702,12 +692,12 @@
 
     // ── EXPORT CSV ───────────────────────────────────
     function exportCSV() {
-      const headers = ['ID','Nome','Cognome','Data','Ingresso','Uscita',
-                       'Persona da Visitare','Motivo','Badge','Reparto','Targa','Consenso'];
+      const headers = ['Nome','Cognome','Data','Ingresso','Uscita',
+                       'Persona da Visitare','Motivo','Badge','Telefono','Consenso'];
       const rows = currentData.map(r => [
-        r.id, r.first_name, r.last_name, r.visit_date, r.entry_time,
+        r.first_name, r.last_name, r.visit_date, r.entry_time,
         r.exit_time, r.person_to_visit, r.visit_reason,
-        r.badge_number, r.department, r.vehicle_plate,
+        r.badge_number, r.phone,
         r.data_consent ? 'Sì' : 'No'
       ]);
       const csv = [headers, ...rows]

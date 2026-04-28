@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Visitatori">
+  <link rel="manifest" href="manifest.json">
   <title id="page-title">Registrazione Visitatore</title>
   <style>
     :root {
@@ -277,6 +281,9 @@
       flex-shrink: 0;
     }
 
+    .consent-box input[type=checkbox]:focus { outline: none; box-shadow: none; }
+    .consent-box:has(input:checked) { border-color: var(--primary); background: #eef2ff; }
+
     .consent-box span {
       font-size: 13px;
       color: #4a5568;
@@ -384,6 +391,8 @@
       display: none;
       position: fixed;
       inset: 0;
+      width: 100vw;
+      height: 100dvh;
       z-index: 9999;
       background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       flex-direction: column;
@@ -622,6 +631,11 @@
           <input type="text" id="badge_number" name="badge_number" autocomplete="off" placeholder="Badge assegnato in portineria">
         </div>
 
+        <div class="form-group" id="phone-group">
+          <label for="phone">Numero di Telefono</label>
+          <input type="tel" id="phone" name="phone" autocomplete="tel" placeholder="Es. +39 333 1234567">
+        </div>
+
         <div class="form-group" id="department-group">
           <label for="department">Reparto / Ufficio</label>
           <input type="text" id="department" name="department" autocomplete="off" placeholder="Es. Amministrazione, Direzione">
@@ -696,6 +710,7 @@
         personToVisit: 'person-to-visit-group',
         visitReason:   'visit-reason-group',
         badgeNumber:   'badge-number-group',
+        phone:         'phone-group',
         department:    'department-group',
         vehiclePlate:  'vehicle-plate-group',
       };
@@ -880,6 +895,7 @@
       check('visitReason',   'visit_reason');
       check('personToVisit', 'person_to_visit');
       check('badgeNumber',   'badge_number');
+      check('phone',         'phone');
       check('department',    'department');
       check('vehiclePlate',  'vehicle_plate');
 
@@ -940,6 +956,7 @@
         person_to_visit: document.getElementById('person_to_visit').value.trim() || null,
         visit_reason:    document.getElementById('visit_reason').value,
         badge_number:    document.getElementById('badge_number').value.trim() || null,
+        phone:           document.getElementById('phone').value.trim() || null,
         department:      document.getElementById('department').value.trim() || null,
         vehicle_plate:   document.getElementById('vehicle_plate').value.trim().toUpperCase() || null,
         data_consent:    consentEl.checked,
@@ -1010,6 +1027,7 @@
     }
 
     function showScreensaver() {
+      document.body.style.overflow = 'hidden';
       ss.classList.add('active');
       updateSsClock();
       ssClockInterval = setInterval(updateSsClock, 10000);
@@ -1017,6 +1035,7 @@
 
     function dismissScreensaver() {
       ss.classList.remove('active');
+      document.body.style.overflow = '';
       clearInterval(ssClockInterval);
       resetSsTimer();
       // Riporta l'ora di ingresso all'ora corrente
