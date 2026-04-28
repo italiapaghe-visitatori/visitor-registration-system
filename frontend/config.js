@@ -27,9 +27,10 @@ const CONFIG = {
     personToVisit: { enabled: true, label: 'Persona da Visitare', required: false },
     visitReason: { enabled: true, label: 'Motivo della Visita', required: true },
     badgeNumber: { enabled: true, label: 'Numero Badge', required: false },
-    department: { enabled: false, label: 'Reparto/Ufficio', required: false }, // NUOVO CAMPO
-    vehiclePlate: { enabled: false, label: 'Targa Veicolo', required: false }, // NUOVO CAMPO
-    signature: { enabled: true, label: 'Firma del Visitatore', required: true },
+    phone: { enabled: true, label: 'Numero di Telefono', required: false },
+    department: { enabled: false, label: 'Reparto/Ufficio', required: false },
+    vehiclePlate: { enabled: false, label: 'Targa Veicolo', required: false },
+    signature: { enabled: true, label: 'Firma del Visitatore', required: false },
     dataConsent: { enabled: true, label: 'Acconsento al trattamento dei dati personali ai sensi del Regolamento UE 2016/679 (GDPR)', required: true }
   },
   

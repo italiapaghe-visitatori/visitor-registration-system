@@ -803,26 +803,20 @@
       ctx.lineJoin    = 'round';
     }
 
-    function fillBg() {
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height);
-    }
-
     function initCanvas() {
-      const rect = canvas.getBoundingClientRect();
-      const dpr  = window.devicePixelRatio || 1;
-      canvas.width  = Math.round(rect.width  * dpr);
-      canvas.height = Math.round(rect.height * dpr);
-      ctx.scale(dpr, dpr);
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight || 160;
+      if (!w) { setTimeout(initCanvas, 80); return; }
+      canvas.width  = w;
+      canvas.height = h;
       ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, rect.width, rect.height);
+      ctx.fillRect(0, 0, w, h);
       setupCtx();
     }
 
     function clearSig() {
-      const rect = canvas.getBoundingClientRect();
       ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, rect.width, rect.height);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       setupCtx();
       hasDrawn = false;
     }
@@ -830,7 +824,12 @@
     function getPos(e) {
       const rect = canvas.getBoundingClientRect();
       const src  = e.touches ? e.touches[0] : e;
-      return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+      const scaleX = canvas.width  / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (src.clientX - rect.left) * scaleX,
+        y: (src.clientY - rect.top)  * scaleY
+      };
     }
 
     canvas.addEventListener('mousedown', e => {
@@ -988,12 +987,14 @@
         person_to_visit: document.getElementById('person_to_visit').value.trim() || null,
         visit_reason:    document.getElementById('visit_reason').value,
         badge_number:    document.getElementById('badge_number').value.trim() || null,
-        phone:           document.getElementById('phone').value.trim() || null,
         department:      document.getElementById('department').value.trim() || null,
         vehicle_plate:   document.getElementById('vehicle_plate').value.trim().toUpperCase() || null,
         data_consent:    consentEl.checked,
         signature:       (signatureOn && hasDrawn) ? canvas.toDataURL('image/jpeg', 0.7) : null
       };
+
+      const phoneVal = document.getElementById('phone').value.trim();
+      if (phoneVal) payload.phone = phoneVal;
 
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/visitors`, {
