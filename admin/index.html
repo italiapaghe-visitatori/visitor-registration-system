@@ -278,6 +278,19 @@
     .consent-yes { color: #38a169; font-weight: 700; }
     .consent-no  { color: #e53e3e; font-weight: 700; }
 
+    .btn-delete {
+      background: none;
+      border: 1.5px solid #fc8181;
+      color: #e53e3e;
+      border-radius: 7px;
+      padding: 5px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.18s;
+      white-space: nowrap;
+    }
+    .btn-delete:hover { background: #fff5f5; border-color: #e53e3e; }
+
     .sig-cell img {
       max-width: 100px;
       height: auto;
@@ -421,6 +434,7 @@
               <th>Telefono</th>
               <th>Firma</th>
               <th>Consenso</th>
+              <th>Azioni</th>
             </tr>
           </thead>
           <tbody id="table-body"></tbody>
@@ -636,6 +650,7 @@
           <td>${esc(row.phone) || '—'}</td>
           <td>${sigHtml}</td>
           <td style="text-align:center;">${consentHtml}</td>
+          <td><button type="button" class="btn-delete" onclick="deleteRecord(${row.id}, this)">Elimina</button></td>
         `;
         tbody.appendChild(tr);
       });
@@ -727,6 +742,27 @@
       const a    = Object.assign(document.createElement('a'), { href: url, download: fname });
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    // ── DELETE ───────────────────────────────────────
+    async function deleteRecord(id, btn) {
+      if (!confirm('Eliminare questo record? L\'operazione non è reversibile.')) return;
+      btn.disabled = true;
+      btn.textContent = '...';
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${id}`, {
+          method: 'DELETE',
+          headers: { 'Prefer': 'return=minimal' }
+        });
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        btn.closest('tr').remove();
+        currentData = currentData.filter(r => r.id !== id);
+        updateStats();
+      } catch (err) {
+        alert('Errore durante la cancellazione: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Elimina';
+      }
     }
 
     // ── ERROR UI ─────────────────────────────────────
