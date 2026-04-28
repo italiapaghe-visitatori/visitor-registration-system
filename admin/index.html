@@ -525,7 +525,7 @@
 
     // ── DATA LOADING ─────────────────────────────────
     function buildUrl() {
-      let url = `${SUPABASE_URL}/rest/v1/visitor_registrations?select=*&order=${sortCol}.${sortDir}`;
+      let url = `${SUPABASE_URL}/rest/v1/visitors?select=*&order=${sortCol}.${sortDir}`;
 
       const name   = document.getElementById('f-name').value.trim();
       const last   = document.getElementById('f-lastname').value.trim();
@@ -670,7 +670,7 @@
 
       const fetchCount = async (extra = '') => {
         const res = await api(
-          `${SUPABASE_URL}/rest/v1/visitor_registrations?select=id${extra}`,
+          `${SUPABASE_URL}/rest/v1/visitors?select=id${extra}`,
           { headers: { 'Prefer': 'count=exact' } }
         );
         if (!res) return '—';
