@@ -291,6 +291,127 @@
     }
     .btn-delete:hover { background: #fff5f5; border-color: #e53e3e; }
 
+    .btn-edit {
+      background: none;
+      border: 1.5px solid #667eea;
+      color: #667eea;
+      border-radius: 7px;
+      padding: 5px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.18s;
+      white-space: nowrap;
+      margin-right: 5px;
+    }
+    .btn-edit:hover { background: #eef2ff; }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      animation: popIn 0.25s cubic-bezier(0.22,1,0.36,1);
+    }
+
+    @keyframes popIn {
+      from { opacity:0; transform: scale(0.95); }
+      to   { opacity:1; transform: scale(1); }
+    }
+
+    .modal h2 { font-size: 18px; color: #1a202c; margin-bottom: 4px; }
+    .modal-sub { color: #718096; font-size: 13px; margin-bottom: 24px; }
+
+    .modal-fields { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; }
+
+    .modal-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: #4a5568;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .modal-field input {
+      width: 100%;
+      height: 46px;
+      border: 2px solid #e8ecf4;
+      border-radius: 8px;
+      padding: 0 13px;
+      font-size: 15px;
+      color: #2d3748;
+      background: #fafbfd;
+      transition: border-color 0.18s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .modal-field input:focus { outline: none; border-color: #667eea; background: #fff; }
+
+    .modal-actions { display: flex; gap: 10px; }
+
+    .modal-actions .btn-save {
+      flex: 1;
+      height: 46px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border: none;
+      border-radius: 9px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 3px 12px rgba(102,126,234,0.4);
+    }
+    .modal-actions .btn-cancel {
+      height: 46px;
+      padding: 0 22px;
+      border: 2px solid #e8ecf4;
+      background: #fff;
+      color: #4a5568;
+      border-radius: 9px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .badge-highlight {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 4px;
+    }
+    .badge-highlight label { color: rgba(255,255,255,0.85) !important; }
+    .badge-highlight input { font-size: 18px !important; font-weight: 700 !important; }
+
+    .btn-supabase-link {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 46px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border-radius: 9px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
     .sig-cell img {
       max-width: 100px;
       height: auto;
@@ -335,6 +456,57 @@
   </style>
 </head>
 <body>
+  <!-- MODALE MODIFICA -->
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+      <h2>Modifica Registrazione</h2>
+      <p class="modal-sub" id="modal-visitor-name"></p>
+      <div class="modal-fields">
+        <div class="modal-field badge-highlight">
+          <label>N° Badge assegnato</label>
+          <input type="text" id="edit-badge" placeholder="Inserisci numero badge">
+        </div>
+        <div class="modal-field">
+          <label>Ora uscita</label>
+          <input type="time" id="edit-exit-time">
+        </div>
+        <div class="modal-field">
+          <label>Persona da visitare</label>
+          <input type="text" id="edit-person" placeholder="Nome referente">
+        </div>
+        <div class="modal-field">
+          <label>Motivo visita (modifica se necessario)</label>
+          <input type="text" id="edit-reason" placeholder="Motivo">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-save" onclick="saveEdit()">Salva e chiudi</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE GESTIONE UTENTI -->
+  <div class="modal-overlay" id="users-modal">
+    <div class="modal">
+      <h2>Gestione Utenti Admin</h2>
+      <p class="modal-sub">Aggiungi o rimuovi account per i desk di registrazione</p>
+      <div style="background:#ebf4ff;border:1.5px solid #bee3f8;border-radius:10px;padding:16px 18px;font-size:13px;color:#2c5282;line-height:1.6;margin-bottom:20px;">
+        <strong>Come creare un nuovo utente:</strong><br>
+        1. Clicca il pulsante qui sotto per aprire il pannello Supabase<br>
+        2. Clicca <strong>"Add user" → "Create new user"</strong><br>
+        3. Inserisci email e password del nuovo operatore<br>
+        4. Clicca <strong>"Create user"</strong>
+      </div>
+      <div class="modal-actions">
+        <a href="https://supabase.com/dashboard/project/sebhatzxsxuafsmbdtsx/auth/users" target="_blank" rel="noopener" class="btn-supabase-link">
+          Apri pannello utenti Supabase
+        </a>
+        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
   <div class="header">
     <div class="header-left">
       <img class="header-logo" src="../assets/logo-ip.png" alt="Logo" onerror="this.style.display='none'">
@@ -342,6 +514,7 @@
     </div>
     <div class="header-right">
       <span id="user-email"></span>
+      <button class="btn btn-light" onclick="document.getElementById('users-modal').classList.add('active')">Utenti</button>
       <button class="btn btn-light" onclick="exportCSV()">Esporta CSV</button>
       <button class="btn btn-light" onclick="loadData()">Aggiorna</button>
       <button class="btn btn-danger" onclick="logout()">Esci</button>
@@ -650,7 +823,10 @@
           <td>${esc(row.phone) || '—'}</td>
           <td>${sigHtml}</td>
           <td style="text-align:center;">${consentHtml}</td>
-          <td><button type="button" class="btn-delete" data-id="${esc(row.id)}" onclick="deleteRecord(this)">Elimina</button></td>
+          <td>
+            <button type="button" class="btn-edit" data-id="${esc(row.id)}" onclick="openEditModal(this)">Modifica</button>
+            <button type="button" class="btn-delete" data-id="${esc(row.id)}" onclick="deleteRecord(this)">Elimina</button>
+          </td>
         `;
         tbody.appendChild(tr);
       });
@@ -742,6 +918,74 @@
       const a    = Object.assign(document.createElement('a'), { href: url, download: fname });
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    // ── EDIT MODAL ───────────────────────────────────
+    let editCurrentId = null;
+
+    function openEditModal(btn) {
+      editCurrentId = btn.dataset.id;
+      const row = currentData.find(r => String(r.id) === String(editCurrentId));
+      if (!row) return;
+
+      document.getElementById('modal-visitor-name').textContent =
+        `${row.first_name} ${row.last_name} — ${row.visit_date ? row.visit_date.split('-').reverse().join('/') : ''}`;
+      document.getElementById('edit-badge').value     = row.badge_number || '';
+      document.getElementById('edit-exit-time').value = row.exit_time ? row.exit_time.slice(0,5) : '';
+      document.getElementById('edit-person').value    = row.person_to_visit || '';
+      document.getElementById('edit-reason').value    = row.visit_reason || '';
+
+      document.getElementById('edit-modal').classList.add('active');
+      setTimeout(() => document.getElementById('edit-badge').focus(), 100);
+    }
+
+    function closeModal() {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+      editCurrentId = null;
+    }
+
+    // Chiudi cliccando fuori dal modale
+    document.addEventListener('click', e => {
+      if (e.target.classList.contains('modal-overlay')) closeModal();
+    });
+
+    async function saveEdit() {
+      if (!editCurrentId) return;
+      const saveBtn = document.querySelector('#edit-modal .btn-save');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Salvataggio...';
+
+      const patch = {
+        badge_number:    document.getElementById('edit-badge').value.trim() || null,
+        exit_time:       document.getElementById('edit-exit-time').value || null,
+        person_to_visit: document.getElementById('edit-person').value.trim() || null,
+        visit_reason:    document.getElementById('edit-reason').value.trim() || null,
+      };
+
+      try {
+        const res = await api(
+          `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(editCurrentId)}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+            body: JSON.stringify(patch)
+          }
+        );
+        if (!res) return;
+        const body = await res.json().catch(() => []);
+        if (!res.ok) throw new Error(body?.message || `Errore ${res.status}`);
+
+        // Aggiorna currentData e ricarica tabella
+        const idx = currentData.findIndex(r => String(r.id) === String(editCurrentId));
+        if (idx !== -1) currentData[idx] = { ...currentData[idx], ...patch };
+        renderTable(currentData);
+        closeModal();
+      } catch (err) {
+        alert('Errore durante il salvataggio: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Salva e chiudi';
+      }
     }
 
     // ── DELETE ───────────────────────────────────────
