@@ -412,6 +412,23 @@
       text-decoration: none;
     }
 
+    .modal-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .modal-info-box {
+      background: #ebf4ff;
+      border: 1.5px solid #bee3f8;
+      border-radius: 10px;
+      padding: 16px 18px;
+      font-size: 13px;
+      color: #2c5282;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
     .sig-cell img {
       max-width: 100px;
       height: auto;
@@ -462,22 +479,55 @@
       <h2>Modifica Registrazione</h2>
       <p class="modal-sub" id="modal-visitor-name"></p>
       <div class="modal-fields">
+
         <div class="modal-field badge-highlight">
           <label>N° Badge assegnato</label>
           <input type="text" id="edit-badge" placeholder="Inserisci numero badge">
         </div>
-        <div class="modal-field">
-          <label>Ora uscita</label>
-          <input type="time" id="edit-exit-time">
+
+        <div class="modal-row-2">
+          <div class="modal-field">
+            <label>Nome</label>
+            <input type="text" id="edit-first-name" placeholder="Nome">
+          </div>
+          <div class="modal-field">
+            <label>Cognome</label>
+            <input type="text" id="edit-last-name" placeholder="Cognome">
+          </div>
         </div>
+
+        <div class="modal-row-2">
+          <div class="modal-field">
+            <label>Data visita</label>
+            <input type="date" id="edit-visit-date">
+          </div>
+          <div class="modal-field">
+            <label>Ora ingresso</label>
+            <input type="time" id="edit-entry-time">
+          </div>
+        </div>
+
+        <div class="modal-row-2">
+          <div class="modal-field">
+            <label>Ora uscita</label>
+            <input type="time" id="edit-exit-time">
+          </div>
+          <div class="modal-field">
+            <label>Telefono</label>
+            <input type="tel" id="edit-phone" placeholder="Es. +39 333 1234567">
+          </div>
+        </div>
+
         <div class="modal-field">
           <label>Persona da visitare</label>
           <input type="text" id="edit-person" placeholder="Nome referente">
         </div>
+
         <div class="modal-field">
-          <label>Motivo visita (modifica se necessario)</label>
+          <label>Motivo visita</label>
           <input type="text" id="edit-reason" placeholder="Motivo">
         </div>
+
       </div>
       <div class="modal-actions">
         <button type="button" class="btn-save" onclick="saveEdit()">Salva e chiudi</button>
@@ -491,7 +541,7 @@
     <div class="modal">
       <h2>Gestione Utenti Admin</h2>
       <p class="modal-sub">Aggiungi o rimuovi account per i desk di registrazione</p>
-      <div style="background:#ebf4ff;border:1.5px solid #bee3f8;border-radius:10px;padding:16px 18px;font-size:13px;color:#2c5282;line-height:1.6;margin-bottom:20px;">
+      <div class="modal-info-box">
         <strong>Come creare un nuovo utente:</strong><br>
         1. Clicca il pulsante qui sotto per aprire il pannello Supabase<br>
         2. Clicca <strong>"Add user" → "Create new user"</strong><br>
@@ -930,10 +980,16 @@
 
       document.getElementById('modal-visitor-name').textContent =
         `${row.first_name} ${row.last_name} — ${row.visit_date ? row.visit_date.split('-').reverse().join('/') : ''}`;
-      document.getElementById('edit-badge').value     = row.badge_number || '';
-      document.getElementById('edit-exit-time').value = row.exit_time ? row.exit_time.slice(0,5) : '';
-      document.getElementById('edit-person').value    = row.person_to_visit || '';
-      document.getElementById('edit-reason').value    = row.visit_reason || '';
+
+      document.getElementById('edit-badge').value      = row.badge_number || '';
+      document.getElementById('edit-first-name').value = row.first_name || '';
+      document.getElementById('edit-last-name').value  = row.last_name || '';
+      document.getElementById('edit-visit-date').value = row.visit_date || '';
+      document.getElementById('edit-entry-time').value = row.entry_time ? row.entry_time.slice(0,5) : '';
+      document.getElementById('edit-exit-time').value  = row.exit_time  ? row.exit_time.slice(0,5)  : '';
+      document.getElementById('edit-phone').value      = row.phone || '';
+      document.getElementById('edit-person').value     = row.person_to_visit || '';
+      document.getElementById('edit-reason').value     = row.visit_reason || '';
 
       document.getElementById('edit-modal').classList.add('active');
       setTimeout(() => document.getElementById('edit-badge').focus(), 100);
@@ -956,10 +1012,15 @@
       saveBtn.textContent = 'Salvataggio...';
 
       const patch = {
-        badge_number:    document.getElementById('edit-badge').value.trim() || null,
-        exit_time:       document.getElementById('edit-exit-time').value || null,
-        person_to_visit: document.getElementById('edit-person').value.trim() || null,
-        visit_reason:    document.getElementById('edit-reason').value.trim() || null,
+        badge_number:    document.getElementById('edit-badge').value.trim()      || null,
+        first_name:      document.getElementById('edit-first-name').value.trim() || null,
+        last_name:       document.getElementById('edit-last-name').value.trim()  || null,
+        visit_date:      document.getElementById('edit-visit-date').value        || null,
+        entry_time:      document.getElementById('edit-entry-time').value        || null,
+        exit_time:       document.getElementById('edit-exit-time').value         || null,
+        phone:           document.getElementById('edit-phone').value.trim()      || null,
+        person_to_visit: document.getElementById('edit-person').value.trim()     || null,
+        visit_reason:    document.getElementById('edit-reason').value.trim()     || null,
       };
 
       try {
