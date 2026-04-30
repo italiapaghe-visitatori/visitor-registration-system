@@ -343,6 +343,12 @@
     .guest-stat { font-size: 13px; color: #4a5568; padding: 8px 16px; background: #f7f9fc; border-radius: 8px; font-weight: 600; }
     .guest-stat span { color: #667eea; }
 
+    .guest-stats-bar { margin-bottom: 20px; }
+    .stat-card-warning { border-top: 3px solid #f6ad55; }
+    .stat-card-warning .value { color: #c05621; }
+    .stat-card-success { border-top: 3px solid #68d391; }
+    .stat-card-success .value { color: #276749; }
+
     .guest-matched { color: #38a169; }
 
     #file-import { display: none; }
@@ -643,17 +649,32 @@
     <!-- ── VIEW: OSPITI ATTESI ── -->
     <div class="view" id="view-guests">
 
+      <!-- Riepilogo -->
+      <div class="stats-bar guest-stats-bar">
+        <div class="stat-card">
+          <h3>Totale ospiti</h3>
+          <div class="value" id="g-stat-total">—</div>
+          <div class="sub">importati + manuali</div>
+        </div>
+        <div class="stat-card stat-card-warning">
+          <h3>In attesa</h3>
+          <div class="value" id="g-stat-waiting">—</div>
+          <div class="sub">non ancora arrivati</div>
+        </div>
+        <div class="stat-card stat-card-success">
+          <h3>Arrivati</h3>
+          <div class="value" id="g-stat-arrived">—</div>
+          <div class="sub">registrati al kiosk</div>
+        </div>
+      </div>
+
+      <!-- Azioni -->
       <div class="guest-actions">
         <div class="guest-actions-left">
           <button type="button" class="btn btn-primary" onclick="openAddGuestModal()">+ Aggiungi Ospite</button>
           <button type="button" class="btn btn-success" onclick="document.getElementById('file-import').click()">Importa CSV / Excel</button>
           <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
           <button type="button" class="btn btn-secondary" onclick="downloadTemplate()">Scarica Template</button>
-        </div>
-        <div>
-          <span class="guest-stat">Totale: <span id="g-stat-total">—</span></span>
-          &nbsp;
-          <span class="guest-stat guest-matched">Arrivati: <span id="g-stat-arrived">—</span></span>
         </div>
       </div>
 
@@ -669,6 +690,7 @@
                 <th class="no-sort">Azienda</th>
                 <th class="no-sort">Data Prevista</th>
                 <th class="no-sort">Persona da Visitare</th>
+                <th class="no-sort">Motivo</th>
                 <th class="no-sort">Stato</th>
                 <th class="no-sort">Azioni</th>
               </tr>
@@ -1173,6 +1195,7 @@
 
         document.getElementById('g-stat-total').textContent   = guestData.length;
         document.getElementById('g-stat-arrived').textContent = arrivedSet.size;
+        document.getElementById('g-stat-waiting').textContent = guestData.length - arrivedSet.size;
       } catch (err) {
         document.getElementById('guest-table-status').textContent = 'Errore caricamento: ' + err.message;
       }
@@ -1205,6 +1228,7 @@
           <td>${esc(g.company) || '—'}</td>
           <td>${dateFormatted}</td>
           <td>${esc(g.person_to_visit) || '—'}</td>
+          <td>${esc(g.visit_reason) || '—'}</td>
           <td>${statusHtml}</td>
           <td>
             <button type="button" class="btn-delete" data-id="${esc(g.id)}" onclick="deleteGuest(this)">Rimuovi</button>
