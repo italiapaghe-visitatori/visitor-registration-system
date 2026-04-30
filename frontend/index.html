@@ -409,56 +409,86 @@
       background: #fafbfd url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2'%3e%3ccircle cx='11' cy='11' r='8'/%3e%3cpath d='m21 21-4.35-4.35'/%3e%3c/svg%3e") no-repeat 13px center;
     }
 
-    .guest-list {
+    /* Lettere rapide A-Z */
+    .guest-alpha-bar {
       display: flex;
-      flex-direction: column;
-      gap: 7px;
-      max-height: 320px;
-      overflow-y: auto;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 10px;
     }
 
-    .guest-card {
+    .alpha-btn {
+      padding: 4px 8px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 6px;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      color: #4a5568;
+      cursor: pointer;
+      transition: background 0.14s, border-color 0.14s, color 0.14s;
+      line-height: 1;
+    }
+
+    .alpha-btn:hover   { background: #eef2ff; border-color: var(--primary); color: var(--primary); }
+    .alpha-btn.active  { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .alpha-btn.all-btn { border-color: #cbd5e0; color: #718096; }
+
+    /* Griglia 2 colonne */
+    .guest-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      max-height: 340px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    @media (max-width: 500px) { .guest-grid { grid-template-columns: 1fr; } }
+
+    .guest-tile {
       display: flex;
       align-items: center;
-      gap: 13px;
-      padding: 12px 14px;
+      gap: 10px;
+      padding: 9px 12px;
       background: #fafbfd;
       border: 2px solid #e8ecf4;
       border-radius: 10px;
       cursor: pointer;
-      transition: border-color 0.16s, background 0.16s, transform 0.1s;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
       text-align: left;
       width: 100%;
+      min-height: 56px;
     }
 
-    .guest-card:hover, .guest-card:focus {
+    .guest-tile:hover, .guest-tile:focus {
       border-color: var(--primary);
       background: #eef2ff;
       transform: translateY(-1px);
     }
 
-    .guest-card:active { transform: translateY(0); }
+    .guest-tile:active { transform: translateY(0); }
 
-    .guest-card-avatar {
-      width: 40px;
-      height: 40px;
-      min-width: 40px;
+    .guest-tile-avatar {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
       border-radius: 50%;
       background: linear-gradient(135deg, var(--primary), var(--secondary));
       color: #fff;
-      font-size: 15px;
+      font-size: 13px;
       font-weight: 800;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
-    .guest-card-info { flex: 1; min-width: 0; }
-    .guest-card-name { font-weight: 700; font-size: 15px; color: #2d3748; }
-    .guest-card-detail { font-size: 12px; color: #718096; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .guest-card-arrow { color: #cbd5e0; font-size: 18px; }
+    .guest-tile-info { flex: 1; min-width: 0; }
+    .guest-tile-last  { font-weight: 700; font-size: 14px; color: #2d3748; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .guest-tile-first { font-size: 12px; color: #718096; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     .guest-noresult {
+      grid-column: 1 / -1;
       padding: 18px;
       color: #718096;
       font-size: 13px;
@@ -796,8 +826,9 @@
               <span class="guest-summary-chevron">&#8964;</span>
             </summary>
             <div class="guest-details-body">
-              <input type="text" id="guest-search" placeholder="Filtra per nome o cognome..." autocomplete="off" title="Filtra ospiti">
-              <div class="guest-list" id="guest-list"></div>
+              <input type="text" id="guest-search" placeholder="Cerca per nome o cognome..." autocomplete="off" title="Cerca ospite">
+              <div class="guest-alpha-bar" id="guest-alpha-bar"></div>
+              <div class="guest-grid" id="guest-list"></div>
             </div>
           </details>
           <div class="guest-skip-row">
@@ -1082,24 +1113,39 @@
 
     async function loadGuestList() {
       try {
-        const today = new Date().toISOString().split('T')[0];
-        const url = `${SUPABASE_URL}/rest/v1/guest_list` +
+        const today   = new Date().toISOString().split('T')[0];
+        const hdrs    = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
+
+        // Tutti gli ospiti di oggi (o senza data)
+        const gRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/guest_list` +
           `?select=id,first_name,last_name,email,company,person_to_visit,visit_reason` +
           `&or=(expected_date.is.null,expected_date.eq.${today})` +
-          `&matched_visitor_id=is.null` +
-          `&order=last_name.asc`;
-        const res = await fetch(url, {
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-        });
-        if (res.ok) {
-          allGuests = await res.json();
-          if (allGuests.length > 0 && !selectedGuestId) {
-            renderGuestCards(allGuests);
-            document.getElementById('guest-summary-count').textContent = allGuests.length;
-            document.getElementById('guest-lookup-wrap').style.display = 'block';
-          } else if (allGuests.length === 0) {
-            document.getElementById('guest-lookup-wrap').style.display = 'none';
-          }
+          `&order=last_name.asc`,
+          { headers: hdrs }
+        );
+        if (!gRes.ok) return;
+        const allToday = await gRes.json();
+
+        // ID ospiti già abbinati (visitatori registrati con guest_id)
+        const vRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/visitors?select=guest_id&guest_id=not.is.null`,
+          { headers: hdrs }
+        );
+        const matched = vRes.ok ? await vRes.json() : [];
+        const matchedIds = new Set(matched.map(v => v.guest_id));
+
+        // Solo ospiti non ancora arrivati
+        allGuests = allToday.filter(g => !matchedIds.has(g.id));
+
+        if (allGuests.length > 0 && !selectedGuestId) {
+          activeAlpha = '';
+          buildAlphaBar();
+          renderGuestTiles(allGuests);
+          document.getElementById('guest-summary-count').textContent = allGuests.length;
+          document.getElementById('guest-lookup-wrap').style.display = 'block';
+        } else if (allGuests.length === 0) {
+          document.getElementById('guest-lookup-wrap').style.display = 'none';
         }
       } catch (_) { /* non blocca il form */ }
     }
@@ -1112,42 +1158,72 @@
       return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    function renderGuestCards(guests) {
-      const list = document.getElementById('guest-list');
-      list.innerHTML = '';
+    let activeAlpha = '';
+
+    function renderGuestTiles(guests) {
+      const grid = document.getElementById('guest-list');
+      grid.innerHTML = '';
       if (guests.length === 0) {
         const msg = document.createElement('div');
         msg.className = 'guest-noresult';
-        msg.textContent = 'Nessun ospite trovato con questo nome';
-        list.appendChild(msg);
+        msg.textContent = 'Nessun ospite trovato';
+        grid.appendChild(msg);
         return;
       }
       guests.forEach(g => {
-        const initials = (g.first_name[0] || '') + (g.last_name[0] || '');
-        const details  = [g.company, g.person_to_visit, g.visit_reason].filter(Boolean).join(' — ');
+        const initials = ((g.last_name[0] || '') + (g.first_name[0] || '')).toUpperCase();
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'guest-card';
+        btn.className = 'guest-tile';
         btn.innerHTML =
-          `<div class="guest-card-avatar">${escHtml(initials.toUpperCase())}</div>` +
-          `<div class="guest-card-info">` +
-            `<div class="guest-card-name">${escHtml(g.first_name)} ${escHtml(g.last_name)}</div>` +
-            (details ? `<div class="guest-card-detail">${escHtml(details)}</div>` : '') +
-          `</div>` +
-          `<span class="guest-card-arrow">&#8250;</span>`;
+          `<div class="guest-tile-avatar">${escHtml(initials)}</div>` +
+          `<div class="guest-tile-info">` +
+            `<div class="guest-tile-last">${escHtml(g.last_name)}</div>` +
+            `<div class="guest-tile-first">${escHtml(g.first_name)}</div>` +
+          `</div>`;
         btn.addEventListener('click', () => selectGuest(g));
-        list.appendChild(btn);
+        grid.appendChild(btn);
       });
     }
 
-    document.getElementById('guest-search').addEventListener('input', function () {
-      const q = this.value.toLowerCase().trim();
-      const filtered = q ? allGuests.filter(g =>
-        (g.first_name + ' ' + g.last_name).toLowerCase().includes(q) ||
-        (g.last_name  + ' ' + g.first_name).toLowerCase().includes(q)
-      ) : allGuests;
-      renderGuestCards(filtered);
-    });
+    function buildAlphaBar() {
+      const bar = document.getElementById('guest-alpha-bar');
+      bar.innerHTML = '';
+      const letters = [...new Set(allGuests.map(g => g.last_name[0]?.toUpperCase()).filter(Boolean))].sort();
+      if (letters.length <= 3) { bar.style.display = 'none'; return; }
+      bar.style.display = 'flex';
+      const allBtn = document.createElement('button');
+      allBtn.type = 'button';
+      allBtn.className = 'alpha-btn all-btn' + (activeAlpha === '' ? ' active' : '');
+      allBtn.textContent = 'Tutti';
+      allBtn.addEventListener('click', () => { activeAlpha = ''; applyFilters(); });
+      bar.appendChild(allBtn);
+      letters.forEach(l => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'alpha-btn' + (activeAlpha === l ? ' active' : '');
+        btn.textContent = l;
+        btn.addEventListener('click', () => { activeAlpha = l; applyFilters(); });
+        bar.appendChild(btn);
+      });
+    }
+
+    function applyFilters() {
+      const q = document.getElementById('guest-search').value.toLowerCase().trim();
+      let filtered = allGuests;
+      if (activeAlpha) filtered = filtered.filter(g => g.last_name[0]?.toUpperCase() === activeAlpha);
+      if (q) filtered = filtered.filter(g =>
+        (g.last_name + ' ' + g.first_name).toLowerCase().includes(q) ||
+        (g.first_name + ' ' + g.last_name).toLowerCase().includes(q)
+      );
+      // Aggiorna evidenziazione barra
+      document.querySelectorAll('.alpha-btn').forEach(b => {
+        b.classList.toggle('active', b.textContent === (activeAlpha || 'Tutti'));
+      });
+      renderGuestTiles(filtered);
+    }
+
+    document.getElementById('guest-search').addEventListener('input', applyFilters);
 
     function selectGuest(g) {
       selectedGuestId = g.id;
@@ -1183,7 +1259,7 @@
       document.getElementById('email').value                     = '';
       document.getElementById('person_to_visit').value           = '';
       document.getElementById('visit_reason').selectedIndex      = 0;
-      renderGuestCards(allGuests);
+      activeAlpha = ''; buildAlphaBar(); renderGuestTiles(allGuests);
       document.getElementById('guest-details').open              = false;
       document.getElementById('guest-lookup-wrap').style.display = 'block';
     });
@@ -1345,11 +1421,8 @@
           selectedGuestId = null;
           document.getElementById('guest-confirm').style.display = 'none';
           document.getElementById('guest-search').value          = '';
-          if (allGuests.length > 0) {
-            renderGuestCards(allGuests);
-            document.getElementById('guest-details').open              = false;
-            document.getElementById('guest-lookup-wrap').style.display = 'block';
-          }
+          // Ricarica la lista: rimuove l'ospite appena registrato
+          loadGuestList();
           setTimeout(() => { document.getElementById('message').style.display = 'none'; }, 4500);
         } else {
           const err = await res.json().catch(() => ({}));
