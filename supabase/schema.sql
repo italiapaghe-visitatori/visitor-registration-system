@@ -101,6 +101,7 @@ CREATE POLICY "guest_list_auth_delete" ON guest_list FOR DELETE USING (auth.role
 -- Nuove colonne su visitors (tabella reale usata dall'app)
 ALTER TABLE visitors
   ADD COLUMN IF NOT EXISTS email          TEXT,
+  ADD COLUMN IF NOT EXISTS company        TEXT,
   ADD COLUMN IF NOT EXISTS xatlas_status  TEXT DEFAULT NULL,
   ADD COLUMN IF NOT EXISTS xatlas_user_id INTEGER DEFAULT NULL,
   ADD COLUMN IF NOT EXISTS guest_id       UUID REFERENCES guest_list(id) DEFAULT NULL;

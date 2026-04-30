@@ -903,6 +903,11 @@
           <input type="email" id="email" name="email" autocomplete="email" placeholder="esempio@email.com">
         </div>
 
+        <div class="form-group" id="company-group">
+          <label for="company">Azienda</label>
+          <input type="text" id="company" name="company" autocomplete="organization" placeholder="Es. Rossi Srl">
+        </div>
+
         <p class="section-label">Dettagli visita</p>
 
         <div class="form-group" id="visit-date-group">
@@ -1005,6 +1010,7 @@
         firstName:     'first-name-group',
         lastName:      'last-name-group',
         email:         'email-group',
+        company:       'company-group',
         visitDate:     'visit-date-group',
         entryTime:     'entry-time-group',
         exitTime:      'exit-time-group',
@@ -1291,6 +1297,7 @@
       document.getElementById('first_name').value      = g.first_name      || '';
       document.getElementById('last_name').value       = g.last_name       || '';
       document.getElementById('email').value           = g.email           || '';
+      document.getElementById('company').value         = g.company         || '';
       document.getElementById('person_to_visit').value = g.person_to_visit || '';
       if (g.visit_reason) {
         const sel = document.getElementById('visit_reason');
@@ -1318,6 +1325,7 @@
       document.getElementById('first_name').value                = '';
       document.getElementById('last_name').value                 = '';
       document.getElementById('email').value                     = '';
+      document.getElementById('company').value                   = '';
       document.getElementById('person_to_visit').value           = '';
       document.getElementById('visit_reason').selectedIndex      = 0;
       activeAlpha = ''; buildAlphaKeyboard(); renderGuestTiles([], 'Tocca una lettera oppure scrivi il cognome'); document.getElementById('guest-search').value = '';
@@ -1430,6 +1438,7 @@
         first_name:      firstName,
         last_name:       lastName,
         email:           emailVal,
+        company:         document.getElementById('company').value.trim() || null,
         person_to_visit: document.getElementById('person_to_visit').value.trim() || null,
         visit_reason:    document.getElementById('visit_reason').value,
         department:      document.getElementById('department').value.trim() || null,

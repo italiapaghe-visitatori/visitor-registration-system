@@ -396,6 +396,10 @@
           <label>Email</label>
           <input type="email" id="det-email" readonly>
         </div>
+        <div class="modal-field">
+          <label>Azienda</label>
+          <input type="text" id="det-company" readonly>
+        </div>
       </div>
 
       <hr class="divider">
@@ -623,6 +627,7 @@
               <tr>
                 <th onclick="sortBy('first_name')">Nome</th>
                 <th onclick="sortBy('last_name')">Cognome</th>
+                <th class="no-sort">Azienda</th>
                 <th onclick="sortBy('visit_date')">Data</th>
                 <th onclick="sortBy('entry_time')" class="no-sort">Ingresso</th>
                 <th class="no-sort">Uscita</th>
@@ -934,6 +939,7 @@
         tr.innerHTML = `
           <td><strong>${esc(row.first_name)}</strong></td>
           <td><strong>${esc(row.last_name)}</strong></td>
+          <td>${esc(row.company) || '—'}</td>
           <td>${row.visit_date ? esc(row.visit_date) : '<span style="color:#a0aec0">tornello</span>'}</td>
           <td>${row.entry_time ? esc(row.entry_time.slice(0,5)) : '<span style="color:#a0aec0">—</span>'}</td>
           <td>${row.exit_time  ? esc(row.exit_time.slice(0,5))  : '<span style="color:#a0aec0">—</span>'}</td>
@@ -1003,10 +1009,10 @@
       function fmtTime(t) { if (!t) return ''; return t.slice(0, 5); }
       function val(v) { return v ?? ''; }
 
-      const headers = ['Nome','Cognome','Email','Data visita','Ingresso (tornello)','Uscita (tornello)',
+      const headers = ['Nome','Cognome','Azienda','Email','Data visita','Ingresso (tornello)','Uscita (tornello)',
                        'Persona da visitare','Motivo visita','N° badge','Stato badge','Tipo','Consenso privacy'];
       const rows = currentData.map(r => [
-        val(r.first_name), val(r.last_name), val(r.email),
+        val(r.first_name), val(r.last_name), val(r.company), val(r.email),
         fmtDate(r.visit_date), fmtTime(r.entry_time), fmtTime(r.exit_time),
         val(r.person_to_visit), val(r.visit_reason), val(r.badge_number),
         val(r.xatlas_status) || 'nessuno',
@@ -1097,6 +1103,7 @@
       document.getElementById('det-first-name').value  = row.first_name || '';
       document.getElementById('det-last-name').value   = row.last_name  || '';
       document.getElementById('det-email').value       = row.email      || '';
+      document.getElementById('det-company').value     = row.company    || '';
       document.getElementById('det-visit-date').value  = row.visit_date || '';
       document.getElementById('det-entry-time').value  = row.entry_time ? row.entry_time.slice(0,5) : '';
       document.getElementById('det-exit-time').value   = row.exit_time  ? row.exit_time.slice(0,5)  : '';
