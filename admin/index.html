@@ -676,6 +676,9 @@
           <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
           <button type="button" class="btn btn-secondary" onclick="downloadTemplate()">Scarica Template</button>
         </div>
+        <div>
+          <button type="button" class="btn btn-light" id="btn-toggle-arrived" onclick="toggleArrivedFilter()">Mostra arrivati</button>
+        </div>
       </div>
 
       <div class="table-wrap">
@@ -1173,7 +1176,17 @@
     });
 
     // ── GUEST LIST ────────────────────────────────────
-    let guestData = [];
+    let guestData   = [];
+    let arrivedSet  = new Set();
+    let showArrived = false;
+
+    function toggleArrivedFilter() {
+      showArrived = !showArrived;
+      const btn = document.getElementById('btn-toggle-arrived');
+      btn.textContent = showArrived ? 'Nascondi arrivati' : 'Mostra arrivati';
+      btn.classList.toggle('active-tab', showArrived);
+      renderGuestTable(guestData, arrivedSet);
+    }
 
     async function loadGuestList() {
       document.getElementById('guest-table-container').classList.add('table-hidden');
@@ -1187,9 +1200,9 @@
         guestData = await res.json();
 
         // Carica visitor con guest_id per sapere chi è arrivato
-        const arrivedRes = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id&guest_id=not.is.null`);
+        const arrivedRes  = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id&guest_id=not.is.null`);
         const arrivedData = arrivedRes?.ok ? await arrivedRes.json() : [];
-        const arrivedSet  = new Set(arrivedData.map(v => v.guest_id));
+        arrivedSet = new Set(arrivedData.map(v => v.guest_id)); // aggiorna variabile modulo
 
         renderGuestTable(guestData, arrivedSet);
 
@@ -1202,8 +1215,11 @@
     }
 
     function renderGuestTable(data, arrivedSet) {
-      if (data.length === 0) {
-        document.getElementById('guest-table-status').textContent = 'Nessun ospite in lista.';
+      const visible = showArrived ? data : data.filter(g => !arrivedSet.has(g.id));
+
+      if (visible.length === 0) {
+        const msg = showArrived ? 'Nessun ospite in lista.' : 'Tutti gli ospiti sono già arrivati.';
+        document.getElementById('guest-table-status').textContent = msg;
         document.getElementById('guest-table-status').style.display = 'block';
         document.getElementById('guest-table-container').classList.add('table-hidden');
         return;
@@ -1212,7 +1228,7 @@
       const tbody = document.getElementById('guest-table-body');
       tbody.innerHTML = '';
 
-      data.forEach(g => {
+      visible.forEach(g => {
         const arrived = arrivedSet.has(g.id);
         const statusHtml = arrived
           ? '<span class="gtype gtype-atteso">Arrivato</span>'
