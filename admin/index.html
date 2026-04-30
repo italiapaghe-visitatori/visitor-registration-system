@@ -155,23 +155,32 @@
       gap: 8px;
     }
 
-    /* ── HEADER CREDIT AG ── */
-    .header-credit {
+    /* ── LOGO AG IN HEADER ── */
+    .header-ag-brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .header-ag-pill {
+      background: rgba(255,255,255,0.93);
+      border-radius: 12px;
+      padding: 6px 14px 6px 10px;
       display: flex;
       align-items: center;
       gap: 8px;
-      padding-left: 14px;
-      border-left: 1px solid rgba(255,255,255,0.22);
-      font-size: 11px;
-      color: rgba(255,255,255,0.6);
-      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     }
-    .header-logo-ag {
-      height: 28px;
+    .header-ag-pill img {
+      height: 36px;
       width: auto;
-      filter: brightness(0) invert(1);
-      opacity: 0.75;
     }
+    .header-ag-pill span {
+      font-size: 11px;
+      font-weight: 700;
+      color: #4a5568;
+      letter-spacing: 0.3px;
+    }
+    @media (max-width: 900px) { .header-ag-brand { display: none; } }
 
     /* ── FOOTER ── */
     .admin-footer {
@@ -191,6 +200,8 @@
       opacity: 0.4;
       filter: grayscale(1);
     }
+    .admin-footer .sep { color: #e2e8f0; }
+    .admin-footer .dev-name { font-weight: 600; color: #718096; }
 
     /* ── FILTERS ── */
     .filters {
@@ -621,6 +632,14 @@
       <img class="header-logo" src="../assets/logo-ip.png" alt="Logo" onerror="this.style.display='none'">
       <h1>Gestione Visitatori</h1>
     </div>
+
+    <div class="header-ag-brand">
+      <div class="header-ag-pill">
+        <img src="../assets/logo-ag.png" alt="Antonio Gelormini" onerror="this.parentElement.style.display='none'">
+        <span>Antonio Gelormini</span>
+      </div>
+    </div>
+
     <div class="header-right">
       <span id="user-email"></span>
       <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')">Visitatori</button>
@@ -629,10 +648,6 @@
       <button type="button" class="btn btn-light" onclick="exportCSV()">Esporta CSV</button>
       <button type="button" class="btn btn-light" onclick="loadData()">Aggiorna</button>
       <button type="button" class="btn btn-danger" onclick="logout()">Esci</button>
-      <div class="header-credit">
-        <span>dev by</span>
-        <img src="../assets/logo-ag.png" alt="Antonio Gelormini" class="header-logo-ag" onerror="this.parentElement.style.display='none'">
-      </div>
     </div>
   </div>
 
@@ -810,10 +825,10 @@
 
   <footer class="admin-footer">
     <span>Visitor Registration System</span>
-    <span style="color:#e2e8f0">|</span>
+    <span class="sep">|</span>
     <span>Sviluppato da</span>
     <img src="../assets/logo-ag.png" alt="Antonio Gelormini" onerror="this.style.display='none'">
-    <span style="font-weight:600;color:#718096;">Antonio Gelormini</span>
+    <span class="dev-name">Antonio Gelormini</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
