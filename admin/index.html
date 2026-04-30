@@ -164,21 +164,23 @@
     .header-ag-pill {
       background: rgba(255,255,255,0.93);
       border-radius: 12px;
-      padding: 6px 14px 6px 10px;
+      padding: 8px 16px;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 8px;
+      gap: 3px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     }
     .header-ag-pill img {
-      height: 36px;
+      height: 30px;
       width: auto;
     }
     .header-ag-pill span {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       color: #4a5568;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
     }
     @media (max-width: 900px) { .header-ag-brand { display: none; } }
 
