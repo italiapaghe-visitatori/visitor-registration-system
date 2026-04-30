@@ -721,9 +721,6 @@
         } catch (_) { logout(); return; }
       }
 
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('f-date-start').value = today;
-      document.getElementById('f-date-end').value   = today;
       loadData();
     });
 
@@ -901,9 +898,9 @@
         tr.innerHTML = `
           <td><strong>${esc(row.first_name)}</strong></td>
           <td><strong>${esc(row.last_name)}</strong></td>
-          <td>${esc(row.visit_date)}</td>
-          <td>${row.entry_time ? esc(row.entry_time.slice(0,5)) : '—'}</td>
-          <td>${row.exit_time  ? esc(row.exit_time.slice(0,5))  : '—'}</td>
+          <td>${row.visit_date ? esc(row.visit_date) : '<span style="color:#a0aec0">tornello</span>'}</td>
+          <td>${row.entry_time ? esc(row.entry_time.slice(0,5)) : '<span style="color:#a0aec0">—</span>'}</td>
+          <td>${row.exit_time  ? esc(row.exit_time.slice(0,5))  : '<span style="color:#a0aec0">—</span>'}</td>
           <td>${esc(row.person_to_visit) || '—'}</td>
           <td><span class="badge ${badgeClass(row.visit_reason)}">${esc(row.visit_reason)}</span></td>
           <td>${gTypeHtml}</td>
@@ -944,7 +941,7 @@
       try {
         const [total, todayCount, activeCount] = await Promise.all([
           fetchCount(),
-          fetchCount(`&visit_date=eq.${today}`),
+          fetchCount(`&created_at=gte.${today}T00:00:00`),
           fetchCount(`&xatlas_status=eq.active`)
         ]);
         document.getElementById('stat-total').textContent  = total;
