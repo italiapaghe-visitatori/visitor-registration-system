@@ -634,17 +634,21 @@
           </div>
         </div>
 
+        <div class="form-group" id="email-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" autocomplete="email" placeholder="esempio@email.com">
+        </div>
+
         <p class="section-label">Dettagli visita</p>
 
-        <div class="row-2" id="datetime-row">
-          <div class="form-group" id="visit-date-group">
-            <label for="visit_date">Data Visita <span class="req">*</span></label>
-            <input type="date" id="visit_date" name="visit_date">
-          </div>
-          <div class="form-group" id="entry-time-group">
-            <label for="entry_time">Ora Ingresso <span class="req">*</span></label>
-            <input type="time" id="entry_time" name="entry_time">
-          </div>
+        <div class="form-group" id="visit-date-group">
+          <label for="visit_date">Data Visita <span class="req">*</span></label>
+          <input type="date" id="visit_date" name="visit_date">
+        </div>
+
+        <div class="form-group" id="entry-time-group">
+          <label for="entry_time">Ora Ingresso</label>
+          <input type="time" id="entry_time" name="entry_time">
         </div>
 
         <div class="form-group" id="visit-reason-group">
@@ -736,6 +740,7 @@
       const fieldMap = {
         firstName:     'first-name-group',
         lastName:      'last-name-group',
+        email:         'email-group',
         visitDate:     'visit-date-group',
         entryTime:     'entry-time-group',
         exitTime:      'exit-time-group',
@@ -978,23 +983,42 @@
       btn.disabled = true;
       btn.textContent = 'Salvataggio...';
 
+      const firstName = document.getElementById('first_name').value.trim();
+      const lastName  = document.getElementById('last_name').value.trim();
+      const emailVal  = document.getElementById('email').value.trim() || null;
+
       const payload = {
-        first_name:      document.getElementById('first_name').value.trim(),
-        last_name:       document.getElementById('last_name').value.trim(),
+        first_name:      firstName,
+        last_name:       lastName,
+        email:           emailVal,
         visit_date:      document.getElementById('visit_date').value,
         entry_time:      document.getElementById('entry_time').value,
-        exit_time:       document.getElementById('exit_time').value || null,
         person_to_visit: document.getElementById('person_to_visit').value.trim() || null,
         visit_reason:    document.getElementById('visit_reason').value,
-        badge_number:    document.getElementById('badge_number').value.trim() || null,
         department:      document.getElementById('department').value.trim() || null,
         vehicle_plate:   document.getElementById('vehicle_plate').value.trim().toUpperCase() || null,
         data_consent:    consentEl.checked,
         signature:       (signatureOn && hasDrawn) ? canvas.toDataURL('image/jpeg', 0.7) : null
       };
 
-      const phoneVal = document.getElementById('phone').value.trim();
-      if (phoneVal) payload.phone = phoneVal;
+      // Cerca corrispondenza in guest_list (silent — non blocca la registrazione)
+      try {
+        let matchUrl = `${SUPABASE_URL}/rest/v1/guest_list?select=id&limit=1` +
+          `&first_name=ilike.${encodeURIComponent(firstName)}` +
+          `&last_name=ilike.${encodeURIComponent(lastName)}`;
+        let matchRes = await fetch(matchUrl, {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+        let matchData = matchRes.ok ? await matchRes.json() : [];
+        if (matchData.length === 0 && emailVal) {
+          let emailUrl = `${SUPABASE_URL}/rest/v1/guest_list?select=id&limit=1&email=ilike.${encodeURIComponent(emailVal)}`;
+          let emailRes = await fetch(emailUrl, {
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+          });
+          matchData = emailRes.ok ? await emailRes.json() : [];
+        }
+        if (matchData.length > 0) payload.guest_id = matchData[0].id;
+      } catch (_) { /* non blocca la registrazione */ }
 
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/visitors`, {

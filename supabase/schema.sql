@@ -68,3 +68,38 @@ COMMENT ON TABLE visitor_registrations IS 'Registrazione visitatori - sistema mo
 -- Create an admin user (run this after enabling email auth in Supabase)
 -- In Supabase Dashboard: Authentication > Settings > Enable Email auth
 -- Then create user manually in Authentication > Users > Invite User
+
+-- ============================================================
+-- MIGRATION v2 — Integrazione XAtlas + Lista Ospiti Pre-registrati
+-- Eseguire nel SQL Editor di Supabase Dashboard
+-- ============================================================
+
+-- Tabella ospiti pre-registrati
+CREATE TABLE IF NOT EXISTS guest_list (
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  first_name      TEXT NOT NULL,
+  last_name       TEXT NOT NULL,
+  email           TEXT,
+  company         TEXT,
+  person_to_visit TEXT,
+  visit_reason    TEXT,
+  expected_date   DATE,
+  notes           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE guest_list ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "guest_list_anon_read"   ON guest_list FOR SELECT USING (true);
+CREATE POLICY "guest_list_auth_insert" ON guest_list FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "guest_list_auth_update" ON guest_list FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "guest_list_auth_delete" ON guest_list FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Nuove colonne su visitors (tabella reale usata dall'app)
+ALTER TABLE visitors
+  ADD COLUMN IF NOT EXISTS email          TEXT,
+  ADD COLUMN IF NOT EXISTS xatlas_status  TEXT DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS xatlas_user_id INTEGER DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS guest_id       UUID REFERENCES guest_list(id) DEFAULT NULL;
+
+-- xatlas_status valori: NULL | 'pending' | 'active' | 'checked_out'
+-- guest_id: valorizzato dal kiosk se il visitatore è in lista ospiti attesi

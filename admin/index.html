@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Gestione Visitatori — Admin</title>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -26,25 +27,11 @@
       z-index: 100;
     }
 
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
+    .header-left { display: flex; align-items: center; gap: 16px; }
     .header-logo { height: 44px; width: auto; object-fit: contain; }
+    .header h1 { color: #fff; font-size: 20px; font-weight: 700; }
 
-    .header h1 {
-      color: #fff;
-      font-size: 20px;
-      font-weight: 700;
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    .header-right { display: flex; align-items: center; gap: 10px; }
 
     #user-email {
       color: rgba(255,255,255,0.85);
@@ -67,12 +54,9 @@
       white-space: nowrap;
     }
 
-    .btn-light {
-      background: rgba(255,255,255,0.2);
-      color: #fff;
-      border: 1.5px solid rgba(255,255,255,0.35);
-    }
+    .btn-light { background: rgba(255,255,255,0.2); color: #fff; border: 1.5px solid rgba(255,255,255,0.35); }
     .btn-light:hover { background: rgba(255,255,255,0.32); }
+    .btn-light.active-tab { background: rgba(255,255,255,0.4); border-color: rgba(255,255,255,0.7); }
 
     .btn-white { background: #fff; color: #4a5568; }
     .btn-white:hover { background: #f7fafc; }
@@ -89,6 +73,9 @@
 
     .btn-secondary { background: #718096; color: #fff; }
     .btn-secondary:hover { background: #4a5568; }
+
+    .btn-success { background: #38a169; color: #fff; }
+    .btn-success:hover { background: #2f855a; }
 
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -122,27 +109,9 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
-    .stat-card h3 {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: #a0aec0;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .stat-card .value {
-      font-size: 34px;
-      font-weight: 800;
-      color: #2d3748;
-      line-height: 1;
-    }
-
-    .stat-card .sub {
-      font-size: 12px;
-      color: #718096;
-      margin-top: 4px;
-    }
+    .stat-card h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #a0aec0; font-weight: 700; margin-bottom: 8px; }
+    .stat-card .value { font-size: 34px; font-weight: 800; color: #2d3748; line-height: 1; }
+    .stat-card .sub { font-size: 12px; color: #718096; margin-top: 4px; }
 
     /* ── FILTERS ── */
     .filters {
@@ -153,22 +122,9 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
-    .filters-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-      gap: 14px;
-      align-items: end;
-    }
-
+    .filters-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; align-items: end; }
     .filter-group { display: flex; flex-direction: column; gap: 5px; }
-
-    .filter-group label {
-      font-size: 11px;
-      color: #718096;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+    .filter-group label { font-size: 11px; color: #718096; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 
     .filter-group input,
     .filter-group select {
@@ -193,17 +149,9 @@
     }
 
     .filter-group input:focus,
-    .filter-group select:focus {
-      outline: none;
-      border-color: #667eea;
-      background: #fff;
-    }
+    .filter-group select:focus { outline: none; border-color: #667eea; background: #fff; }
 
-    .filter-actions {
-      display: flex;
-      gap: 8px;
-      align-items: flex-end;
-    }
+    .filter-actions { display: flex; gap: 8px; align-items: flex-end; }
 
     /* ── TABLE ── */
     .table-wrap {
@@ -215,11 +163,7 @@
 
     .table-scroll { overflow-x: auto; }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 900px;
-    }
+    table { width: 100%; border-collapse: collapse; min-width: 1000px; }
 
     thead th {
       background: #f7f9fc;
@@ -233,32 +177,23 @@
       border-bottom: 2px solid #edf0f5;
       white-space: nowrap;
       cursor: pointer;
+      -webkit-user-select: none;
       user-select: none;
     }
 
     thead th:hover { background: #edf2f7; }
+    thead th.no-sort { cursor: default; }
+    thead th.no-sort:hover { background: #f7f9fc; }
 
-    tbody td {
-      padding: 12px 14px;
-      border-bottom: 1px solid #f0f2f5;
-      font-size: 13px;
-      color: #2d3748;
-      vertical-align: middle;
-    }
-
+    tbody td { padding: 12px 14px; border-bottom: 1px solid #f0f2f5; font-size: 13px; color: #2d3748; vertical-align: middle; }
     tbody tr:hover { background: #fafbff; }
     tbody tr:last-child td { border-bottom: none; }
 
-    /* ── BADGES ── */
-    .badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
+    .req { color: #e53e3e; }
+    .table-hidden { display: none; }
 
+    /* ── REASON BADGES ── */
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
     .badge.appuntamento    { background: #bee3f8; color: #2c5282; }
     .badge.colloquio       { background: #fefcbf; color: #744210; }
     .badge.consegna-doc    { background: #feebc8; color: #7c2d12; }
@@ -275,195 +210,152 @@
     .badge.trasferimento   { background: #b2f5ea; color: #234e52; }
     .badge.altro           { background: #e2e8f0; color: #2d3748; }
 
+    /* ── STATUS BADGES ── */
+    .gtype { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .gtype-atteso { background: #c6f6d5; color: #22543d; }
+    .gtype-walkin { background: #e2e8f0; color: #718096; }
+
+    .xstatus { font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .xstatus-none     { color: #a0aec0; }
+    .xstatus-pending  { color: #d69e2e; }
+    .xstatus-active   { color: #38a169; }
+    .xstatus-checkout { color: #3182ce; }
+
     .consent-yes { color: #38a169; font-weight: 700; }
     .consent-no  { color: #e53e3e; font-weight: 700; }
 
+    /* ── ACTION BUTTONS ── */
     .btn-delete {
-      background: none;
-      border: 1.5px solid #fc8181;
-      color: #e53e3e;
-      border-radius: 7px;
-      padding: 5px 10px;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.18s;
-      white-space: nowrap;
+      background: none; border: 1.5px solid #fc8181; color: #e53e3e;
+      border-radius: 7px; padding: 5px 10px; font-size: 12px; cursor: pointer; transition: all 0.18s; white-space: nowrap;
     }
     .btn-delete:hover { background: #fff5f5; border-color: #e53e3e; }
 
-    .btn-edit {
-      background: none;
-      border: 1.5px solid #667eea;
-      color: #667eea;
-      border-radius: 7px;
-      padding: 5px 10px;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.18s;
-      white-space: nowrap;
-      margin-right: 5px;
+    .btn-details {
+      background: none; border: 1.5px solid #667eea; color: #667eea;
+      border-radius: 7px; padding: 5px 10px; font-size: 12px; cursor: pointer; transition: all 0.18s; white-space: nowrap; margin-right: 4px;
     }
-    .btn-edit:hover { background: #eef2ff; }
+    .btn-details:hover { background: #eef2ff; }
+
+    .btn-badge-assign {
+      background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+      color: #fff; border: none; border-radius: 7px;
+      padding: 5px 10px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.18s; white-space: nowrap; margin-right: 4px;
+      box-shadow: 0 2px 6px rgba(237,137,54,0.4);
+    }
+    .btn-badge-assign:hover { box-shadow: 0 3px 10px rgba(237,137,54,0.55); }
 
     /* ── MODAL ── */
     .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.55);
-      z-index: 300;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55); z-index: 300;
+      align-items: center; justify-content: center; padding: 20px;
     }
     .modal-overlay.active { display: flex; }
 
     .modal {
-      background: #fff;
-      border-radius: 16px;
-      padding: 32px;
-      max-width: 500px;
-      width: 100%;
+      background: #fff; border-radius: 16px; padding: 32px;
+      max-width: 520px; width: 100%;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
       animation: popIn 0.25s cubic-bezier(0.22,1,0.36,1);
+      max-height: 90vh; overflow-y: auto;
     }
 
-    @keyframes popIn {
-      from { opacity:0; transform: scale(0.95); }
-      to   { opacity:1; transform: scale(1); }
-    }
+    .modal.modal-wide { max-width: 640px; }
+
+    @keyframes popIn { from { opacity:0; transform: scale(0.95); } to { opacity:1; transform: scale(1); } }
 
     .modal h2 { font-size: 18px; color: #1a202c; margin-bottom: 4px; }
     .modal-sub { color: #718096; font-size: 13px; margin-bottom: 24px; }
 
-    .modal-fields { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; }
+    .modal-fields { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
 
-    .modal-field label {
-      display: block;
-      font-size: 11px;
-      font-weight: 700;
-      color: #4a5568;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
-    }
+    .modal-field label { display: block; font-size: 11px; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
 
-    .modal-field input {
-      width: 100%;
-      height: 46px;
-      border: 2px solid #e8ecf4;
-      border-radius: 8px;
-      padding: 0 13px;
-      font-size: 15px;
-      color: #2d3748;
-      background: #fafbfd;
-      transition: border-color 0.18s;
-      -webkit-appearance: none;
-      appearance: none;
+    .modal-field input,
+    .modal-field select,
+    .modal-field textarea {
+      width: 100%; height: 46px; border: 2px solid #e8ecf4; border-radius: 8px;
+      padding: 0 13px; font-size: 15px; color: #2d3748; background: #fafbfd;
+      transition: border-color 0.18s; -webkit-appearance: none; appearance: none; font-family: inherit;
     }
-    .modal-field input:focus { outline: none; border-color: #667eea; background: #fff; }
+    .modal-field textarea { height: 80px; padding: 10px 13px; resize: vertical; }
+    .modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus { outline: none; border-color: #667eea; background: #fff; }
+    .modal-field input[readonly], .modal-field textarea[readonly] { background: #f7fafc; color: #718096; cursor: default; }
+    .modal-field input[readonly]:focus, .modal-field textarea[readonly]:focus { border-color: #e8ecf4; }
+
+    .modal-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
     .modal-actions { display: flex; gap: 10px; }
 
     .modal-actions .btn-save {
-      flex: 1;
-      height: 46px;
+      flex: 1; height: 46px;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #fff;
-      border: none;
-      border-radius: 9px;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 3px 12px rgba(102,126,234,0.4);
+      color: #fff; border: none; border-radius: 9px; font-size: 15px; font-weight: 700;
+      cursor: pointer; box-shadow: 0 3px 12px rgba(102,126,234,0.4);
     }
     .modal-actions .btn-cancel {
-      height: 46px;
-      padding: 0 22px;
-      border: 2px solid #e8ecf4;
-      background: #fff;
-      color: #4a5568;
-      border-radius: 9px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
+      height: 46px; padding: 0 22px; border: 2px solid #e8ecf4;
+      background: #fff; color: #4a5568; border-radius: 9px; font-size: 15px; font-weight: 600; cursor: pointer;
     }
 
-    .badge-highlight {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 8px;
-      padding: 14px 16px;
-      margin-bottom: 4px;
-    }
-    .badge-highlight label { color: rgba(255,255,255,0.85) !important; }
-    .badge-highlight input { font-size: 18px !important; font-weight: 700 !important; }
-
-    .btn-supabase-link {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 46px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #fff;
-      border-radius: 9px;
-      font-size: 15px;
-      font-weight: 700;
-      text-decoration: none;
-    }
-
-    .modal-row-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
+    .badge-highlight { background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%); border-radius: 10px; padding: 16px 16px; margin-bottom: 4px; }
+    .badge-highlight label { color: rgba(255,255,255,0.9) !important; }
+    .badge-highlight input { font-size: 20px !important; font-weight: 700 !important; }
 
     .modal-info-box {
-      background: #ebf4ff;
-      border: 1.5px solid #bee3f8;
-      border-radius: 10px;
-      padding: 16px 18px;
-      font-size: 13px;
-      color: #2c5282;
-      line-height: 1.6;
-      margin-bottom: 20px;
+      background: #ebf4ff; border: 1.5px solid #bee3f8; border-radius: 10px;
+      padding: 16px 18px; font-size: 13px; color: #2c5282; line-height: 1.6; margin-bottom: 20px;
     }
 
-    .sig-cell img {
-      max-width: 100px;
-      height: auto;
-      border: 1px solid #e2e8f0;
-      border-radius: 4px;
-      display: block;
+    .modal-status-box {
+      border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; font-size: 13px; font-weight: 600;
     }
+    .modal-status-box.status-none     { background: #f7fafc; border: 1.5px solid #e2e8f0; color: #718096; }
+    .modal-status-box.status-pending  { background: #fffbeb; border: 1.5px solid #f6e05e; color: #744210; }
+    .modal-status-box.status-active   { background: #f0fff4; border: 1.5px solid #9ae6b4; color: #22543d; }
+    .modal-status-box.status-checkout { background: #ebf8ff; border: 1.5px solid #90cdf4; color: #2c5282; }
+
+    .divider { border: none; border-top: 1px solid #edf0f5; margin: 16px 0; }
+
+    .section-heading { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #a0aec0; margin-bottom: 10px; }
+
+    .btn-supabase-link {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      height: 46px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff; border-radius: 9px; font-size: 15px; font-weight: 700; text-decoration: none;
+    }
+
+    .sig-cell img { max-width: 80px; height: auto; border: 1px solid #e2e8f0; border-radius: 4px; display: block; }
+
+    /* ── GUEST VIEW ── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .guest-actions {
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+      background: #fff; border-radius: 12px; padding: 18px 22px; margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .guest-actions-left { display: flex; gap: 10px; flex: 1; flex-wrap: wrap; }
+
+    .guest-stat { font-size: 13px; color: #4a5568; padding: 8px 16px; background: #f7f9fc; border-radius: 8px; font-weight: 600; }
+    .guest-stat span { color: #667eea; }
+
+    .guest-matched { color: #38a169; }
+
+    #file-import { display: none; }
 
     /* ── EMPTY / LOADING ── */
-    .table-status {
-      text-align: center;
-      padding: 60px;
-      color: #a0aec0;
-      font-size: 15px;
-    }
+    .table-status { text-align: center; padding: 60px; color: #a0aec0; font-size: 15px; }
 
     /* ── PAGINATION ── */
-    .pagination {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 14px;
-      padding: 18px;
-      border-top: 1px solid #f0f2f5;
-    }
-
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 14px; padding: 18px; border-top: 1px solid #f0f2f5; }
     #page-info { font-size: 14px; font-weight: 600; color: #4a5568; }
 
     /* ── RESPONSIVE ── */
-    @media (max-width: 1024px) {
-      .container { padding: 18px; }
-      .stats-bar { grid-template-columns: repeat(3, 1fr); }
-      .header h1 { font-size: 17px; }
-    }
-
+    @media (max-width: 1024px) { .container { padding: 18px; } .stats-bar { grid-template-columns: repeat(3, 1fr); } .header h1 { font-size: 17px; } }
     @media (max-width: 767px) {
       .header { flex-direction: column; gap: 12px; padding: 14px; text-align: center; }
       .header-right { flex-wrap: wrap; justify-content: center; }
@@ -473,64 +365,140 @@
   </style>
 </head>
 <body>
-  <!-- MODALE MODIFICA -->
-  <div class="modal-overlay" id="edit-modal">
-    <div class="modal">
-      <h2>Modifica Registrazione</h2>
-      <p class="modal-sub" id="modal-visitor-name"></p>
+
+  <!-- MODALE DETTAGLI / MODIFICA -->
+  <div class="modal-overlay" id="details-modal">
+    <div class="modal modal-wide">
+      <h2>Dettagli Visitatore</h2>
+      <p class="modal-sub" id="details-visitor-name"></p>
+
+      <div id="details-status-box" class="modal-status-box status-none"></div>
+
+      <p class="section-heading">Dati anagrafici</p>
       <div class="modal-fields">
-
-        <div class="modal-field badge-highlight">
-          <label>N° Badge assegnato</label>
-          <input type="text" id="edit-badge" placeholder="Inserisci numero badge">
-        </div>
-
         <div class="modal-row-2">
           <div class="modal-field">
             <label>Nome</label>
-            <input type="text" id="edit-first-name" placeholder="Nome">
+            <input type="text" id="det-first-name" readonly>
           </div>
           <div class="modal-field">
             <label>Cognome</label>
-            <input type="text" id="edit-last-name" placeholder="Cognome">
+            <input type="text" id="det-last-name" readonly>
           </div>
         </div>
+        <div class="modal-field">
+          <label>Email</label>
+          <input type="email" id="det-email" readonly>
+        </div>
+      </div>
 
+      <hr class="divider">
+      <p class="section-heading">Dettagli visita</p>
+      <div class="modal-fields">
         <div class="modal-row-2">
           <div class="modal-field">
             <label>Data visita</label>
-            <input type="date" id="edit-visit-date">
+            <input type="date" id="det-visit-date" readonly>
           </div>
           <div class="modal-field">
-            <label>Ora ingresso</label>
-            <input type="time" id="edit-entry-time">
+            <label>Ingresso (tornello)</label>
+            <input type="text" id="det-entry-time" readonly placeholder="—">
           </div>
         </div>
-
         <div class="modal-row-2">
           <div class="modal-field">
-            <label>Ora uscita</label>
-            <input type="time" id="edit-exit-time">
+            <label>Uscita (tornello)</label>
+            <input type="text" id="det-exit-time" readonly placeholder="—">
           </div>
           <div class="modal-field">
-            <label>Telefono</label>
-            <input type="tel" id="edit-phone" placeholder="Es. +39 333 1234567">
+            <label>N° Badge</label>
+            <input type="text" id="det-badge" readonly placeholder="—">
           </div>
         </div>
-
         <div class="modal-field">
-          <label>Persona da visitare</label>
-          <input type="text" id="edit-person" placeholder="Nome referente">
+          <label>Persona da visitare (modificabile)</label>
+          <input type="text" id="det-person" placeholder="Nome referente">
         </div>
-
         <div class="modal-field">
-          <label>Motivo visita</label>
-          <input type="text" id="edit-reason" placeholder="Motivo">
+          <label>Motivo visita (modificabile)</label>
+          <input type="text" id="det-reason" placeholder="Motivo">
         </div>
+      </div>
 
+      <div class="modal-actions">
+        <button type="button" class="btn-save" onclick="saveDetails()">Salva e chiudi</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE ASSOCIA BADGE -->
+  <div class="modal-overlay" id="badge-modal">
+    <div class="modal">
+      <h2>Associa Badge</h2>
+      <p class="modal-sub" id="badge-visitor-name"></p>
+      <div class="modal-fields">
+        <div class="modal-field badge-highlight">
+          <label>N° badge fisico da consegnare al visitatore</label>
+          <input type="text" id="badge-number-input" placeholder="Es. 259548" autocomplete="off" inputmode="numeric">
+        </div>
+        <div class="modal-info-box">
+          Dopo aver salvato, l'agente attiverà il badge sul tornello entro <strong>10 secondi</strong>.<br>
+          Consegnate il badge fisico al visitatore solo dopo che il pannello mostra stato verde.
+        </div>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-save" onclick="saveEdit()">Salva e chiudi</button>
+        <button type="button" class="btn-save" onclick="saveBadgeAssignment()">Associa e attiva</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE AGGIUNGI OSPITE -->
+  <div class="modal-overlay" id="add-guest-modal">
+    <div class="modal modal-wide">
+      <h2>Aggiungi Ospite Atteso</h2>
+      <p class="modal-sub">Inserisci i dati dell'ospite previsto</p>
+      <div class="modal-fields">
+        <div class="modal-row-2">
+          <div class="modal-field">
+            <label>Nome <span class="req">*</span></label>
+            <input type="text" id="ag-first-name" placeholder="Nome">
+          </div>
+          <div class="modal-field">
+            <label>Cognome <span class="req">*</span></label>
+            <input type="text" id="ag-last-name" placeholder="Cognome">
+          </div>
+        </div>
+        <div class="modal-field">
+          <label>Email</label>
+          <input type="email" id="ag-email" placeholder="esempio@email.com">
+        </div>
+        <div class="modal-row-2">
+          <div class="modal-field">
+            <label>Azienda</label>
+            <input type="text" id="ag-company" placeholder="Nome azienda">
+          </div>
+          <div class="modal-field">
+            <label>Data prevista</label>
+            <input type="date" id="ag-date">
+          </div>
+        </div>
+        <div class="modal-field">
+          <label>Persona da visitare</label>
+          <input type="text" id="ag-person" placeholder="Referente interno">
+        </div>
+        <div class="modal-field">
+          <label>Motivo visita</label>
+          <input type="text" id="ag-reason" placeholder="Motivo">
+        </div>
+        <div class="modal-field">
+          <label>Note</label>
+          <textarea id="ag-notes" placeholder="Note aggiuntive..."></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-save" onclick="saveGuest()">Aggiungi ospite</button>
         <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
       </div>
     </div>
@@ -564,111 +532,153 @@
     </div>
     <div class="header-right">
       <span id="user-email"></span>
-      <button class="btn btn-light" onclick="document.getElementById('users-modal').classList.add('active')">Utenti</button>
-      <button class="btn btn-light" onclick="exportCSV()">Esporta CSV</button>
-      <button class="btn btn-light" onclick="loadData()">Aggiorna</button>
-      <button class="btn btn-danger" onclick="logout()">Esci</button>
+      <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')">Visitatori</button>
+      <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')">Ospiti Attesi</button>
+      <button type="button" class="btn btn-light" onclick="document.getElementById('users-modal').classList.add('active')">Utenti</button>
+      <button type="button" class="btn btn-light" onclick="exportCSV()">Esporta CSV</button>
+      <button type="button" class="btn btn-light" onclick="loadData()">Aggiorna</button>
+      <button type="button" class="btn btn-danger" onclick="logout()">Esci</button>
     </div>
   </div>
 
   <div class="container">
     <div id="error-banner" class="error-banner"></div>
 
-    <div class="stats-bar">
-      <div class="stat-card">
-        <h3>Totale visite</h3>
-        <div class="value" id="stat-total">—</div>
+    <!-- ── VIEW: VISITATORI ── -->
+    <div class="view active" id="view-visitors">
+
+      <div class="stats-bar">
+        <div class="stat-card">
+          <h3>Totale visite</h3>
+          <div class="value" id="stat-total">—</div>
+        </div>
+        <div class="stat-card">
+          <h3>Oggi</h3>
+          <div class="value" id="stat-today">—</div>
+        </div>
+        <div class="stat-card">
+          <h3>Badge attivi ora</h3>
+          <div class="value" id="stat-active">—</div>
+        </div>
       </div>
-      <div class="stat-card">
-        <h3>Oggi</h3>
-        <div class="value" id="stat-today">—</div>
+
+      <div class="filters">
+        <div class="filters-grid">
+          <div class="filter-group">
+            <label>Data inizio</label>
+            <input type="date" id="f-date-start" title="Data inizio filtro">
+          </div>
+          <div class="filter-group">
+            <label>Data fine</label>
+            <input type="date" id="f-date-end" title="Data fine filtro">
+          </div>
+          <div class="filter-group">
+            <label>Nome</label>
+            <input type="text" id="f-name" placeholder="Cerca...">
+          </div>
+          <div class="filter-group">
+            <label>Cognome</label>
+            <input type="text" id="f-lastname" placeholder="Cerca...">
+          </div>
+          <div class="filter-group">
+            <label>Motivo</label>
+            <select id="f-reason" title="Filtra per motivo visita">
+              <option value="">Tutti</option>
+              <option value="Appuntamento di lavoro">Appuntamento di lavoro</option>
+              <option value="Colloquio">Colloquio</option>
+              <option value="Consegna documenti">Consegna documenti</option>
+              <option value="Corso di formazione in aula">Corso di formazione in aula</option>
+              <option value="Fornitore">Fornitore</option>
+              <option value="Incontro di lavoro">Incontro di lavoro</option>
+              <option value="Intervista di lavoro">Intervista di lavoro</option>
+              <option value="Manutenzione/assistenza tecnica">Manutenzione/assistenza tecnica</option>
+              <option value="Prenotazione">Prenotazione</option>
+              <option value="Consegna">Consegna</option>
+              <option value="Visita">Visita</option>
+              <option value="Assistenza clienti">Assistenza clienti</option>
+              <option value="Ritiro documenti">Ritiro documenti</option>
+              <option value="Trasferimento">Trasferimento</option>
+              <option value="Altro">Altro</option>
+            </select>
+          </div>
+          <div class="filter-group filter-actions">
+            <label>&nbsp;</label>
+            <button type="button" class="btn btn-primary" onclick="applyFilters()">Filtra</button>
+            <button type="button" class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+          </div>
+        </div>
       </div>
-      <div class="stat-card">
-        <h3>App. Lavoro</h3>
-        <div class="value" id="stat-appuntamento">—</div>
+
+      <div class="table-wrap">
+        <div id="table-status" class="table-status">Caricamento dati...</div>
+        <div class="table-scroll table-hidden" id="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th onclick="sortBy('first_name')">Nome</th>
+                <th onclick="sortBy('last_name')">Cognome</th>
+                <th onclick="sortBy('visit_date')">Data</th>
+                <th onclick="sortBy('entry_time')" class="no-sort">Ingresso</th>
+                <th class="no-sort">Uscita</th>
+                <th class="no-sort">Persona da Visitare</th>
+                <th class="no-sort">Motivo</th>
+                <th class="no-sort">Tipo</th>
+                <th class="no-sort">Stato Badge</th>
+                <th class="no-sort">Firma</th>
+                <th class="no-sort">Consenso</th>
+                <th class="no-sort">Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <button type="button" class="btn btn-primary" id="btn-prev" onclick="prevPage()">← Prec.</button>
+          <span id="page-info">Pagina 1</span>
+          <button type="button" class="btn btn-primary" id="btn-next" onclick="nextPage()">Succ. →</button>
+        </div>
       </div>
     </div>
 
-    <div class="filters">
-      <div class="filters-grid">
-        <div class="filter-group">
-          <label>Data inizio</label>
-          <input type="date" id="f-date-start">
+    <!-- ── VIEW: OSPITI ATTESI ── -->
+    <div class="view" id="view-guests">
+
+      <div class="guest-actions">
+        <div class="guest-actions-left">
+          <button type="button" class="btn btn-primary" onclick="openAddGuestModal()">+ Aggiungi Ospite</button>
+          <button type="button" class="btn btn-success" onclick="document.getElementById('file-import').click()">Importa CSV / Excel</button>
+          <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
+          <button type="button" class="btn btn-secondary" onclick="downloadTemplate()">Scarica Template</button>
         </div>
-        <div class="filter-group">
-          <label>Data fine</label>
-          <input type="date" id="f-date-end">
+        <div>
+          <span class="guest-stat">Totale: <span id="g-stat-total">—</span></span>
+          &nbsp;
+          <span class="guest-stat guest-matched">Arrivati: <span id="g-stat-arrived">—</span></span>
         </div>
-        <div class="filter-group">
-          <label>Nome</label>
-          <input type="text" id="f-name" placeholder="Cerca...">
-        </div>
-        <div class="filter-group">
-          <label>Cognome</label>
-          <input type="text" id="f-lastname" placeholder="Cerca...">
-        </div>
-        <div class="filter-group">
-          <label>Telefono</label>
-          <input type="text" id="f-phone" placeholder="Cerca...">
-        </div>
-        <div class="filter-group">
-          <label>Motivo</label>
-          <select id="f-reason">
-            <option value="">Tutti</option>
-            <option value="Appuntamento di lavoro">Appuntamento di lavoro</option>
-            <option value="Colloquio">Colloquio</option>
-            <option value="Consegna documenti">Consegna documenti</option>
-            <option value="Corso di formazione in aula">Corso di formazione in aula</option>
-            <option value="Fornitore">Fornitore</option>
-            <option value="Incontro di lavoro">Incontro di lavoro</option>
-            <option value="Intervista di lavoro">Intervista di lavoro</option>
-            <option value="Manutenzione/assistenza tecnica">Manutenzione/assistenza tecnica</option>
-            <option value="Prenotazione">Prenotazione</option>
-            <option value="Consegna">Consegna</option>
-            <option value="Visita">Visita</option>
-            <option value="Assistenza clienti">Assistenza clienti</option>
-            <option value="Ritiro documenti">Ritiro documenti</option>
-            <option value="Trasferimento">Trasferimento</option>
-            <option value="Altro">Altro</option>
-          </select>
-        </div>
-        <div class="filter-group filter-actions">
-          <label>&nbsp;</label>
-          <button class="btn btn-primary" onclick="applyFilters()">Filtra</button>
-          <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+      </div>
+
+      <div class="table-wrap">
+        <div id="guest-table-status" class="table-status">Caricamento ospiti...</div>
+        <div class="table-scroll table-hidden" id="guest-table-container">
+          <table>
+            <thead>
+              <tr>
+                <th class="no-sort">Nome</th>
+                <th class="no-sort">Cognome</th>
+                <th class="no-sort">Email</th>
+                <th class="no-sort">Azienda</th>
+                <th class="no-sort">Data Prevista</th>
+                <th class="no-sort">Persona da Visitare</th>
+                <th class="no-sort">Stato</th>
+                <th class="no-sort">Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="guest-table-body"></tbody>
+          </table>
         </div>
       </div>
     </div>
 
-    <div class="table-wrap">
-      <div id="table-status" class="table-status">Caricamento dati...</div>
-      <div class="table-scroll" id="table-container" style="display:none;">
-        <table>
-          <thead>
-            <tr>
-              <th onclick="sortBy('first_name')">Nome</th>
-              <th onclick="sortBy('last_name')">Cognome</th>
-              <th onclick="sortBy('visit_date')">Data</th>
-              <th onclick="sortBy('entry_time')">Ingresso</th>
-              <th>Uscita</th>
-              <th>Persona da Visitare</th>
-              <th>Motivo</th>
-              <th>Badge</th>
-              <th>Telefono</th>
-              <th>Firma</th>
-              <th>Consenso</th>
-              <th>Azioni</th>
-            </tr>
-          </thead>
-          <tbody id="table-body"></tbody>
-        </table>
-      </div>
-      <div class="pagination">
-        <button class="btn btn-primary" id="btn-prev" onclick="prevPage()">← Prec.</button>
-        <span id="page-info">Pagina 1</span>
-        <button class="btn btn-primary" id="btn-next" onclick="nextPage()">Succ. →</button>
-      </div>
-    </div>
   </div>
 
   <script src="../frontend/config.js"></script>
@@ -682,6 +692,10 @@
     let sortCol      = 'visit_date';
     let sortDir      = 'desc';
     let currentData  = [];
+    let currentView  = 'visitors';
+
+    let badgeCurrentId   = null;
+    let detailsCurrentId = null;
 
     // ── INIT ─────────────────────────────────────────
     window.addEventListener('load', async () => {
@@ -713,7 +727,7 @@
       loadData();
     });
 
-    // ── AUTH HELPERS ─────────────────────────────────
+    // ── AUTH ─────────────────────────────────────────
     async function tryRefreshToken() {
       const rt = localStorage.getItem('sb-refresh-token');
       if (!rt) return false;
@@ -733,11 +747,7 @@
     }
 
     async function api(url, opts = {}) {
-      const headers = {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${accessToken}`,
-        ...opts.headers
-      };
+      const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${accessToken}`, ...opts.headers };
       let res = await fetch(url, { ...opts, headers });
       if (res.status === 401) {
         if (await tryRefreshToken()) {
@@ -754,32 +764,37 @@
       window.location.href = 'login.html';
     }
 
-    // ── DATA LOADING ─────────────────────────────────
+    // ── VIEW SWITCH ───────────────────────────────────
+    function switchView(v) {
+      currentView = v;
+      document.getElementById('view-visitors').classList.toggle('active', v === 'visitors');
+      document.getElementById('view-guests').classList.toggle('active', v === 'guests');
+      document.getElementById('tab-visitors').classList.toggle('active-tab', v === 'visitors');
+      document.getElementById('tab-guests').classList.toggle('active-tab', v === 'guests');
+      if (v === 'guests') loadGuestList();
+    }
+
+    // ── VISITORS DATA ─────────────────────────────────
     function buildUrl() {
       let url = `${SUPABASE_URL}/rest/v1/visitors?select=*&order=${sortCol}.${sortDir}`;
-
       const name   = document.getElementById('f-name').value.trim();
       const last   = document.getElementById('f-lastname').value.trim();
       const reason = document.getElementById('f-reason').value;
       const ds     = document.getElementById('f-date-start').value;
       const de     = document.getElementById('f-date-end').value;
-      const phone  = document.getElementById('f-phone').value.trim();
-
       if (name)   url += `&first_name=ilike.*${encodeURIComponent(name)}*`;
       if (last)   url += `&last_name=ilike.*${encodeURIComponent(last)}*`;
       if (reason) url += `&visit_reason=eq.${encodeURIComponent(reason)}`;
       if (ds)     url += `&visit_date=gte.${ds}`;
       if (de)     url += `&visit_date=lte.${de}`;
-      if (phone)  url += `&phone=ilike.*${encodeURIComponent(phone)}*`;
-
       url += `&limit=${PAGE_SIZE}&offset=${currentPage * PAGE_SIZE}`;
       return url;
     }
 
     async function loadData() {
+      if (currentView !== 'visitors') return;
       setTableStatus('Caricamento dati...');
       hideError();
-
       try {
         const res = await api(buildUrl());
         if (!res) return;
@@ -796,22 +811,16 @@
     function applyFilters() { currentPage = 0; loadData(); }
 
     function resetFilters() {
-      ['f-date-start','f-date-end','f-name','f-lastname','f-phone'].forEach(id => {
-        document.getElementById(id).value = '';
-      });
+      ['f-date-start','f-date-end','f-name','f-lastname'].forEach(id => { document.getElementById(id).value = ''; });
       document.getElementById('f-reason').value = '';
       currentPage = 0;
       loadData();
     }
 
-    // ── RENDER ───────────────────────────────────────
+    // ── RENDER VISITORS ───────────────────────────────
     function esc(v) {
       if (v == null) return '';
-      return String(v)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+      return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     function safeImgSrc(v) {
@@ -840,6 +849,26 @@
       return 'altro';
     }
 
+    function renderXatlasStatus(row) {
+      const s = row.xatlas_status;
+      const b = esc(row.badge_number);
+      const entry = row.entry_time ? row.entry_time.slice(0,5) : null;
+      const exit  = row.exit_time  ? row.exit_time.slice(0,5)  : null;
+      if (!s) {
+        return `<span class="xstatus xstatus-none">Nessun badge</span>`;
+      }
+      if (s === 'pending') {
+        return `<span class="xstatus xstatus-pending">&#9679; Badge ${b} — Attivazione...</span>`;
+      }
+      if (s === 'active') {
+        return `<span class="xstatus xstatus-active">&#9679; Badge ${b}${entry ? ' — Entrato ' + entry : ''}</span>`;
+      }
+      if (s === 'checked_out') {
+        return `<span class="xstatus xstatus-checkout">&#9679; Uscito${exit ? ' ' + exit : ''}</span>`;
+      }
+      return `<span class="xstatus xstatus-none">${esc(s)}</span>`;
+    }
+
     function renderTable(data) {
       if (data.length === 0) {
         setTableStatus('Nessun risultato per i filtri applicati.');
@@ -852,75 +881,79 @@
       data.forEach(row => {
         const tr = document.createElement('tr');
 
-        const sigSrc = safeImgSrc(row.signature);
-        const sigHtml = sigSrc
-          ? `<div class="sig-cell"><img src="${sigSrc}" alt="Firma"></div>`
-          : '—';
-
+        const sigSrc  = safeImgSrc(row.signature);
+        const sigHtml = sigSrc ? `<div class="sig-cell"><img src="${sigSrc}" alt="Firma"></div>` : '—';
         const consentHtml = row.data_consent
-          ? '<span class="consent-yes">✓ Sì</span>'
-          : '<span class="consent-no">✗ No</span>';
+          ? '<span class="consent-yes">&#10003; S&igrave;</span>'
+          : '<span class="consent-no">&#10007; No</span>';
+
+        const gTypeHtml = row.guest_id
+          ? '<span class="gtype gtype-atteso">Atteso</span>'
+          : '<span class="gtype gtype-walkin">Walk-in</span>';
+
+        const xstatusHtml = renderXatlasStatus(row);
+
+        const canAssign = !row.xatlas_status;
+        const assignBtn = canAssign
+          ? `<button type="button" class="btn-badge-assign" data-id="${esc(row.id)}" onclick="openBadgeModal(this)">Associa Badge</button>`
+          : '';
 
         tr.innerHTML = `
           <td><strong>${esc(row.first_name)}</strong></td>
           <td><strong>${esc(row.last_name)}</strong></td>
           <td>${esc(row.visit_date)}</td>
-          <td>${esc(row.entry_time)}</td>
-          <td>${esc(row.exit_time) || '—'}</td>
+          <td>${row.entry_time ? esc(row.entry_time.slice(0,5)) : '—'}</td>
+          <td>${row.exit_time  ? esc(row.exit_time.slice(0,5))  : '—'}</td>
           <td>${esc(row.person_to_visit) || '—'}</td>
           <td><span class="badge ${badgeClass(row.visit_reason)}">${esc(row.visit_reason)}</span></td>
-          <td>${esc(row.badge_number) || '—'}</td>
-          <td>${esc(row.phone) || '—'}</td>
+          <td>${gTypeHtml}</td>
+          <td>${xstatusHtml}</td>
           <td>${sigHtml}</td>
           <td style="text-align:center;">${consentHtml}</td>
           <td>
-            <button type="button" class="btn-edit" data-id="${esc(row.id)}" onclick="openEditModal(this)">Modifica</button>
-            <button type="button" class="btn-delete" data-id="${esc(row.id)}" onclick="deleteRecord(this)">Elimina</button>
+            ${assignBtn}
+            <button type="button" class="btn-details" data-id="${esc(row.id)}" onclick="openDetailsModal(this)">Dettagli</button>
+            <button type="button" class="btn-delete"  data-id="${esc(row.id)}" onclick="deleteRecord(this)">Elimina</button>
           </td>
         `;
         tbody.appendChild(tr);
       });
 
       document.getElementById('table-status').style.display = 'none';
-      document.getElementById('table-container').style.display = 'block';
+      document.getElementById('table-container').classList.remove('table-hidden');
       document.getElementById('page-info').textContent = `Pagina ${currentPage + 1}`;
       document.getElementById('btn-prev').disabled = currentPage === 0;
       document.getElementById('btn-next').disabled = data.length < PAGE_SIZE;
     }
 
     function setTableStatus(msg) {
-      document.getElementById('table-container').style.display = 'none';
+      document.getElementById('table-container').classList.add('table-hidden');
       const el = document.getElementById('table-status');
       el.textContent = msg;
       el.style.display = 'block';
     }
 
-    // ── STATS ────────────────────────────────────────
+    // ── STATS ─────────────────────────────────────────
     async function updateStats() {
       const today = new Date().toISOString().split('T')[0];
-
       const fetchCount = async (extra = '') => {
-        const res = await api(
-          `${SUPABASE_URL}/rest/v1/visitors?select=id${extra}`,
-          { headers: { 'Prefer': 'count=exact' } }
-        );
+        const res = await api(`${SUPABASE_URL}/rest/v1/visitors?select=id${extra}`, { headers: { 'Prefer': 'count=exact' } });
         if (!res) return '—';
         return res.headers.get('content-range')?.split('/')[1] ?? '—';
       };
-
       try {
-        const [total, todayCount, appCount] = await Promise.all([
+        const [total, todayCount, activeCount] = await Promise.all([
           fetchCount(),
           fetchCount(`&visit_date=eq.${today}`),
-          fetchCount(`&visit_reason=eq.${encodeURIComponent('Appuntamento di lavoro')}`)
+          fetchCount(`&xatlas_status=eq.active`)
         ]);
-        document.getElementById('stat-total').textContent        = total;
-        document.getElementById('stat-today').textContent        = todayCount;
-        document.getElementById('stat-appuntamento').textContent = appCount;
+        document.getElementById('stat-total').textContent  = total;
+        document.getElementById('stat-today').textContent  = todayCount;
+        document.getElementById('stat-active').textContent = activeCount;
       } catch (_) { /* non-critical */ }
     }
 
-    // ── SORT / PAGE ───────────────────────────────────
+    // ── SORT / PAGE ────────────────────────────────────
     function sortBy(col) {
       sortDir = (sortCol === col && sortDir === 'asc') ? 'desc' : 'asc';
       sortCol = col;
@@ -931,113 +964,137 @@
     function nextPage() { currentPage++; loadData(); }
     function prevPage() { if (currentPage > 0) { currentPage--; loadData(); } }
 
-    // ── EXPORT CSV ───────────────────────────────────
+    // ── EXPORT CSV ────────────────────────────────────
     function exportCSV() {
-      function fmtDate(d) {
-        if (!d) return '';
-        const [y, m, g] = d.split('-');
-        return `${g}/${m}/${y}`;
-      }
-      function fmtTime(t) {
-        if (!t) return '';
-        return t.slice(0, 5); // HH:MM
-      }
+      function fmtDate(d) { if (!d) return ''; const [y, m, g] = d.split('-'); return `${g}/${m}/${y}`; }
+      function fmtTime(t) { if (!t) return ''; return t.slice(0, 5); }
       function val(v) { return v ?? ''; }
 
-      const headers = ['Nome','Cognome','Data visita','Ora ingresso','Ora uscita',
-                       'Persona da visitare','Motivo visita','N° badge','Telefono','Consenso privacy'];
+      const headers = ['Nome','Cognome','Email','Data visita','Ingresso (tornello)','Uscita (tornello)',
+                       'Persona da visitare','Motivo visita','N° badge','Stato badge','Tipo','Consenso privacy'];
       const rows = currentData.map(r => [
-        val(r.first_name),
-        val(r.last_name),
-        fmtDate(r.visit_date),
-        fmtTime(r.entry_time),
-        fmtTime(r.exit_time),
-        val(r.person_to_visit),
-        val(r.visit_reason),
-        val(r.badge_number),
-        val(r.phone),
+        val(r.first_name), val(r.last_name), val(r.email),
+        fmtDate(r.visit_date), fmtTime(r.entry_time), fmtTime(r.exit_time),
+        val(r.person_to_visit), val(r.visit_reason), val(r.badge_number),
+        val(r.xatlas_status) || 'nessuno',
+        r.guest_id ? 'Atteso' : 'Walk-in',
         r.data_consent ? 'Sì' : 'No'
       ]);
-      const csv = [headers, ...rows]
-        .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
-        .join('\r\n');
+      const csv = [headers, ...rows].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
       const url  = URL.createObjectURL(blob);
       const today = new Date();
       const fname = `visitatori_${String(today.getDate()).padStart(2,'0')}-${String(today.getMonth()+1).padStart(2,'0')}-${today.getFullYear()}.csv`;
-      const a    = Object.assign(document.createElement('a'), { href: url, download: fname });
+      const a = Object.assign(document.createElement('a'), { href: url, download: fname });
       a.click();
       URL.revokeObjectURL(url);
     }
 
-    // ── EDIT MODAL ───────────────────────────────────
-    let editCurrentId = null;
-
-    function openEditModal(btn) {
-      editCurrentId = btn.dataset.id;
-      const row = currentData.find(r => String(r.id) === String(editCurrentId));
+    // ── BADGE MODAL ───────────────────────────────────
+    function openBadgeModal(btn) {
+      badgeCurrentId = btn.dataset.id;
+      const row = currentData.find(r => String(r.id) === String(badgeCurrentId));
       if (!row) return;
-
-      document.getElementById('modal-visitor-name').textContent =
-        `${row.first_name} ${row.last_name} — ${row.visit_date ? row.visit_date.split('-').reverse().join('/') : ''}`;
-
-      document.getElementById('edit-badge').value      = row.badge_number || '';
-      document.getElementById('edit-first-name').value = row.first_name || '';
-      document.getElementById('edit-last-name').value  = row.last_name || '';
-      document.getElementById('edit-visit-date').value = row.visit_date || '';
-      document.getElementById('edit-entry-time').value = row.entry_time ? row.entry_time.slice(0,5) : '';
-      document.getElementById('edit-exit-time').value  = row.exit_time  ? row.exit_time.slice(0,5)  : '';
-      document.getElementById('edit-phone').value      = row.phone || '';
-      document.getElementById('edit-person').value     = row.person_to_visit || '';
-      document.getElementById('edit-reason').value     = row.visit_reason || '';
-
-      document.getElementById('edit-modal').classList.add('active');
-      setTimeout(() => document.getElementById('edit-badge').focus(), 100);
+      document.getElementById('badge-visitor-name').textContent = `${row.first_name} ${row.last_name}`;
+      document.getElementById('badge-number-input').value = '';
+      document.getElementById('badge-modal').classList.add('active');
+      setTimeout(() => document.getElementById('badge-number-input').focus(), 100);
     }
 
-    function closeModal() {
-      document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
-      editCurrentId = null;
-    }
+    async function saveBadgeAssignment() {
+      if (!badgeCurrentId) return;
+      const badgeNum = document.getElementById('badge-number-input').value.trim();
+      if (!badgeNum) { alert('Inserisci il numero badge.'); return; }
 
-    // Chiudi cliccando fuori dal modale
-    document.addEventListener('click', e => {
-      if (e.target.classList.contains('modal-overlay')) closeModal();
-    });
-
-    async function saveEdit() {
-      if (!editCurrentId) return;
-      const saveBtn = document.querySelector('#edit-modal .btn-save');
+      const saveBtn = document.querySelector('#badge-modal .btn-save');
       saveBtn.disabled = true;
       saveBtn.textContent = 'Salvataggio...';
 
-      const patch = {
-        badge_number:    document.getElementById('edit-badge').value.trim()      || null,
-        first_name:      document.getElementById('edit-first-name').value.trim() || null,
-        last_name:       document.getElementById('edit-last-name').value.trim()  || null,
-        visit_date:      document.getElementById('edit-visit-date').value        || null,
-        entry_time:      document.getElementById('edit-entry-time').value        || null,
-        exit_time:       document.getElementById('edit-exit-time').value         || null,
-        phone:           document.getElementById('edit-phone').value.trim()      || null,
-        person_to_visit: document.getElementById('edit-person').value.trim()     || null,
-        visit_reason:    document.getElementById('edit-reason').value.trim()     || null,
-      };
-
       try {
         const res = await api(
-          `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(editCurrentId)}`,
+          `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(badgeCurrentId)}`,
           {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-            body: JSON.stringify(patch)
+            body: JSON.stringify({ badge_number: badgeNum, xatlas_status: 'pending' })
           }
         );
         if (!res) return;
         const body = await res.json().catch(() => []);
         if (!res.ok) throw new Error(body?.message || `Errore ${res.status}`);
 
-        // Aggiorna currentData e ricarica tabella
-        const idx = currentData.findIndex(r => String(r.id) === String(editCurrentId));
+        const idx = currentData.findIndex(r => String(r.id) === String(badgeCurrentId));
+        if (idx !== -1) { currentData[idx].badge_number = badgeNum; currentData[idx].xatlas_status = 'pending'; }
+        renderTable(currentData);
+        closeModal();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Associa e attiva';
+      }
+    }
+
+    // ── DETAILS MODAL ─────────────────────────────────
+    function openDetailsModal(btn) {
+      detailsCurrentId = btn.dataset.id;
+      const row = currentData.find(r => String(r.id) === String(detailsCurrentId));
+      if (!row) return;
+
+      document.getElementById('details-visitor-name').textContent =
+        `${row.first_name} ${row.last_name} — ${row.visit_date ? row.visit_date.split('-').reverse().join('/') : ''}`;
+
+      // Status box
+      const statusBox = document.getElementById('details-status-box');
+      const s = row.xatlas_status;
+      if (!s) {
+        statusBox.className = 'modal-status-box status-none';
+        statusBox.textContent = 'Nessun badge assegnato — premi "Associa Badge" nella tabella per attivare il tornello.';
+      } else if (s === 'pending') {
+        statusBox.className = 'modal-status-box status-pending';
+        statusBox.textContent = `Badge ${row.badge_number} — In attesa di attivazione sul tornello...`;
+      } else if (s === 'active') {
+        statusBox.className = 'modal-status-box status-active';
+        statusBox.textContent = `Badge ${row.badge_number} — Attivo sul tornello. Entrato alle ${row.entry_time ? row.entry_time.slice(0,5) : '—'}.`;
+      } else if (s === 'checked_out') {
+        statusBox.className = 'modal-status-box status-checkout';
+        statusBox.textContent = `Badge liberato. Uscito alle ${row.exit_time ? row.exit_time.slice(0,5) : '—'}. Badge riassegnabile.`;
+      }
+
+      document.getElementById('det-first-name').value  = row.first_name || '';
+      document.getElementById('det-last-name').value   = row.last_name  || '';
+      document.getElementById('det-email').value       = row.email      || '';
+      document.getElementById('det-visit-date').value  = row.visit_date || '';
+      document.getElementById('det-entry-time').value  = row.entry_time ? row.entry_time.slice(0,5) : '';
+      document.getElementById('det-exit-time').value   = row.exit_time  ? row.exit_time.slice(0,5)  : '';
+      document.getElementById('det-badge').value       = row.badge_number || '';
+      document.getElementById('det-person').value      = row.person_to_visit || '';
+      document.getElementById('det-reason').value      = row.visit_reason   || '';
+
+      document.getElementById('details-modal').classList.add('active');
+    }
+
+    async function saveDetails() {
+      if (!detailsCurrentId) return;
+      const saveBtn = document.querySelector('#details-modal .btn-save');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Salvataggio...';
+
+      const patch = {
+        person_to_visit: document.getElementById('det-person').value.trim() || null,
+        visit_reason:    document.getElementById('det-reason').value.trim() || null,
+      };
+
+      try {
+        const res = await api(
+          `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(detailsCurrentId)}`,
+          { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' }, body: JSON.stringify(patch) }
+        );
+        if (!res) return;
+        const body = await res.json().catch(() => []);
+        if (!res.ok) throw new Error(body?.message || `Errore ${res.status}`);
+
+        const idx = currentData.findIndex(r => String(r.id) === String(detailsCurrentId));
         if (idx !== -1) currentData[idx] = { ...currentData[idx], ...patch };
         renderTable(currentData);
         closeModal();
@@ -1049,7 +1106,7 @@
       }
     }
 
-    // ── DELETE ───────────────────────────────────────
+    // ── DELETE ────────────────────────────────────────
     async function deleteRecord(btn) {
       const id = btn.dataset.id;
       if (!id) { alert('ID record non trovato.'); return; }
@@ -1058,17 +1115,12 @@
       btn.textContent = '...';
       try {
         const res = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(id)}`, {
-          method: 'DELETE',
-          headers: { 'Prefer': 'return=representation' }
+          method: 'DELETE', headers: { 'Prefer': 'return=representation' }
         });
         if (!res) return;
         const body = await res.json().catch(() => []);
-        if (!res.ok) {
-          throw new Error(body?.message || body?.hint || `Errore ${res.status}`);
-        }
-        if (!Array.isArray(body) || body.length === 0) {
-          throw new Error('Nessun record eliminato — verifica le policy RLS in Supabase.');
-        }
+        if (!res.ok) throw new Error(body?.message || body?.hint || `Errore ${res.status}`);
+        if (!Array.isArray(body) || body.length === 0) throw new Error('Nessun record eliminato — verifica le policy RLS in Supabase.');
         btn.closest('tr').remove();
         currentData = currentData.filter(r => String(r.id) !== String(id));
         updateStats();
@@ -1079,16 +1131,253 @@
       }
     }
 
-    // ── ERROR UI ─────────────────────────────────────
-    function showError(msg) {
-      const el = document.getElementById('error-banner');
-      el.textContent = msg;
-      el.style.display = 'block';
+    // ── CLOSE MODAL ───────────────────────────────────
+    function closeModal() {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+      badgeCurrentId   = null;
+      detailsCurrentId = null;
     }
 
-    function hideError() {
-      document.getElementById('error-banner').style.display = 'none';
+    document.addEventListener('click', e => {
+      if (e.target.classList.contains('modal-overlay')) closeModal();
+    });
+
+    // ── GUEST LIST ────────────────────────────────────
+    let guestData = [];
+
+    async function loadGuestList() {
+      document.getElementById('guest-table-container').classList.add('table-hidden');
+      document.getElementById('guest-table-status').textContent = 'Caricamento ospiti...';
+      document.getElementById('guest-table-status').style.display = 'block';
+
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_list?select=*&order=expected_date.asc,last_name.asc`);
+        if (!res) return;
+        if (!res.ok) throw new Error(`Errore ${res.status}`);
+        guestData = await res.json();
+
+        // Carica visitor con guest_id per sapere chi è arrivato
+        const arrivedRes = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id&guest_id=not.is.null`);
+        const arrivedData = arrivedRes?.ok ? await arrivedRes.json() : [];
+        const arrivedSet  = new Set(arrivedData.map(v => v.guest_id));
+
+        renderGuestTable(guestData, arrivedSet);
+
+        document.getElementById('g-stat-total').textContent   = guestData.length;
+        document.getElementById('g-stat-arrived').textContent = arrivedSet.size;
+      } catch (err) {
+        document.getElementById('guest-table-status').textContent = 'Errore caricamento: ' + err.message;
+      }
     }
+
+    function renderGuestTable(data, arrivedSet) {
+      if (data.length === 0) {
+        document.getElementById('guest-table-status').textContent = 'Nessun ospite in lista.';
+        document.getElementById('guest-table-status').style.display = 'block';
+        document.getElementById('guest-table-container').classList.add('table-hidden');
+        return;
+      }
+
+      const tbody = document.getElementById('guest-table-body');
+      tbody.innerHTML = '';
+
+      data.forEach(g => {
+        const arrived = arrivedSet.has(g.id);
+        const statusHtml = arrived
+          ? '<span class="gtype gtype-atteso">Arrivato</span>'
+          : '<span class="gtype gtype-walkin">In attesa</span>';
+
+        const dateFormatted = g.expected_date ? g.expected_date.split('-').reverse().join('/') : '—';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${esc(g.first_name)}</strong></td>
+          <td><strong>${esc(g.last_name)}</strong></td>
+          <td>${esc(g.email) || '—'}</td>
+          <td>${esc(g.company) || '—'}</td>
+          <td>${dateFormatted}</td>
+          <td>${esc(g.person_to_visit) || '—'}</td>
+          <td>${statusHtml}</td>
+          <td>
+            <button type="button" class="btn-delete" data-id="${esc(g.id)}" onclick="deleteGuest(this)">Rimuovi</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('guest-table-status').style.display = 'none';
+      document.getElementById('guest-table-container').classList.remove('table-hidden');
+    }
+
+    // ── ADD GUEST ─────────────────────────────────────
+    function openAddGuestModal() {
+      ['ag-first-name','ag-last-name','ag-email','ag-company','ag-person','ag-reason','ag-notes'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('ag-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('add-guest-modal').classList.add('active');
+      setTimeout(() => document.getElementById('ag-first-name').focus(), 100);
+    }
+
+    async function saveGuest() {
+      const fn = document.getElementById('ag-first-name').value.trim();
+      const ln = document.getElementById('ag-last-name').value.trim();
+      if (!fn || !ln) { alert('Nome e Cognome sono obbligatori.'); return; }
+
+      const saveBtn = document.querySelector('#add-guest-modal .btn-save');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Salvataggio...';
+
+      const payload = {
+        first_name:      fn,
+        last_name:       ln,
+        email:           document.getElementById('ag-email').value.trim()   || null,
+        company:         document.getElementById('ag-company').value.trim() || null,
+        expected_date:   document.getElementById('ag-date').value           || null,
+        person_to_visit: document.getElementById('ag-person').value.trim()  || null,
+        visit_reason:    document.getElementById('ag-reason').value.trim()  || null,
+        notes:           document.getElementById('ag-notes').value.trim()   || null,
+      };
+
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_list`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify(payload)
+        });
+        if (!res) return;
+        if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.message || `Errore ${res.status}`); }
+        closeModal();
+        loadGuestList();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Aggiungi ospite';
+      }
+    }
+
+    async function deleteGuest(btn) {
+      const id = btn.dataset.id;
+      if (!confirm('Rimuovere questo ospite dalla lista?')) return;
+      btn.disabled = true;
+      btn.textContent = '...';
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_list?id=eq.${encodeURIComponent(id)}`, {
+          method: 'DELETE', headers: { 'Prefer': 'return=representation' }
+        });
+        if (!res) return;
+        if (!res.ok) throw new Error(`Errore ${res.status}`);
+        btn.closest('tr').remove();
+        guestData = guestData.filter(g => String(g.id) !== String(id));
+        document.getElementById('g-stat-total').textContent = guestData.length;
+      } catch (err) {
+        alert('Errore: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Rimuovi';
+      }
+    }
+
+    // ── TEMPLATE DOWNLOAD ─────────────────────────────
+    function downloadTemplate() {
+      const header = ['Nome','Cognome','Email','Azienda','Persona_da_Visitare','Motivo_Visita','Data_Prevista'];
+      const example = ['Mario','Rossi','mario.rossi@esempio.it','Esempio Srl','Luca Verdi','Appuntamento di lavoro',new Date().toISOString().split('T')[0]];
+      const csv = [header, example].map(r => r.map(c => `"${c}"`).join(',')).join('\r\n');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = Object.assign(document.createElement('a'), { href: url, download: 'template_ospiti.csv' });
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ── IMPORT CSV / EXCEL ────────────────────────────
+    function importFile(input) {
+      const file = input.files[0];
+      if (!file) return;
+      input.value = '';
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'csv') {
+        const reader = new FileReader();
+        reader.onload = e => parseAndImportCSV(e.target.result);
+        reader.readAsText(file, 'UTF-8');
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        const reader = new FileReader();
+        reader.onload = e => {
+          try {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            parseAndImportRows(rows);
+          } catch (err) {
+            alert('Errore lettura Excel: ' + err.message);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        alert('Formato non supportato. Usa .csv, .xlsx o .xls');
+      }
+    }
+
+    function parseAndImportCSV(text) {
+      const sep = text.includes(';') ? ';' : ',';
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      const rows = lines.map(l => l.split(sep).map(c => c.trim().replace(/^"|"$/g, '').replace(/""/g, '"')));
+      parseAndImportRows(rows);
+    }
+
+    async function parseAndImportRows(rows) {
+      if (rows.length < 2) { alert('Il file non contiene dati.'); return; }
+
+      // Normalizza intestazioni
+      const colMap = {
+        'nome': 'first_name', 'cognome': 'last_name',
+        'email': 'email', 'azienda': 'company',
+        'persona_da_visitare': 'person_to_visit',
+        'motivo_visita': 'visit_reason',
+        'data_prevista': 'expected_date'
+      };
+
+      const headers = rows[0].map(h => h.toLowerCase().trim().replace(/ /g, '_'));
+      const colIdx = {};
+      headers.forEach((h, i) => { if (colMap[h]) colIdx[colMap[h]] = i; });
+
+      if (colIdx.first_name === undefined || colIdx.last_name === undefined) {
+        alert('Colonne "Nome" e "Cognome" non trovate. Usa il template scaricabile.');
+        return;
+      }
+
+      const records = rows.slice(1).map(r => {
+        const rec = {};
+        Object.entries(colIdx).forEach(([field, idx]) => {
+          const val = r[idx] ? String(r[idx]).trim() : null;
+          rec[field] = val || null;
+        });
+        return rec;
+      }).filter(r => r.first_name && r.last_name);
+
+      if (records.length === 0) { alert('Nessun record valido trovato.'); return; }
+
+      if (!confirm(`Importare ${records.length} ospiti?`)) return;
+
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_list`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify(records)
+        });
+        if (!res) return;
+        if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.message || `Errore ${res.status}`); }
+        alert(`${records.length} ospiti importati con successo.`);
+        loadGuestList();
+      } catch (err) {
+        alert('Errore importazione: ' + err.message);
+      }
+    }
+
+    // ── ERROR UI ──────────────────────────────────────
+    function showError(msg) { const el = document.getElementById('error-banner'); el.textContent = msg; el.style.display = 'block'; }
+    function hideError() { document.getElementById('error-banner').style.display = 'none'; }
   </script>
 </body>
 </html>

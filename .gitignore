@@ -21,3 +21,7 @@ npm-debug.log*
 
 # Supabase local (if you use Supabase CLI)
 .supabase/
+
+# Agente Zucchetti — credenziali locali
+agent_config.ini
+zucchetti_agent.log
