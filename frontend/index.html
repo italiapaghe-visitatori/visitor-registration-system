@@ -512,6 +512,14 @@
     .guest-tile-info { flex: 1; min-width: 0; }
     .guest-tile-last  { font-weight: 700; font-size: 14px; color: #2d3748; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .guest-tile-first { font-size: 12px; color: #718096; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .guest-tile-badge { font-size: 10px; font-weight: 700; background: #edf2f7; color: #718096; border-radius: 4px; padding: 1px 6px; margin-top: 2px; display: inline-block; }
+
+    .guest-tile.at-desk {
+      opacity: 0.55;
+      cursor: default;
+      border-style: dashed;
+    }
+    .guest-tile.at-desk:hover { border-color: #e8ecf4; background: #fafbfd; transform: none; }
 
     .guest-noresult {
       grid-column: 1 / -1;
@@ -1162,16 +1170,20 @@
         if (!gRes.ok) return;
         const allToday = await gRes.json();
 
-        // ID ospiti già abbinati (visitatori registrati con guest_id)
+        // Visitatori con guest_id: distingue "al desk" (entry_time NULL) da "entrati" (entry_time settato)
         const vRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/visitors?select=guest_id&guest_id=not.is.null`,
+          `${SUPABASE_URL}/rest/v1/visitors?select=guest_id,entry_time&guest_id=not.is.null`,
           { headers: hdrs }
         );
-        const matched = vRes.ok ? await vRes.json() : [];
-        const matchedIds = new Set(matched.map(v => v.guest_id));
+        const vData = vRes.ok ? await vRes.json() : [];
+        // Entrati fisicamente al tornello → rimossi dalla lista
+        const enteredIds = new Set(vData.filter(v => v.entry_time).map(v => v.guest_id));
+        // Hanno firmato al desk ma non ancora al tornello → mostrati come "Al desk"
+        const atDeskIds  = new Set(vData.filter(v => !v.entry_time).map(v => v.guest_id));
 
-        // Solo ospiti non ancora arrivati
-        allGuests = allToday.filter(g => !matchedIds.has(g.id));
+        allGuests = allToday
+          .filter(g => !enteredIds.has(g.id))
+          .map(g => ({ ...g, _atDesk: atDeskIds.has(g.id) }));
 
         if (allGuests.length > 0 && !selectedGuestId) {
           activeAlpha = '';
@@ -1217,14 +1229,16 @@
         const initials = ((g.last_name[0] || '') + (g.first_name[0] || '')).toUpperCase();
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'guest-tile';
+        btn.className = 'guest-tile' + (g._atDesk ? ' at-desk' : '');
+        btn.disabled = !!g._atDesk;
         btn.innerHTML =
           `<div class="guest-tile-avatar">${escHtml(initials)}</div>` +
           `<div class="guest-tile-info">` +
             `<div class="guest-tile-last">${escHtml(g.last_name)}</div>` +
             `<div class="guest-tile-first">${escHtml(g.first_name)}</div>` +
+            (g._atDesk ? `<span class="guest-tile-badge">Al desk</span>` : '') +
           `</div>`;
-        btn.addEventListener('click', () => selectGuest(g));
+        if (!g._atDesk) btn.addEventListener('click', () => selectGuest(g));
         grid.appendChild(btn);
       });
     }
