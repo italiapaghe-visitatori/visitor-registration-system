@@ -1096,8 +1096,6 @@
           if (allGuests.length > 0 && !selectedGuestId) {
             renderGuestCards(allGuests);
             document.getElementById('guest-summary-count').textContent = allGuests.length;
-            // Apri automaticamente se ci sono pochi ospiti (<=8), altrimenti lascia chiuso
-            if (allGuests.length <= 8) document.getElementById('guest-details').open = true;
             document.getElementById('guest-lookup-wrap').style.display = 'block';
           } else if (allGuests.length === 0) {
             document.getElementById('guest-lookup-wrap').style.display = 'none';
@@ -1186,7 +1184,7 @@
       document.getElementById('person_to_visit').value           = '';
       document.getElementById('visit_reason').selectedIndex      = 0;
       renderGuestCards(allGuests);
-      document.getElementById('guest-details').open              = allGuests.length <= 8;
+      document.getElementById('guest-details').open              = false;
       document.getElementById('guest-lookup-wrap').style.display = 'block';
     });
 
@@ -1349,7 +1347,7 @@
           document.getElementById('guest-search').value          = '';
           if (allGuests.length > 0) {
             renderGuestCards(allGuests);
-            document.getElementById('guest-details').open              = allGuests.length <= 8;
+            document.getElementById('guest-details').open              = false;
             document.getElementById('guest-lookup-wrap').style.display = 'block';
           }
           setTimeout(() => { document.getElementById('message').style.display = 'none'; }, 4500);
