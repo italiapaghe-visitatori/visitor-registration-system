@@ -409,37 +409,63 @@
       background: #fafbfd url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2'%3e%3ccircle cx='11' cy='11' r='8'/%3e%3cpath d='m21 21-4.35-4.35'/%3e%3c/svg%3e") no-repeat 13px center;
     }
 
-    /* Lettere rapide A-Z */
-    .guest-alpha-bar {
+    /* Tastiera iniziali */
+    .alpha-keyboard {
       display: flex;
       flex-wrap: wrap;
-      gap: 4px;
-      margin-bottom: 10px;
+      gap: 6px;
+      margin-bottom: 14px;
     }
 
-    .alpha-btn {
-      padding: 4px 8px;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 6px;
+    .alpha-key {
+      width: 44px;
+      height: 44px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
       background: #fff;
-      font-size: 13px;
-      font-weight: 700;
+      font-size: 17px;
+      font-weight: 800;
       color: #4a5568;
       cursor: pointer;
-      transition: background 0.14s, border-color 0.14s, color 0.14s;
-      line-height: 1;
+      transition: background 0.14s, border-color 0.14s, color 0.14s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .alpha-btn:hover   { background: #eef2ff; border-color: var(--primary); color: var(--primary); }
-    .alpha-btn.active  { background: var(--primary); border-color: var(--primary); color: #fff; }
-    .alpha-btn.all-btn { border-color: #cbd5e0; color: #718096; }
+    .alpha-key:hover  { background: #eef2ff; border-color: var(--primary); color: var(--primary); }
+    .alpha-key.active { background: var(--primary); border-color: var(--primary); color: #fff; transform: scale(1.08); }
+    .alpha-key:active { transform: scale(0.95); }
 
-    /* Griglia 2 colonne */
+    /* Separatore cerca */
+    .guest-or {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #a0aec0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 10px 0;
+      position: relative;
+    }
+
+    .guest-or::before, .guest-or::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 40%;
+      height: 1px;
+      background: #e2e8f0;
+    }
+    .guest-or::before { left: 0; }
+    .guest-or::after  { right: 0; }
+
+    /* Griglia risultati 2 colonne */
     .guest-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 7px;
-      max-height: 340px;
+      max-height: 280px;
       overflow-y: auto;
       padding-right: 2px;
     }
@@ -450,15 +476,15 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 9px 12px;
-      background: #fafbfd;
+      padding: 10px 13px;
+      background: #fff;
       border: 2px solid #e8ecf4;
       border-radius: 10px;
       cursor: pointer;
       transition: border-color 0.15s, background 0.15s, transform 0.1s;
       text-align: left;
       width: 100%;
-      min-height: 56px;
+      min-height: 58px;
     }
 
     .guest-tile:hover, .guest-tile:focus {
@@ -489,11 +515,19 @@
 
     .guest-noresult {
       grid-column: 1 / -1;
-      padding: 18px;
+      padding: 20px;
       color: #718096;
       font-size: 13px;
       text-align: center;
       font-style: italic;
+    }
+
+    .guest-hint {
+      grid-column: 1 / -1;
+      padding: 18px;
+      color: #a0aec0;
+      font-size: 13px;
+      text-align: center;
     }
 
     .guest-skip-row { margin-top: 10px; text-align: center; }
@@ -826,8 +860,9 @@
               <span class="guest-summary-chevron">&#8964;</span>
             </summary>
             <div class="guest-details-body">
-              <input type="text" id="guest-search" placeholder="Cerca per nome o cognome..." autocomplete="off" title="Cerca ospite">
-              <div class="guest-alpha-bar" id="guest-alpha-bar"></div>
+              <div class="alpha-keyboard" id="alpha-keyboard"></div>
+              <div class="guest-or">oppure cerca per nome</div>
+              <input type="text" id="guest-search" placeholder="Scrivi cognome o nome..." autocomplete="off" title="Cerca ospite">
               <div class="guest-grid" id="guest-list"></div>
             </div>
           </details>
@@ -1140,8 +1175,9 @@
 
         if (allGuests.length > 0 && !selectedGuestId) {
           activeAlpha = '';
-          buildAlphaBar();
-          renderGuestTiles(allGuests);
+          buildAlphaKeyboard();
+          renderGuestTiles([], 'Tocca una lettera oppure scrivi il cognome');
+          document.getElementById('guest-search').value = '';
           document.getElementById('guest-summary-count').textContent = allGuests.length;
           document.getElementById('guest-lookup-wrap').style.display = 'block';
         } else if (allGuests.length === 0) {
@@ -1160,13 +1196,20 @@
 
     let activeAlpha = '';
 
-    function renderGuestTiles(guests) {
+    function renderGuestTiles(guests, hint) {
       const grid = document.getElementById('guest-list');
       grid.innerHTML = '';
+      if (hint) {
+        const h = document.createElement('div');
+        h.className = 'guest-hint';
+        h.textContent = hint;
+        grid.appendChild(h);
+        return;
+      }
       if (guests.length === 0) {
         const msg = document.createElement('div');
         msg.className = 'guest-noresult';
-        msg.textContent = 'Nessun ospite trovato';
+        msg.textContent = 'Nessun ospite trovato — usa "Non sono in elenco" per procedere';
         grid.appendChild(msg);
         return;
       }
@@ -1186,40 +1229,44 @@
       });
     }
 
-    function buildAlphaBar() {
-      const bar = document.getElementById('guest-alpha-bar');
-      bar.innerHTML = '';
+    function buildAlphaKeyboard() {
+      const kb = document.getElementById('alpha-keyboard');
+      kb.innerHTML = '';
       const letters = [...new Set(allGuests.map(g => g.last_name[0]?.toUpperCase()).filter(Boolean))].sort();
-      if (letters.length <= 3) { bar.style.display = 'none'; return; }
-      bar.style.display = 'flex';
-      const allBtn = document.createElement('button');
-      allBtn.type = 'button';
-      allBtn.className = 'alpha-btn all-btn' + (activeAlpha === '' ? ' active' : '');
-      allBtn.textContent = 'Tutti';
-      allBtn.addEventListener('click', () => { activeAlpha = ''; applyFilters(); });
-      bar.appendChild(allBtn);
       letters.forEach(l => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'alpha-btn' + (activeAlpha === l ? ' active' : '');
+        btn.className = 'alpha-key' + (activeAlpha === l ? ' active' : '');
         btn.textContent = l;
-        btn.addEventListener('click', () => { activeAlpha = l; applyFilters(); });
-        bar.appendChild(btn);
+        btn.addEventListener('click', () => {
+          activeAlpha = (activeAlpha === l) ? '' : l; // toggle
+          document.getElementById('guest-search').value = '';
+          applyFilters();
+        });
+        kb.appendChild(btn);
       });
     }
 
     function applyFilters() {
       const q = document.getElementById('guest-search').value.toLowerCase().trim();
+      // Aggiorna evidenziazione tasti
+      document.querySelectorAll('.alpha-key').forEach(b => {
+        b.classList.toggle('active', b.textContent === activeAlpha);
+      });
+      if (!activeAlpha && !q) {
+        renderGuestTiles([], 'Tocca una lettera oppure scrivi il cognome');
+        return;
+      }
       let filtered = allGuests;
       if (activeAlpha) filtered = filtered.filter(g => g.last_name[0]?.toUpperCase() === activeAlpha);
-      if (q) filtered = filtered.filter(g =>
-        (g.last_name + ' ' + g.first_name).toLowerCase().includes(q) ||
-        (g.first_name + ' ' + g.last_name).toLowerCase().includes(q)
-      );
-      // Aggiorna evidenziazione barra
-      document.querySelectorAll('.alpha-btn').forEach(b => {
-        b.classList.toggle('active', b.textContent === (activeAlpha || 'Tutti'));
-      });
+      if (q) {
+        activeAlpha = '';
+        document.querySelectorAll('.alpha-key').forEach(b => b.classList.remove('active'));
+        filtered = allGuests.filter(g =>
+          (g.last_name + ' ' + g.first_name).toLowerCase().includes(q) ||
+          (g.first_name + ' ' + g.last_name).toLowerCase().includes(q)
+        );
+      }
       renderGuestTiles(filtered);
     }
 
@@ -1259,7 +1306,7 @@
       document.getElementById('email').value                     = '';
       document.getElementById('person_to_visit').value           = '';
       document.getElementById('visit_reason').selectedIndex      = 0;
-      activeAlpha = ''; buildAlphaBar(); renderGuestTiles(allGuests);
+      activeAlpha = ''; buildAlphaKeyboard(); renderGuestTiles([], 'Tocca una lettera oppure scrivi il cognome'); document.getElementById('guest-search').value = '';
       document.getElementById('guest-details').open              = false;
       document.getElementById('guest-lookup-wrap').style.display = 'block';
     });
