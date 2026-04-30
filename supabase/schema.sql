@@ -76,17 +76,21 @@ COMMENT ON TABLE visitor_registrations IS 'Registrazione visitatori - sistema mo
 
 -- Tabella ospiti pre-registrati
 CREATE TABLE IF NOT EXISTS guest_list (
-  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  first_name      TEXT NOT NULL,
-  last_name       TEXT NOT NULL,
-  email           TEXT,
-  company         TEXT,
-  person_to_visit TEXT,
-  visit_reason    TEXT,
-  expected_date   DATE,
-  notes           TEXT,
-  created_at      TIMESTAMPTZ DEFAULT NOW()
+  id                 UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  first_name         TEXT NOT NULL,
+  last_name          TEXT NOT NULL,
+  email              TEXT,
+  company            TEXT,
+  person_to_visit    TEXT,
+  visit_reason       TEXT,
+  expected_date      DATE,
+  notes              TEXT,
+  matched_visitor_id UUID REFERENCES visitors(id) DEFAULT NULL,
+  created_at         TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Aggiungi colonna se la tabella esiste già senza di essa
+ALTER TABLE guest_list ADD COLUMN IF NOT EXISTS matched_visitor_id UUID REFERENCES visitors(id) DEFAULT NULL;
 
 ALTER TABLE guest_list ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "guest_list_anon_read"   ON guest_list FOR SELECT USING (true);

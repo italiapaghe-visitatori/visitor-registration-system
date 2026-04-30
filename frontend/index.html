@@ -1023,7 +1023,6 @@
         const url = `${SUPABASE_URL}/rest/v1/guest_list` +
           `?select=id,first_name,last_name,email,company,person_to_visit,visit_reason` +
           `&or=(expected_date.is.null,expected_date.eq.${today})` +
-          `&matched_visitor_id=is.null` +
           `&order=last_name.asc`;
         const res = await fetch(url, {
           headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
