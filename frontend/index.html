@@ -1017,7 +1017,7 @@
     let allGuests       = [];
     let selectedGuestId = null;
 
-    (async function loadGuestList() {
+    async function loadGuestList() {
       try {
         const today = new Date().toISOString().split('T')[0];
         const url = `${SUPABASE_URL}/rest/v1/guest_list` +
@@ -1030,10 +1030,19 @@
         });
         if (res.ok) {
           allGuests = await res.json();
-          if (allGuests.length > 0) document.getElementById('guest-lookup-wrap').style.display = 'block';
+          // mostra il box solo se non c'è già una selezione attiva
+          if (allGuests.length > 0 && !selectedGuestId) {
+            document.getElementById('guest-lookup-wrap').style.display = 'block';
+          } else if (allGuests.length === 0) {
+            document.getElementById('guest-lookup-wrap').style.display = 'none';
+          }
         }
       } catch (_) { /* non blocca il form */ }
-    })();
+    }
+
+    loadGuestList();
+    // Aggiorna la lista ogni 60 secondi (kiosk sempre aperto)
+    setInterval(loadGuestList, 60000);
 
     function escHtml(s) {
       return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1343,8 +1352,9 @@
       document.body.style.overflow = '';
       clearInterval(ssClockInterval);
       resetSsTimer();
-      // Riporta l'ora di ingresso all'ora corrente
       document.getElementById('entry_time').value = new Date().toTimeString().slice(0, 5);
+      // Aggiorna la lista ospiti ad ogni nuovo visitatore
+      loadGuestList();
     }
 
     function resetSsTimer() {

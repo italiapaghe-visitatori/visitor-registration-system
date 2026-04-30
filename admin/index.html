@@ -490,7 +490,7 @@
         </div>
         <div class="modal-field">
           <label>Motivo visita</label>
-          <input type="text" id="ag-reason" placeholder="Motivo">
+          <select id="ag-reason" title="Motivo della visita"></select>
         </div>
         <div class="modal-field">
           <label>Note</label>
@@ -698,6 +698,17 @@
     let detailsCurrentId = null;
 
     // ── INIT ─────────────────────────────────────────
+    // Popola select motivo visita nella modal ospiti
+    (function () {
+      const sel = document.getElementById('ag-reason');
+      CONFIG.visitReasons.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.value;
+        opt.textContent = r.label;
+        sel.appendChild(opt);
+      });
+    })();
+
     window.addEventListener('load', async () => {
       accessToken = localStorage.getItem('sb-access-token');
       if (!accessToken) { window.location.href = 'login.html'; return; }
