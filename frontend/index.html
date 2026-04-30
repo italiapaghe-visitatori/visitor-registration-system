@@ -347,7 +347,7 @@
     #guest-lookup-wrap {
       display: none;
       margin-bottom: 24px;
-      padding: 18px 20px 14px;
+      padding: 18px 20px 16px;
       background: linear-gradient(135deg, #f0f4ff 0%, #f8f9ff 100%);
       border: 2px solid #d6e0ff;
       border-radius: 14px;
@@ -357,7 +357,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
 
     .lookup-title-text {
@@ -366,49 +366,72 @@
       color: #4a5568;
     }
 
-    .guest-search-box { position: relative; }
-
     #guest-search {
-      height: 50px;
+      height: 46px;
       padding-left: 46px;
+      margin-bottom: 12px;
       background: #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2'%3e%3ccircle cx='11' cy='11' r='8'/%3e%3cpath d='m21 21-4.35-4.35'/%3e%3c/svg%3e") no-repeat 14px center;
     }
 
-    .guest-dropdown {
-      display: none;
-      position: absolute;
-      top: calc(100% - 2px);
-      left: 0; right: 0;
-      background: #fff;
-      border: 2px solid var(--primary);
-      border-top: 1px solid #e8ecf4;
-      border-radius: 0 0 12px 12px;
-      max-height: 260px;
+    .guest-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 280px;
       overflow-y: auto;
-      z-index: 100;
-      box-shadow: 0 8px 24px rgba(102,126,234,0.18);
     }
 
-    .guest-item {
-      padding: 13px 16px;
+    .guest-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: #fff;
+      border: 2px solid #e8ecf4;
+      border-radius: 10px;
       cursor: pointer;
-      border-bottom: 1px solid #edf0f5;
-      transition: background 0.15s;
+      transition: border-color 0.18s, background 0.18s, transform 0.1s;
+      text-align: left;
+      width: 100%;
     }
-    .guest-item:last-child { border-bottom: none; }
-    .guest-item:hover { background: #eef2ff; }
-    .guest-item-name { font-weight: 700; font-size: 15px; color: #2d3748; }
-    .guest-item-detail { font-size: 12px; color: #718096; margin-top: 2px; }
 
-    .guest-item-noresult {
-      padding: 16px;
+    .guest-card:hover, .guest-card:focus {
+      border-color: var(--primary);
+      background: #f0f4ff;
+      transform: translateY(-1px);
+    }
+
+    .guest-card:active { transform: translateY(0); }
+
+    .guest-card-avatar {
+      width: 42px;
+      height: 42px;
+      min-width: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .guest-card-info { flex: 1; min-width: 0; }
+    .guest-card-name { font-weight: 700; font-size: 16px; color: #2d3748; }
+    .guest-card-detail { font-size: 12px; color: #718096; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .guest-card-arrow { color: #cbd5e0; font-size: 18px; }
+
+    .guest-noresult {
+      padding: 20px;
       color: #718096;
       font-size: 13px;
       text-align: center;
       font-style: italic;
     }
 
-    .guest-skip-row { margin-top: 10px; text-align: center; }
+    .guest-skip-row { margin-top: 14px; text-align: center; }
 
     .btn-skip-lookup {
       background: none;
@@ -731,12 +754,10 @@
         <div id="guest-lookup-wrap">
           <div class="lookup-header">
             <span>&#128100;</span>
-            <span class="lookup-title-text">Sei nella lista degli ospiti attesi?</span>
+            <span class="lookup-title-text">Sei nella lista degli ospiti attesi? Tocca il tuo nome</span>
           </div>
-          <div class="guest-search-box">
-            <input type="text" id="guest-search" placeholder="Scrivi nome o cognome..." autocomplete="off" title="Cerca tra gli ospiti attesi">
-            <div id="guest-dropdown" class="guest-dropdown"></div>
-          </div>
+          <input type="text" id="guest-search" placeholder="Filtra per nome o cognome..." autocomplete="off" title="Filtra ospiti">
+          <div class="guest-list" id="guest-list"></div>
           <div class="guest-skip-row">
             <button type="button" id="skip-lookup-btn" class="btn-skip-lookup">Non sono in elenco, procedo manualmente</button>
           </div>
@@ -1030,8 +1051,8 @@
         });
         if (res.ok) {
           allGuests = await res.json();
-          // mostra il box solo se non c'è già una selezione attiva
           if (allGuests.length > 0 && !selectedGuestId) {
+            renderGuestCards(allGuests);
             document.getElementById('guest-lookup-wrap').style.display = 'block';
           } else if (allGuests.length === 0) {
             document.getElementById('guest-lookup-wrap').style.display = 'none';
@@ -1048,58 +1069,48 @@
       return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    function renderDropdown(guests) {
-      const dropdown = document.getElementById('guest-dropdown');
-      dropdown.innerHTML = '';
+    function renderGuestCards(guests) {
+      const list = document.getElementById('guest-list');
+      list.innerHTML = '';
       if (guests.length === 0) {
-        const noResult = document.createElement('div');
-        noResult.className = 'guest-item-noresult';
-        noResult.textContent = 'Nessun ospite trovato con questo nome';
-        dropdown.appendChild(noResult);
-      } else {
-        guests.forEach(g => {
-          const item = document.createElement('div');
-          item.className = 'guest-item';
-          const details = [g.company, g.person_to_visit].filter(Boolean).join(' — ');
-          item.innerHTML = `<div class="guest-item-name">${escHtml(g.first_name)} ${escHtml(g.last_name)}</div>` +
-            (details ? `<div class="guest-item-detail">${escHtml(details)}</div>` : '');
-          item.addEventListener('click', () => selectGuest(g));
-          dropdown.appendChild(item);
-        });
+        const msg = document.createElement('div');
+        msg.className = 'guest-noresult';
+        msg.textContent = 'Nessun ospite trovato con questo nome';
+        list.appendChild(msg);
+        return;
       }
-      dropdown.style.display = 'block';
+      guests.forEach(g => {
+        const initials = (g.first_name[0] || '') + (g.last_name[0] || '');
+        const details  = [g.company, g.person_to_visit, g.visit_reason].filter(Boolean).join(' — ');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'guest-card';
+        btn.innerHTML =
+          `<div class="guest-card-avatar">${escHtml(initials.toUpperCase())}</div>` +
+          `<div class="guest-card-info">` +
+            `<div class="guest-card-name">${escHtml(g.first_name)} ${escHtml(g.last_name)}</div>` +
+            (details ? `<div class="guest-card-detail">${escHtml(details)}</div>` : '') +
+          `</div>` +
+          `<span class="guest-card-arrow">&#8250;</span>`;
+        btn.addEventListener('click', () => selectGuest(g));
+        list.appendChild(btn);
+      });
     }
 
     document.getElementById('guest-search').addEventListener('input', function () {
       const q = this.value.toLowerCase().trim();
-      if (!q) { document.getElementById('guest-dropdown').style.display = 'none'; return; }
-      const matches = allGuests.filter(g =>
+      if (!q) { renderGuestCards(allGuests); return; }
+      renderGuestCards(allGuests.filter(g =>
         (g.first_name + ' ' + g.last_name).toLowerCase().includes(q) ||
         (g.last_name  + ' ' + g.first_name).toLowerCase().includes(q)
-      ).slice(0, 8);
-      renderDropdown(matches);
-    });
-
-    document.getElementById('guest-search').addEventListener('focus', function () {
-      const q = this.value.toLowerCase().trim();
-      if (q) renderDropdown(
-        allGuests.filter(g =>
-          (g.first_name + ' ' + g.last_name).toLowerCase().includes(q)
-        ).slice(0, 8)
-      );
-    });
-
-    document.addEventListener('click', function (e) {
-      if (!e.target.closest('#guest-lookup-wrap')) {
-        document.getElementById('guest-dropdown').style.display = 'none';
-      }
+      ));
     });
 
     function selectGuest(g) {
       selectedGuestId = g.id;
-      document.getElementById('first_name').value      = g.first_name     || '';
-      document.getElementById('last_name').value       = g.last_name      || '';
-      document.getElementById('email').value           = g.email          || '';
+      document.getElementById('first_name').value      = g.first_name      || '';
+      document.getElementById('last_name').value       = g.last_name       || '';
+      document.getElementById('email').value           = g.email           || '';
       document.getElementById('person_to_visit').value = g.person_to_visit || '';
       if (g.visit_reason) {
         const sel = document.getElementById('visit_reason');
@@ -1108,7 +1119,6 @@
         }
       }
       document.getElementById('guest-lookup-wrap').style.display = 'none';
-      document.getElementById('guest-dropdown').style.display    = 'none';
       document.getElementById('guest-confirm-name').textContent  = `${g.first_name} ${g.last_name}`;
       document.getElementById('guest-confirm').style.display     = 'flex';
     }
@@ -1116,7 +1126,6 @@
     function skipLookup() {
       selectedGuestId = null;
       document.getElementById('guest-lookup-wrap').style.display = 'none';
-      document.getElementById('guest-dropdown').style.display    = 'none';
       document.getElementById('guest-confirm').style.display     = 'none';
     }
 
@@ -1125,14 +1134,14 @@
     document.getElementById('change-guest-btn').addEventListener('click', function () {
       selectedGuestId = null;
       document.getElementById('guest-confirm').style.display     = 'none';
-      document.getElementById('guest-lookup-wrap').style.display = 'block';
       document.getElementById('guest-search').value              = '';
-      document.getElementById('guest-dropdown').style.display    = 'none';
-      document.getElementById('first_name').value      = '';
-      document.getElementById('last_name').value       = '';
-      document.getElementById('email').value           = '';
-      document.getElementById('person_to_visit').value = '';
-      document.getElementById('visit_reason').selectedIndex = 0;
+      document.getElementById('first_name').value                = '';
+      document.getElementById('last_name').value                 = '';
+      document.getElementById('email').value                     = '';
+      document.getElementById('person_to_visit').value           = '';
+      document.getElementById('visit_reason').selectedIndex      = 0;
+      renderGuestCards(allGuests);
+      document.getElementById('guest-lookup-wrap').style.display = 'block';
     });
 
     function setDefaults() {
@@ -1290,10 +1299,12 @@
           setDefaults();
           // Ripristina lookup ospiti per il prossimo visitatore
           selectedGuestId = null;
-          document.getElementById('guest-confirm').style.display     = 'none';
-          document.getElementById('guest-search').value              = '';
-          document.getElementById('guest-dropdown').style.display    = 'none';
-          if (allGuests.length > 0) document.getElementById('guest-lookup-wrap').style.display = 'block';
+          document.getElementById('guest-confirm').style.display = 'none';
+          document.getElementById('guest-search').value          = '';
+          if (allGuests.length > 0) {
+            renderGuestCards(allGuests);
+            document.getElementById('guest-lookup-wrap').style.display = 'block';
+          }
           setTimeout(() => { document.getElementById('message').style.display = 'none'; }, 4500);
         } else {
           const err = await res.json().catch(() => ({}));
