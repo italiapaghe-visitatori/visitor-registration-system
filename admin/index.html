@@ -102,16 +102,95 @@
       margin-bottom: 20px;
     }
 
+    .stats-bar.stats-4 { grid-template-columns: repeat(4, 1fr); }
+
     .stat-card {
       background: #fff;
       border-radius: 12px;
       padding: 20px 22px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border-top: 3px solid #e2e8f0;
+      position: relative;
+      overflow: hidden;
     }
 
-    .stat-card h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #a0aec0; font-weight: 700; margin-bottom: 8px; }
-    .stat-card .value { font-size: 34px; font-weight: 800; color: #2d3748; line-height: 1; }
-    .stat-card .sub { font-size: 12px; color: #718096; margin-top: 4px; }
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      bottom: -18px; right: -10px;
+      width: 70px; height: 70px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.04;
+      pointer-events: none;
+    }
+
+    .stat-card h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #a0aec0; font-weight: 700; margin-bottom: 6px; }
+    .stat-card .value { font-size: 38px; font-weight: 800; color: #2d3748; line-height: 1; }
+    .stat-card .sub { font-size: 12px; color: #a0aec0; margin-top: 5px; }
+    .stat-card .stat-icon { font-size: 22px; float: right; margin-top: -2px; opacity: 0.5; }
+
+    .stat-card-primary { border-top-color: #667eea; }
+    .stat-card-primary .value { color: #4c51bf; }
+    .stat-card-info    { border-top-color: #4fd1c5; }
+    .stat-card-info    .value { color: #285e61; }
+    .stat-card-warning { border-top: 3px solid #f6ad55; }
+    .stat-card-warning .value { color: #c05621; }
+    .stat-card-success { border-top: 3px solid #68d391; }
+    .stat-card-success .value { color: #276749; }
+    .stat-card-orange  { border-top-color: #fc8181; }
+    .stat-card-orange  .value { color: #c53030; }
+
+    /* ── SECTION TITLE ── */
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #4a5568;
+      letter-spacing: 0.3px;
+      padding: 0 2px 14px;
+      border-bottom: 2px solid #edf0f5;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── HEADER CREDIT AG ── */
+    .header-credit {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-left: 14px;
+      border-left: 1px solid rgba(255,255,255,0.22);
+      font-size: 11px;
+      color: rgba(255,255,255,0.6);
+      white-space: nowrap;
+    }
+    .header-logo-ag {
+      height: 28px;
+      width: auto;
+      filter: brightness(0) invert(1);
+      opacity: 0.75;
+    }
+
+    /* ── FOOTER ── */
+    .admin-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 22px 28px;
+      margin-top: 8px;
+      border-top: 1px solid #edf0f5;
+      color: #a0aec0;
+      font-size: 12px;
+    }
+    .admin-footer img {
+      height: 22px;
+      width: auto;
+      opacity: 0.4;
+      filter: grayscale(1);
+    }
 
     /* ── FILTERS ── */
     .filters {
@@ -361,11 +440,13 @@
     #page-info { font-size: 14px; font-weight: 600; color: #4a5568; }
 
     /* ── RESPONSIVE ── */
-    @media (max-width: 1024px) { .container { padding: 18px; } .stats-bar { grid-template-columns: repeat(3, 1fr); } .header h1 { font-size: 17px; } }
+    @media (max-width: 1200px) { .stats-bar.stats-4 { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 1024px) { .container { padding: 18px; } .stats-bar { grid-template-columns: repeat(3, 1fr); } .header h1 { font-size: 17px; } .header-credit { display: none; } }
     @media (max-width: 767px) {
       .header { flex-direction: column; gap: 12px; padding: 14px; text-align: center; }
       .header-right { flex-wrap: wrap; justify-content: center; }
-      .stats-bar { grid-template-columns: 1fr; }
+      .stats-bar { grid-template-columns: 1fr 1fr; }
+      .stats-bar.stats-4 { grid-template-columns: 1fr 1fr; }
       #user-email { display: none; }
     }
   </style>
@@ -548,6 +629,10 @@
       <button type="button" class="btn btn-light" onclick="exportCSV()">Esporta CSV</button>
       <button type="button" class="btn btn-light" onclick="loadData()">Aggiorna</button>
       <button type="button" class="btn btn-danger" onclick="logout()">Esci</button>
+      <div class="header-credit">
+        <span>dev by</span>
+        <img src="../assets/logo-ag.png" alt="Antonio Gelormini" class="header-logo-ag" onerror="this.parentElement.style.display='none'">
+      </div>
     </div>
   </div>
 
@@ -557,18 +642,30 @@
     <!-- ── VIEW: VISITATORI ── -->
     <div class="view active" id="view-visitors">
 
-      <div class="stats-bar">
-        <div class="stat-card">
+      <div class="stats-bar stats-4">
+        <div class="stat-card stat-card-primary">
+          <span class="stat-icon">&#128203;</span>
           <h3>Totale visite</h3>
           <div class="value" id="stat-total">—</div>
+          <div class="sub">tutti i periodi</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card stat-card-info">
+          <span class="stat-icon">&#128197;</span>
           <h3>Oggi</h3>
           <div class="value" id="stat-today">—</div>
+          <div class="sub">registrazioni odierne</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card stat-card-success">
+          <span class="stat-icon">&#9989;</span>
           <h3>Badge attivi ora</h3>
           <div class="value" id="stat-active">—</div>
+          <div class="sub">in struttura</div>
+        </div>
+        <div class="stat-card stat-card-warning">
+          <span class="stat-icon">&#9203;</span>
+          <h3>In attesa badge</h3>
+          <div class="value" id="stat-pending">—</div>
+          <div class="sub">da attivare al tornello</div>
         </div>
       </div>
 
@@ -710,6 +807,14 @@
     </div>
 
   </div>
+
+  <footer class="admin-footer">
+    <span>Visitor Registration System</span>
+    <span style="color:#e2e8f0">|</span>
+    <span>Sviluppato da</span>
+    <img src="../assets/logo-ag.png" alt="Antonio Gelormini" onerror="this.style.display='none'">
+    <span style="font-weight:600;color:#718096;">Antonio Gelormini</span>
+  </footer>
 
   <script src="../frontend/config.js"></script>
   <script>
@@ -981,14 +1086,16 @@
         return res.headers.get('content-range')?.split('/')[1] ?? '—';
       };
       try {
-        const [total, todayCount, activeCount] = await Promise.all([
+        const [total, todayCount, activeCount, pendingCount] = await Promise.all([
           fetchCount(),
           fetchCount(`&created_at=gte.${today}T00:00:00`),
-          fetchCount(`&xatlas_status=eq.active`)
+          fetchCount(`&xatlas_status=eq.active`),
+          fetchCount(`&xatlas_status=eq.pending`)
         ]);
-        document.getElementById('stat-total').textContent  = total;
-        document.getElementById('stat-today').textContent  = todayCount;
-        document.getElementById('stat-active').textContent = activeCount;
+        document.getElementById('stat-total').textContent   = total;
+        document.getElementById('stat-today').textContent   = todayCount;
+        document.getElementById('stat-active').textContent  = activeCount;
+        document.getElementById('stat-pending').textContent = pendingCount;
       } catch (_) { /* non-critical */ }
     }
 
