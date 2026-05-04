@@ -1175,14 +1175,12 @@
 
     async function loadGuestList() {
       try {
-        const today   = new Date().toISOString().split('T')[0];
         const hdrs    = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
 
-        // Tutti gli ospiti di oggi (o senza data)
+        // Tutti gli ospiti registrati (filtrati poi per chi non ha ancora passato il tornello)
         const gRes = await fetch(
           `${SUPABASE_URL}/rest/v1/guest_list` +
-          `?select=id,first_name,last_name,email,company,person_to_visit,visit_reason` +
-          `&or=(expected_date.is.null,expected_date.eq.${today})` +
+          `?select=id,first_name,last_name,email,company,person_to_visit,visit_reason,expected_date` +
           `&order=last_name.asc`,
           { headers: hdrs }
         );
