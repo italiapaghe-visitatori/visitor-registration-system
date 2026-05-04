@@ -713,6 +713,7 @@
             <label>&nbsp;</label>
             <button type="button" class="btn btn-primary" onclick="applyFilters()">Filtra</button>
             <button type="button" class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+            <button type="button" class="btn btn-light" id="btn-toggle-archived" onclick="toggleArchived()" title="Mostra/nascondi visitatori usciti (archiviati)">Mostra archivio</button>
           </div>
         </div>
       </div>
@@ -919,8 +920,23 @@
     }
 
     // ── VISITORS DATA ─────────────────────────────────
+    let showArchived = false;
+
+    function toggleArchived() {
+      showArchived = !showArchived;
+      const btn = document.getElementById('btn-toggle-archived');
+      btn.textContent = showArchived ? 'Nascondi archivio' : 'Mostra archivio';
+      btn.classList.toggle('active-tab', showArchived);
+      currentPage = 0;
+      loadData();
+    }
+
     function buildUrl() {
       let url = `${SUPABASE_URL}/rest/v1/visitors?select=*&order=${sortCol}.${sortDir}`;
+      if (!showArchived) {
+        // Nasconde visitatori archiviati (xatlas_status='checked_out')
+        url += `&or=(xatlas_status.is.null,xatlas_status.neq.checked_out)`;
+      }
       const name   = document.getElementById('f-name').value.trim();
       const last   = document.getElementById('f-lastname').value.trim();
       const reason = document.getElementById('f-reason').value;
