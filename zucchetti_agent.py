@@ -290,6 +290,7 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tu
         "locale": "it-IT",
         "dummies": json.dumps([{"id": 0, "name": "Qualsiasi"}]),
     }
+    short_name = f"{last_name} {first_name}".strip()  # formato come Baudo Pippo
     body = {
         "companyId": COMPANY_ID,
         "externalCompanyId": EXTERNAL_COMPANY_ID,
@@ -297,7 +298,10 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tu
         "organizationalStructureId": ORGANIZATIONAL_STRUCTURE_ID,
         "identifier": identifier,
         "firstname": first_name,
-        "lastname": last_name,
+        "lastname":  last_name,
+        "shortName": short_name,
+        "name":      first_name,
+        "surname":   last_name,
         "allowed": True,
         "enabled": True,
         "safety": True,
