@@ -557,8 +557,87 @@ def process_active_transactions():
                 log.error(f"Errore PATCH exit_time per visitor {vid}: {e}")
 
 
+def startup_catchup():
+    """
+    All'avvio dell'agente, recupera eventuali transazioni mancate
+    per i visitatori active mentre il servizio era fermo.
+    Cerca fino a 24 ore indietro.
+    """
+    try:
+        active = sb_get("visitors", params={
+            "xatlas_status": "eq.active",
+            "select": "id,badge_number,xatlas_user_id,entry_time,exit_time,first_name,last_name",
+        })
+    except Exception as e:
+        log.error(f"Catchup: errore lettura active: {e}")
+        return
+
+    if not active:
+        return
+
+    log.info(f"Catchup: controllo {len(active)} visitatori attivi per transazioni mancate")
+
+    for v in active:
+        badge = v.get("badge_number")
+        vid   = v["id"]
+        if not badge:
+            continue
+
+        try:
+            conn = psycopg2.connect(**AXS_DB)
+            cur  = conn.cursor()
+            cur.execute(
+                """
+                SELECT id, event_timestamp, entry, card_id
+                FROM transaction
+                WHERE card_clear_code = %s
+                  AND event_timestamp > NOW() - INTERVAL '24 hours'
+                ORDER BY event_timestamp ASC;
+                """,
+                (badge,),
+            )
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            log.error(f"Catchup: errore query badge {badge}: {e}")
+            continue
+
+        for tx_id, ts, is_entry, card_id in rows:
+            time_str = ts.strftime("%H:%M") if hasattr(ts, "strftime") else str(ts)[11:16]
+
+            if is_entry and not v.get("entry_time"):
+                try:
+                    sb_patch(f"visitors?id=eq.{vid}", {
+                        "entry_time": time_str,
+                        "visit_date": ts.strftime("%Y-%m-%d") if hasattr(ts, "strftime") else str(ts)[:10],
+                    })
+                    log.info(f"Catchup ENTRATA: visitor={vid} ({v.get('first_name')} {v.get('last_name')}) badge={badge} ora={time_str}")
+                    v["entry_time"] = time_str
+                except Exception as e:
+                    log.error(f"Catchup PATCH entry_time visitor={vid}: {e}")
+
+            elif not is_entry:
+                try:
+                    sb_patch(f"visitors?id=eq.{vid}", {
+                        "exit_time":     time_str,
+                        "xatlas_status": "checked_out",
+                    })
+                    log.info(f"Catchup USCITA: visitor={vid} ({v.get('first_name')} {v.get('last_name')}) badge={badge} ora={time_str}")
+                    xid = v.get("xatlas_user_id")
+                    if xid:
+                        cid = card_id or find_card_id_by_clear_code(badge)
+                        if cid:
+                            unassign_xatlas_card(xid, cid)
+                        delete_xatlas_user(xid)
+                    break  # uscita registrata, stop
+                except Exception as e:
+                    log.error(f"Catchup PATCH exit_time visitor={vid}: {e}")
+
+
 def run_loop():
     log.info("Zucchetti Bridge Agent avviato")
+    startup_catchup()
     while True:
         try:
             process_pending_badges()
@@ -598,6 +677,10 @@ try:
                 (self._svc_name_, ""),
             )
             log.info("Service SvcDoRun avviato")
+            try:
+                startup_catchup()
+            except Exception as e:
+                log.error(f"Catchup all'avvio fallito: {e}")
             while self._running:
                 try:
                     process_pending_badges()
