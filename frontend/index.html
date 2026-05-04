@@ -253,6 +253,83 @@
       background: #fff;
     }
 
+    /* ── BADGE AGREEMENT DOCUMENT ── */
+    #badge-agreement-group { margin-bottom: 22px; }
+
+    .agreement-doc {
+      background: linear-gradient(180deg, #fafbfd 0%, #f7f9fc 100%);
+      border: 1.5px solid #e8ecf4;
+      border-radius: 12px;
+      padding: 22px 22px 18px;
+      margin-bottom: 14px;
+      position: relative;
+    }
+
+    .agreement-doc::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 22px;
+      width: 32px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      border-radius: 0 0 3px 3px;
+    }
+
+    .agreement-doc-title {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: var(--primary);
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #edf0f5;
+    }
+
+    .agreement-doc-text {
+      font-size: 13.5px;
+      line-height: 1.7;
+      color: #2d3748;
+      margin-bottom: 12px;
+    }
+
+    .agreement-doc-text strong {
+      color: var(--secondary);
+      font-weight: 700;
+    }
+
+    .agreement-name {
+      display: inline-block;
+      min-width: 160px;
+      padding: 1px 8px 3px;
+      margin: 0 2px;
+      border-bottom: 1.5px solid var(--primary);
+      font-weight: 700;
+      color: var(--primary);
+      text-align: center;
+    }
+
+    .agreement-name.empty {
+      color: #cbd5e0;
+      font-weight: 500;
+      letter-spacing: 2px;
+    }
+
+    .agreement-doc-note {
+      font-size: 12.5px;
+      color: #4a5568;
+      padding-top: 10px;
+      border-top: 1px dashed #e2e8f0;
+      margin-bottom: 0;
+      font-style: italic;
+    }
+
+    .agreement-doc-note strong {
+      color: var(--primary);
+      font-weight: 700;
+      font-style: normal;
+    }
+
     /* ── CONSENT ── */
     .consent-wrap { margin-bottom: 24px; }
 
@@ -968,6 +1045,29 @@
           <input type="time" id="exit_time" name="exit_time">
         </div>
 
+        <div id="badge-agreement-group">
+          <p class="section-label">Modulo consegna badge</p>
+          <article class="agreement-doc">
+            <header class="agreement-doc-title">Modulo Consegna Badge</header>
+            <p class="agreement-doc-text">
+              Il/La sottoscritto/a <span class="agreement-name empty" id="agreement-name">_______________</span>
+              riceve il badge Visitatore nominale per l'accesso alla nostra sede di
+              <strong>Teverola (CE), SS 7 Bis, KM 10,800</strong>, in comodato d'uso fin tanto
+              che il corsista frequenta l'attività, e dovrà essere restituito alla segreteria
+              di sede al momento del percorso formativo o in caso di rinuncia o sospensione.
+              L'eventuale smarrimento dovrà essere tempestivamente segnalato in segreteria.
+            </p>
+            <p class="agreement-doc-note">
+              Il costo di stampa è di <strong>5 euro</strong>, che verrà addebitato al suo nome.
+            </p>
+          </article>
+          <label class="consent-box" for="badge_agreement" id="badge-agreement-box">
+            <input type="checkbox" id="badge_agreement" name="badge_agreement">
+            <span class="chk"></span>
+            <span>Ho letto e accetto le condizioni di consegna del badge</span>
+          </label>
+        </div>
+
         <div id="signature-group">
           <p class="section-label" id="signature-section-label">Firma</p>
           <div class="sig-wrapper">
@@ -1414,6 +1514,16 @@
         if (consentBox) consentBox.classList.remove('invalid');
       }
 
+      // Badge agreement
+      const badgeAgreementBox = document.getElementById('badge-agreement-box');
+      const badgeAgreementEl  = document.getElementById('badge_agreement');
+      if (!badgeAgreementEl.checked) {
+        if (badgeAgreementBox) badgeAgreementBox.classList.add('invalid');
+        valid = false;
+      } else {
+        if (badgeAgreementBox) badgeAgreementBox.classList.remove('invalid');
+      }
+
       return valid;
     }
 
@@ -1422,6 +1532,28 @@
       const consentBox = document.getElementById('consent-box');
       if (consentBox) consentBox.classList.remove('invalid');
     });
+
+    document.getElementById('badge_agreement').addEventListener('change', () => {
+      const box = document.getElementById('badge-agreement-box');
+      if (box) box.classList.remove('invalid');
+    });
+
+    // Aggiorna reattivamente il nome nel modulo consegna badge
+    function updateAgreementName() {
+      const fn = document.getElementById('first_name').value.trim();
+      const ln = document.getElementById('last_name').value.trim();
+      const full = (fn + ' ' + ln).trim();
+      const el = document.getElementById('agreement-name');
+      if (full) {
+        el.textContent = full;
+        el.classList.remove('empty');
+      } else {
+        el.textContent = '_______________';
+        el.classList.add('empty');
+      }
+    }
+    document.getElementById('first_name').addEventListener('input', updateAgreementName);
+    document.getElementById('last_name').addEventListener('input', updateAgreementName);
 
     document.getElementById('visitor-form').addEventListener('submit', async e => {
       e.preventDefault();
@@ -1446,16 +1578,17 @@
       const emailVal  = document.getElementById('email').value.trim() || null;
 
       const payload = {
-        first_name:      firstName,
-        last_name:       lastName,
-        email:           emailVal,
-        company:         document.getElementById('company').value.trim() || null,
-        person_to_visit: document.getElementById('person_to_visit').value.trim() || null,
-        visit_reason:    document.getElementById('visit_reason').value,
-        department:      document.getElementById('department').value.trim() || null,
-        vehicle_plate:   document.getElementById('vehicle_plate').value.trim().toUpperCase() || null,
-        data_consent:    consentEl.checked,
-        signature:       (signatureOn && hasDrawn) ? canvas.toDataURL('image/jpeg', 0.7) : null
+        first_name:       firstName,
+        last_name:        lastName,
+        email:            emailVal,
+        company:          document.getElementById('company').value.trim() || null,
+        person_to_visit:  document.getElementById('person_to_visit').value.trim() || null,
+        visit_reason:     document.getElementById('visit_reason').value,
+        department:       document.getElementById('department').value.trim() || null,
+        vehicle_plate:    document.getElementById('vehicle_plate').value.trim().toUpperCase() || null,
+        data_consent:     consentEl.checked,
+        badge_agreement:  document.getElementById('badge_agreement').checked,
+        signature:        (signatureOn && hasDrawn) ? canvas.toDataURL('image/jpeg', 0.7) : null
       };
 
       // Usa guest_id dalla selezione utente; fallback silenzioso per nome/email se non selezionato
