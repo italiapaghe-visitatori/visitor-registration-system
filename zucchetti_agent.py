@@ -290,24 +290,10 @@ def delete_xatlas_user(xatlas_id: int):
 def get_recent_transactions(badge_codes: list[str]) -> list[dict]:
     """
     Cerca transazioni recenti (ultimi 60s) per i badge attivi.
-
-    TODO: eseguire la query SQL seguente su AXS_DB per trovare il nome
-    corretto della tabella transazioni:
-
-        SELECT table_name FROM information_schema.tables
-        WHERE table_name ILIKE '%trans%' OR table_name ILIKE '%access%'
-           OR table_name ILIKE '%transit%' OR table_name ILIKE '%passage%'
-        ORDER BY table_name;
-
-    Poi strisciare il badge di Baudo Pippo e verificare:
-
-        SELECT * FROM <tabella_trovata> ORDER BY id DESC LIMIT 5;
-
-    Sostituire TRANSACTION_TABLE sotto con il nome trovato.
-    Verificare anche il nome esatto delle colonne (timestamp, direction, ecc.).
+    Tabella AXS_DB: 'transaction'. La colonna 'entry' è boolean
+    (true=entrata, false=uscita), 'card_clear_code' contiene direttamente
+    il numero badge senza bisogno di JOIN.
     """
-    TRANSACTION_TABLE = "access_transaction"  # <-- DA VERIFICARE
-
     if not badge_codes:
         return []
 
@@ -317,12 +303,11 @@ def get_recent_transactions(badge_codes: list[str]) -> list[dict]:
         placeholders = ",".join(["%s"] * len(badge_codes))
         cur.execute(
             f"""
-            SELECT t.id, t.timestamp, t.direction, c.clear_code, c.user_id
-            FROM {TRANSACTION_TABLE} t
-            JOIN card c ON c.id = t.card_id
-            WHERE t.timestamp > NOW() - INTERVAL '60 seconds'
-              AND c.clear_code IN ({placeholders})
-            ORDER BY t.timestamp ASC
+            SELECT id, event_timestamp, entry, card_clear_code, card_id, user_id
+            FROM transaction
+            WHERE event_timestamp > NOW() - INTERVAL '60 seconds'
+              AND card_clear_code IN ({placeholders})
+            ORDER BY event_timestamp ASC
             """,
             badge_codes,
         )
@@ -395,22 +380,17 @@ def process_active_transactions():
 
     txns = get_recent_transactions(list(badge_map.keys()))
     for tx in txns:
-        badge = tx.get("clear_code")
+        badge = tx.get("card_clear_code")
         v     = badge_map.get(badge)
         if not v:
             continue
 
-        vid       = v["id"]
-        direction = tx.get("direction")   # valore da verificare: 0=entrata, 1=uscita?
-        ts        = tx.get("timestamp")
+        vid      = v["id"]
+        is_entry = bool(tx.get("entry"))   # true=entrata, false=uscita
+        ts       = tx.get("event_timestamp")
         if not ts:
             continue
         time_str = ts.strftime("%H:%M") if hasattr(ts, "strftime") else str(ts)[11:16]
-
-        # direction = 0 o "IN" = entrata, 1 o "OUT" = uscita
-        # Verificare i valori reali dopo aver trovato la tabella transazioni
-        is_entry = direction in (0, "0", "IN", "E", 1)   # aggiustare dopo verifica
-        is_exit  = direction in (1, "1", "OUT", "U", 2)  # aggiustare dopo verifica
 
         if is_entry and not v.get("entry_time"):
             try:
@@ -422,7 +402,7 @@ def process_active_transactions():
             except Exception as e:
                 log.error(f"Errore PATCH entry_time per visitor {vid}: {e}")
 
-        elif is_exit:
+        elif not is_entry:
             try:
                 sb_patch(f"visitors?id=eq.{vid}", {
                     "exit_time":     time_str,
@@ -432,7 +412,7 @@ def process_active_transactions():
                 # Libera badge: prima dissocia tessera da utente, poi elimina utente
                 xid = v.get("xatlas_user_id")
                 if xid:
-                    cid = find_card_id_by_clear_code(badge)
+                    cid = tx.get("card_id") or find_card_id_by_clear_code(badge)
                     if cid is not None:
                         unassign_xatlas_card(xid, cid)
                     delete_xatlas_user(xid)
