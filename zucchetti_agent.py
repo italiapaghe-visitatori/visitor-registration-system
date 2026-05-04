@@ -149,6 +149,21 @@ def _today_ms():
     return int((start - epoch).total_seconds() * 1000), int((end - epoch).total_seconds() * 1000)
 
 
+def _find_external_user_by_identifier(identifier: str) -> int | None:
+    """Cerca user_identifier.id per identifier (es. VIS241026)."""
+    try:
+        conn = psycopg2.connect(**AXS_DB)
+        cur  = conn.cursor()
+        cur.execute("SELECT id FROM user_identifier WHERE identifier = %s LIMIT 1;", (identifier,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        return row[0] if row else None
+    except Exception as e:
+        log.error(f"Errore lookup user_identifier {identifier}: {e}")
+        return None
+
+
 def find_card_id_by_clear_code(clear_code: str) -> int | None:
     """Cerca card.id per clear_code (numero badge) in AXS_DB."""
     try:
@@ -306,13 +321,24 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tu
         json=body,
         headers={"x-requested-with": "XMLHttpRequest", "accept": "*/*"},
     )
-    if not r.ok:
-        raise RuntimeError(f"Errore creazione utente XAtlas: {r.status_code} {r.text[:200]}")
-    data = r.json()
-    if not data.get("success"):
-        raise RuntimeError(f"XAtlas create non riuscito: {data}")
-    xatlas_id = data["records"][0]["id"]
-    log.info(f"Utente XAtlas creato: id={xatlas_id} identifier={identifier}")
+    if r.ok:
+        data = r.json()
+        if data.get("success"):
+            xatlas_id = data["records"][0]["id"]
+            log.info(f"Utente XAtlas creato: id={xatlas_id} identifier={identifier}")
+        else:
+            raise RuntimeError(f"XAtlas create non riuscito: {data}")
+    else:
+        # Se l'utente esiste già (vincolo univoco), recuperalo dal DB invece di fallire
+        if "vincolo univoco" in r.text or "external_users" in r.text or "duplic" in r.text.lower():
+            existing_id = _find_external_user_by_identifier(identifier)
+            if existing_id:
+                xatlas_id = existing_id
+                log.info(f"Utente XAtlas {identifier} già esistente (id={xatlas_id}), riuso")
+            else:
+                raise RuntimeError(f"Utente esiste ma non lo trovo via DB: {r.status_code}")
+        else:
+            raise RuntimeError(f"Errore creazione utente XAtlas: {r.status_code} {r.text[:200]}")
 
     # 3) Assegna tessera via /UserCard/assign (endpoint reale catturato con DevTools)
     ar = xatlas_request(
@@ -326,19 +352,24 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tu
         },
     )
     if not ar.ok:
-        # Rollback: elimina l'utente appena creato per non lasciare orfani
         try:
             delete_xatlas_user(xatlas_id)
         except Exception:
             pass
         raise RuntimeError(f"Assegnazione tessera fallita: {ar.status_code} {ar.text[:200]}")
-    aj = ar.json()
-    if not aj.get("success"):
+    # /UserCard/assign può rispondere 200 con body vuoto (= successo) oppure JSON
+    body = ar.text.strip()
+    if body:
         try:
-            delete_xatlas_user(xatlas_id)
-        except Exception:
-            pass
-        raise RuntimeError(f"UserCard/assign non riuscito: {aj}")
+            aj = ar.json()
+            if not aj.get("success", True):
+                try:
+                    delete_xatlas_user(xatlas_id)
+                except Exception:
+                    pass
+                raise RuntimeError(f"UserCard/assign non riuscito: {aj}")
+        except ValueError:
+            log.info(f"UserCard/assign risposta non-JSON ma 200 OK, considero successo: {body[:80]}")
     log.info(f"Tessera {badge_number} (cardId={card_id}) assegnata a utente {xatlas_id}")
 
     return xatlas_id, card_id
