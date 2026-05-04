@@ -1405,8 +1405,10 @@
 
     function selectGuest(g) {
       selectedGuestId = g.id;
-      document.getElementById('first_name').value      = g.first_name      || '';
-      document.getElementById('last_name').value       = g.last_name       || '';
+      const fnEl = document.getElementById('first_name');
+      const lnEl = document.getElementById('last_name');
+      fnEl.value                                       = g.first_name      || '';
+      lnEl.value                                       = g.last_name       || '';
       document.getElementById('email').value           = g.email           || '';
       document.getElementById('company').value         = g.company         || '';
       document.getElementById('person_to_visit').value = g.person_to_visit || '';
@@ -1416,7 +1418,9 @@
           if (opt.value === g.visit_reason) { sel.value = g.visit_reason; break; }
         }
       }
-      updateAgreementName();
+      // Triggera input event per aggiornare il modulo consegna badge
+      fnEl.dispatchEvent(new Event('input', { bubbles: true }));
+      lnEl.dispatchEvent(new Event('input', { bubbles: true }));
       document.getElementById('guest-lookup-wrap').style.display = 'none';
       document.getElementById('guest-confirm-name').textContent  = `${g.first_name} ${g.last_name}`;
       document.getElementById('guest-confirm').style.display     = 'flex';
