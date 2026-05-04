@@ -391,10 +391,18 @@ def unassign_xatlas_card(xatlas_user_id: int, card_id: int):
             "Content-Type": "application/json;charset=UTF-8",
         },
     )
-    if r.ok and r.json().get("success"):
-        log.info(f"Tessera cardId={card_id} rimossa da utente {xatlas_user_id}")
-    else:
+    if not r.ok:
         log.warning(f"UserCard/remove fallito: {r.status_code} {r.text[:200]}")
+        return
+    body = r.text.strip()
+    if body:
+        try:
+            if not r.json().get("success", True):
+                log.warning(f"UserCard/remove non riuscito: {r.text[:200]}")
+                return
+        except ValueError:
+            pass  # 200 OK senza JSON = successo
+    log.info(f"Tessera cardId={card_id} rimossa da utente {xatlas_user_id}")
 
 
 # ── XAtlas: elimina utente ────────────────────────────────────────────────────
@@ -632,7 +640,7 @@ def startup_catchup():
                         delete_xatlas_user(xid)
                     break  # uscita registrata, stop
                 except Exception as e:
-                    log.error(f"Catchup PATCH exit_time visitor={vid}: {e}")
+                    log.error(f"Catchup uscita (PATCH/cleanup XAtlas) visitor={vid}: {e}")
 
 
 def run_loop():
