@@ -186,23 +186,34 @@ def find_or_create_card_id(clear_code: str) -> int | None:
         conn.autocommit = False
         cur = conn.cursor()
 
-        today = date.today()
-        validity_start = datetime(today.year, today.month, today.day, 0, 0, 0)
-        validity_end   = datetime(2099, 12, 31, 23, 59, 59)
+        # Validità lunghissima come Baudo Pippo (sempre attiva, riutilizzabile)
+        validity_start = datetime(1900, 1, 1, 0, 0, 0)
+        validity_end   = datetime(2100, 12, 31, 23, 59, 59)
 
         # 1) INSERT card (user_id=NULL → libera)
+        # Tutti i campi primitivi richiesti da Hibernate Card entity:
+        #   object_type=47 (tipo entity Card), object_version=0 (init),
+        #   card_type=1 (Zucchetti), use_card_authorizations=true (come Baudo)
         cur.execute(
             """
             INSERT INTO card (
                 id, clear_code, card_type, enabled, user_id, site, default_auth_group_id,
                 use_card_authorizations, validity_start, validity_end,
                 log_insert, log_update, record_version,
-                lost, destroyed, scheduled_presence
+                lost, destroyed, scheduled_presence,
+                object_type, object_version,
+                escort_required, escort_capable, emitted,
+                control_selector, selector_operator
             )
-            VALUES (nextval('card_id_seq'), %s, 0, true, NULL, %s, %s,
-                    false, %s, %s,
-                    NOW(), NOW(), 1,
-                    false, false, false)
+            VALUES (
+                nextval('card_id_seq'), %s, 1, true, NULL, %s, %s,
+                true, %s, %s,
+                NOW(), NOW(), 1,
+                false, false, false,
+                47, 0,
+                false, false, false,
+                false, false
+            )
             RETURNING id;
             """,
             (clear_code, SITE_ID, AUTH_GROUP_ID, validity_start, validity_end),
@@ -354,17 +365,26 @@ def unassign_xatlas_card(xatlas_user_id: int, card_id: int):
 # ── XAtlas: elimina utente ────────────────────────────────────────────────────
 
 def delete_xatlas_user(xatlas_id: int):
-    params = {"_dc": int(time.time() * 1000), "id": xatlas_id}
+    """Elimina utente esterno XAtlas via POST (convention ExtJS, NON DELETE)."""
     r = xatlas_request(
-        "delete",
+        "post",
         "/users/data/ExternalUser/destroy",
-        params=params,
-        headers={"x-requested-with": "XMLHttpRequest"},
+        json={"id": xatlas_id, "userType": 29},
+        headers={
+            "x-requested-with": "XMLHttpRequest",
+            "accept": "*/*",
+            "Content-Type": "application/json;charset=UTF-8",
+        },
     )
     if r.ok:
-        log.info(f"Utente XAtlas {xatlas_id} eliminato (badge libero)")
-    else:
-        log.warning(f"Eliminazione utente XAtlas {xatlas_id} fallita: {r.status_code}")
+        try:
+            ok_flag = r.json().get("success", False)
+        except Exception:
+            ok_flag = True
+        if ok_flag:
+            log.info(f"Utente XAtlas {xatlas_id} eliminato (badge libero)")
+            return
+    log.warning(f"Eliminazione utente XAtlas {xatlas_id} fallita: {r.status_code} {r.text[:200]}")
 
 
 # ── AXS_DB: leggi transazioni ─────────────────────────────────────────────────
