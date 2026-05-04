@@ -95,30 +95,35 @@ _xatlas_session: requests.Session | None = None
 
 
 def xatlas_login():
+    """
+    Login XAtlas via form POST a /web/login.
+    Step 1: GET /web/login per ottenere JSESSIONID iniziale
+    Step 2: POST credenziali (form-urlencoded) → 302 redirect a /web/apps se OK
+    """
     global _xatlas_session
     s = requests.Session()
-    # Prova prima l'endpoint API REST
+    # 1) GET pagina login per cookie JSESSIONID
+    s.get(f"{XATLAS_BASE}/web/login", timeout=10)
+    # 2) POST credenziali
     r = s.post(
-        f"{XATLAS_BASE}/web/api/v1/login",
-        json={"username": XATLAS_USER, "password": XATLAS_PASS},
+        f"{XATLAS_BASE}/web/login",
+        data={
+            "username": XATLAS_USER,
+            "password": XATLAS_PASS,
+            "submit":   "Accedi",
+        },
+        allow_redirects=False,
         timeout=10,
     )
-    if r.ok:
-        _xatlas_session = s
-        log.info("XAtlas login OK (API)")
-        return
-    # Fallback: form POST
-    r = s.post(
-        f"{XATLAS_BASE}/users/j_security_check",
-        data={"j_username": XATLAS_USER, "j_password": XATLAS_PASS},
-        allow_redirects=True,
-        timeout=10,
-    )
-    if r.ok:
-        _xatlas_session = s
-        log.info("XAtlas login OK (form)")
-        return
-    raise RuntimeError(f"XAtlas login fallito: {r.status_code}")
+    # Login OK = 302 redirect verso /web/apps (o comunque NON verso /login)
+    if r.status_code in (302, 303):
+        loc = r.headers.get("Location", "")
+        if "login" not in loc.lower():
+            _xatlas_session = s
+            log.info(f"XAtlas login OK → {loc}")
+            return
+        raise RuntimeError(f"XAtlas login: credenziali rifiutate (redirect a {loc})")
+    raise RuntimeError(f"XAtlas login fallito: status={r.status_code}")
 
 
 def xatlas_request(method, path, **kwargs):

@@ -123,26 +123,25 @@ def main():
 
     s = requests.Session()
     try:
+        # Step 1: GET pagina login per JSESSIONID
+        s.get(f"{xa_base}/web/login", timeout=10)
+        # Step 2: POST credenziali form-urlencoded
         r = s.post(
-            f"{xa_base}/web/api/v1/login",
-            json={"username": xa_user, "password": xa_pass},
+            f"{xa_base}/web/login",
+            data={"username": xa_user, "password": xa_pass, "submit": "Accedi"},
+            allow_redirects=False,
             timeout=10,
         )
-        if r.ok:
-            ok(f"XAtlas login OK (API) - status {r.status_code}")
-        else:
-            # Fallback form
-            r = s.post(
-                f"{xa_base}/users/j_security_check",
-                data={"j_username": xa_user, "j_password": xa_pass},
-                allow_redirects=True,
-                timeout=10,
-            )
-            if r.ok and "login" not in r.url.lower():
-                ok(f"XAtlas login OK (form) - URL finale: {r.url}")
+        if r.status_code in (302, 303):
+            loc = r.headers.get("Location", "")
+            if "login" not in loc.lower():
+                ok(f"XAtlas login OK → redirect a {loc}")
             else:
-                fail(f"XAtlas login fallito: {r.status_code} URL={r.url}")
+                fail(f"XAtlas: credenziali rifiutate (redirect a {loc})")
                 sys.exit(1)
+        else:
+            fail(f"XAtlas login: status inatteso {r.status_code}")
+            sys.exit(1)
     except Exception as e:
         fail(f"XAtlas non raggiungibile: {e}")
         sys.exit(1)
