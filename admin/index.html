@@ -74,6 +74,11 @@
     .btn-secondary { background: #718096; color: #fff; }
     .btn-secondary:hover { background: #4a5568; }
 
+    .btn-archive.active-archive {
+      background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+      box-shadow: 0 3px 10px rgba(237,137,54,0.45);
+    }
+
     .btn-success { background: #38a169; color: #fff; }
     .btn-success:hover { background: #2f855a; }
 
@@ -713,7 +718,7 @@
             <label>&nbsp;</label>
             <button type="button" class="btn btn-primary" onclick="applyFilters()">Filtra</button>
             <button type="button" class="btn btn-secondary" onclick="resetFilters()">Reset</button>
-            <button type="button" class="btn btn-light" id="btn-toggle-archived" onclick="toggleArchived()" title="Mostra/nascondi visitatori usciti (archiviati)">Mostra archivio</button>
+            <button type="button" class="btn btn-secondary btn-archive" id="btn-toggle-archived" onclick="toggleArchived()" title="Mostra/nascondi visitatori usciti (archiviati)">Mostra archivio</button>
           </div>
         </div>
       </div>
@@ -926,7 +931,7 @@
       showArchived = !showArchived;
       const btn = document.getElementById('btn-toggle-archived');
       btn.textContent = showArchived ? 'Nascondi archivio' : 'Mostra archivio';
-      btn.classList.toggle('active-tab', showArchived);
+      btn.classList.toggle('active-archive', showArchived);
       currentPage = 0;
       loadData();
     }
