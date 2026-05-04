@@ -1416,6 +1416,7 @@
           if (opt.value === g.visit_reason) { sel.value = g.visit_reason; break; }
         }
       }
+      updateAgreementName();
       document.getElementById('guest-lookup-wrap').style.display = 'none';
       document.getElementById('guest-confirm-name').textContent  = `${g.first_name} ${g.last_name}`;
       document.getElementById('guest-confirm').style.display     = 'flex';
@@ -1439,6 +1440,7 @@
       document.getElementById('company').value                   = '';
       document.getElementById('person_to_visit').value           = '';
       document.getElementById('visit_reason').selectedIndex      = 0;
+      updateAgreementName();
       activeAlpha = ''; buildAlphaKeyboard(); renderGuestTiles([], 'Tocca una lettera oppure scrivi il cognome'); document.getElementById('guest-search').value = '';
       document.getElementById('guest-details').open              = false;
       document.getElementById('guest-lookup-wrap').style.display = 'block';
@@ -1631,6 +1633,7 @@
           document.getElementById('visitor-form').reset();
           clearSig();
           setDefaults();
+          updateAgreementName();
           // Ripristina lookup ospiti per il prossimo visitatore
           selectedGuestId = null;
           document.getElementById('guest-confirm').style.display = 'none';
