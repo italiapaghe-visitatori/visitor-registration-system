@@ -164,17 +164,94 @@ def find_card_id_by_clear_code(clear_code: str) -> int | None:
         return None
 
 
+def find_or_create_card_id(clear_code: str) -> int | None:
+    """
+    Cerca card.id per clear_code. Se non esiste la crea automaticamente
+    con user_id=NULL (libera, pronta per assegnazione).
+    Validità: oggi → 31/12/2099 (long-term, riutilizzabile).
+    Card_format_id: 204 (125_Zucchetti, come Baudo Pippo).
+    """
+    existing = find_card_id_by_clear_code(clear_code)
+    if existing is not None:
+        return existing
+
+    if not clear_code or not clear_code.isdigit() or not (3 <= len(clear_code) <= 12):
+        log.error(f"clear_code non valido per auto-creazione: '{clear_code}'")
+        return None
+
+    log.info(f"Card {clear_code} non esiste in AXS_DB → auto-creazione (user_id=NULL)")
+    conn = None
+    try:
+        conn = psycopg2.connect(**AXS_DB)
+        conn.autocommit = False
+        cur = conn.cursor()
+
+        today = date.today()
+        validity_start = datetime(today.year, today.month, today.day, 0, 0, 0)
+        validity_end   = datetime(2099, 12, 31, 23, 59, 59)
+
+        # 1) INSERT card (user_id=NULL → libera)
+        cur.execute(
+            """
+            INSERT INTO card (
+                id, clear_code, card_type, enabled, user_id, site, default_auth_group_id,
+                use_card_authorizations, validity_start, validity_end,
+                log_insert, log_update, record_version,
+                lost, destroyed, scheduled_presence
+            )
+            VALUES (nextval('card_id_seq'), %s, 0, true, NULL, %s, %s,
+                    false, %s, %s,
+                    NOW(), NOW(), 1,
+                    false, false, false)
+            RETURNING id;
+            """,
+            (clear_code, SITE_ID, AUTH_GROUP_ID, validity_start, validity_end),
+        )
+        new_card_id = cur.fetchone()[0]
+
+        # 2) INSERT card_code (formato 204 = 125_Zucchetti, obbligatorio per il tornello)
+        cur.execute(
+            """
+            INSERT INTO card_code (
+                card_id, code, edition, object_version, card_format_id, log_update, record_version
+            )
+            VALUES (%s, %s, 0, 0, 204, NOW(), 1);
+            """,
+            (new_card_id, clear_code),
+        )
+
+        conn.commit()
+        cur.close()
+        log.info(f"Card auto-creata: clear_code={clear_code} id={new_card_id}")
+        return new_card_id
+
+    except Exception as e:
+        log.error(f"Errore auto-creazione card {clear_code}: {e}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return None
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
 def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tuple[int, int]:
     """
     Crea utente esterno in XAtlas e assegna la tessera.
     Restituisce (xatlas_user_id, card_id).
     """
-    # 1) Verifica che la card esista in AXS_DB prima di creare l'utente
-    card_id = find_card_id_by_clear_code(badge_number)
+    # 1) Trova card o creala se non esiste (sempre con user_id=NULL)
+    card_id = find_or_create_card_id(badge_number)
     if card_id is None:
         raise RuntimeError(
-            f"Badge {badge_number} non trovato in AXS_DB. "
-            "Il badge fisico deve essere già registrato in XAtlas come tessera."
+            f"Impossibile ottenere card_id per badge {badge_number} "
+            "(lookup fallito e auto-creazione non riuscita)"
         )
 
     # 2) Crea utente esterno
