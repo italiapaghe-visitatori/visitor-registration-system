@@ -7,7 +7,7 @@ const CONFIG = {
   // ===== IDENTITA =====
   appTitle: 'Registrazione Visitatore',
   headerTitle: 'Registrazione Visitatore',
-  logoPath: '../assets/logo-ip.png', // Inserisci logo o lascia vuoto per nascondere
+  logoPath: '../assets/logo-S2S-def.gif', // Inserisci logo o lascia vuoto per nascondere
   
   // ===== COLORI (per adattarsi al brand) =====
   colors: {
