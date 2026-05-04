@@ -144,16 +144,38 @@ def _today_ms():
     return int((start - epoch).total_seconds() * 1000), int((end - epoch).total_seconds() * 1000)
 
 
-def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> int:
-    """
-    Crea un utente esterno in XAtlas e assegna il badge.
-    Restituisce l'ID XAtlas dell'utente creato.
-    """
-    start_ms, end_ms = _today_ms()
-    # end_of_use fisso a 31/12/2099 come da profilo Baudo Pippo
-    end_of_use_ms = 4133977199999
+def find_card_id_by_clear_code(clear_code: str) -> int | None:
+    """Cerca card.id per clear_code (numero badge) in AXS_DB."""
+    try:
+        conn = psycopg2.connect(**AXS_DB)
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM card WHERE clear_code = %s LIMIT 1;", (clear_code,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        return row[0] if row else None
+    except Exception as e:
+        log.error(f"Errore lookup card_id per clear_code={clear_code}: {e}")
+        return None
 
-    identifier = f"VIS{badge_number}"  # identificatore univoco
+
+def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tuple[int, int]:
+    """
+    Crea utente esterno in XAtlas e assegna la tessera.
+    Restituisce (xatlas_user_id, card_id).
+    """
+    # 1) Verifica che la card esista in AXS_DB prima di creare l'utente
+    card_id = find_card_id_by_clear_code(badge_number)
+    if card_id is None:
+        raise RuntimeError(
+            f"Badge {badge_number} non trovato in AXS_DB. "
+            "Il badge fisico deve essere già registrato in XAtlas come tessera."
+        )
+
+    # 2) Crea utente esterno
+    start_ms, end_ms = _today_ms()
+    end_of_use_ms = 4133977199999  # 31/12/2099 come Baudo Pippo
+    identifier = f"VIS{badge_number}"
 
     params = {
         "_dc": int(time.time() * 1000),
@@ -184,7 +206,6 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> in
         "sensitive": True,
         "authGroupId": AUTH_GROUP_ID,
     }
-
     r = xatlas_request(
         "post",
         "/users/data/ExternalUser/create",
@@ -194,44 +215,58 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> in
     )
     if not r.ok:
         raise RuntimeError(f"Errore creazione utente XAtlas: {r.status_code} {r.text[:200]}")
-
     data = r.json()
     if not data.get("success"):
         raise RuntimeError(f"XAtlas create non riuscito: {data}")
-
     xatlas_id = data["records"][0]["id"]
     log.info(f"Utente XAtlas creato: id={xatlas_id} identifier={identifier}")
 
-    # ── Assegna tessera ───────────────────────────────────────────────────────
-    # TODO: catturare l'endpoint esatto tramite DevTools su "ASSEGNA UNA TESSERA"
-    # Istruzioni:
-    #   1. Aprire http://192.168.2.196:8080/users/ → ESTERNI → GaInformatica
-    #   2. Tab CREDENZIALI → "ASSEGNA UNA TESSERA" → inserire un badge di test
-    #   3. F12 > Network > copiare il request URL e payload della chiamata POST
-    #   4. Sostituire il blocco TODO sotto con la chiamata reale
-    #
-    # Endpoint ipotetico (da verificare):
-    assign_body = {
-        "userId": xatlas_id,
-        "clearCode": badge_number,
-        # aggiungere altri campi se richiesti dall'endpoint reale
-    }
+    # 3) Assegna tessera via /UserCard/assign (endpoint reale catturato con DevTools)
     ar = xatlas_request(
         "post",
-        "/users/data/Card/create",   # <-- DA VERIFICARE con DevTools
-        params=params,
-        json=assign_body,
-        headers={"x-requested-with": "XMLHttpRequest", "accept": "*/*"},
+        "/users/data/UserCard/assign",
+        json={"userId": xatlas_id, "cardId": card_id, "userType": 29},
+        headers={
+            "x-requested-with": "XMLHttpRequest",
+            "accept": "*/*",
+            "Content-Type": "application/json;charset=UTF-8",
+        },
     )
-    if ar.ok and ar.json().get("success"):
-        log.info(f"Tessera {badge_number} assegnata via API (endpoint Card/create)")
-    else:
-        log.warning(
-            f"Assegnazione tessera via API fallita ({ar.status_code}). "
-            "Verificare endpoint con DevTools (vedi TODO nel codice)."
-        )
+    if not ar.ok:
+        # Rollback: elimina l'utente appena creato per non lasciare orfani
+        try:
+            delete_xatlas_user(xatlas_id)
+        except Exception:
+            pass
+        raise RuntimeError(f"Assegnazione tessera fallita: {ar.status_code} {ar.text[:200]}")
+    aj = ar.json()
+    if not aj.get("success"):
+        try:
+            delete_xatlas_user(xatlas_id)
+        except Exception:
+            pass
+        raise RuntimeError(f"UserCard/assign non riuscito: {aj}")
+    log.info(f"Tessera {badge_number} (cardId={card_id}) assegnata a utente {xatlas_id}")
 
-    return xatlas_id
+    return xatlas_id, card_id
+
+
+def unassign_xatlas_card(xatlas_user_id: int, card_id: int):
+    """Rimuove l'associazione utente↔tessera in XAtlas."""
+    r = xatlas_request(
+        "post",
+        "/users/data/UserCard/remove",
+        json={"userId": xatlas_user_id, "cardId": card_id, "userType": 29},
+        headers={
+            "x-requested-with": "XMLHttpRequest",
+            "accept": "*/*",
+            "Content-Type": "application/json;charset=UTF-8",
+        },
+    )
+    if r.ok and r.json().get("success"):
+        log.info(f"Tessera cardId={card_id} rimossa da utente {xatlas_user_id}")
+    else:
+        log.warning(f"UserCard/remove fallito: {r.status_code} {r.text[:200]}")
 
 
 # ── XAtlas: elimina utente ────────────────────────────────────────────────────
@@ -326,12 +361,12 @@ def process_pending_badges():
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                xid = create_xatlas_user(badge, fn, ln)
+                xid, cid = create_xatlas_user(badge, fn, ln)
                 sb_patch(f"visitors?id=eq.{vid}", {
                     "xatlas_status":  "active",
                     "xatlas_user_id": xid,
                 })
-                log.info(f"Visitor {vid} ({fn} {ln}) attivato: badge={badge} xatlas_id={xid}")
+                log.info(f"Visitor {vid} ({fn} {ln}) attivato: badge={badge} xatlas_id={xid} card_id={cid}")
                 break
             except Exception as e:
                 log.error(f"Tentativo {attempt}/{MAX_RETRIES} fallito per visitor {vid}: {e}")
@@ -394,9 +429,12 @@ def process_active_transactions():
                     "xatlas_status": "checked_out",
                 })
                 log.info(f"Uscita registrata: visitor={vid} badge={badge} ora={time_str}")
-                # Elimina utente da XAtlas → badge libero
+                # Libera badge: prima dissocia tessera da utente, poi elimina utente
                 xid = v.get("xatlas_user_id")
                 if xid:
+                    cid = find_card_id_by_clear_code(badge)
+                    if cid is not None:
+                        unassign_xatlas_card(xid, cid)
                     delete_xatlas_user(xid)
             except Exception as e:
                 log.error(f"Errore PATCH exit_time per visitor {vid}: {e}")
