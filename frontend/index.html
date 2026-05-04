@@ -1178,18 +1178,14 @@
         const hdrs    = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
 
         // Tutti gli ospiti registrati (filtrati poi per chi non ha ancora passato il tornello)
-        const gUrl = `${SUPABASE_URL}/rest/v1/guest_list` +
+        const gRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/guest_list` +
           `?select=id,first_name,last_name,email,company,person_to_visit,visit_reason,expected_date` +
-          `&order=last_name.asc`;
-        const gRes = await fetch(gUrl, { headers: hdrs });
-        console.log('[loadGuestList] guest_list status:', gRes.status);
-        if (!gRes.ok) {
-          const errText = await gRes.text();
-          console.error('[loadGuestList] guest_list ERRORE:', errText);
-          return;
-        }
+          `&order=last_name.asc`,
+          { headers: hdrs }
+        );
+        if (!gRes.ok) return;
         const allToday = await gRes.json();
-        console.log('[loadGuestList] ospiti caricati:', allToday.length, allToday);
 
         // Visitatori con guest_id: distingue "al desk" (entry_time NULL) da "entrati" (entry_time settato)
         const vRes = await fetch(
@@ -1206,7 +1202,6 @@
           .filter(g => !enteredIds.has(g.id))
           .map(g => ({ ...g, _atDesk: atDeskIds.has(g.id) }));
 
-        console.log('[loadGuestList] dopo filtro entered:', allGuests.length);
         if (allGuests.length > 0 && !selectedGuestId) {
           activeAlpha = '';
           buildAlphaKeyboard();
@@ -1217,9 +1212,7 @@
         } else if (allGuests.length === 0) {
           document.getElementById('guest-lookup-wrap').style.display = 'none';
         }
-      } catch (e) {
-        console.error('[loadGuestList] eccezione:', e);
-      }
+      } catch (_) { /* non blocca il form */ }
     }
 
     loadGuestList();
