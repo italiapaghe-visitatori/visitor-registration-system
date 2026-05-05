@@ -533,6 +533,26 @@
     </div>
   </div>
 
+  <!-- MODALE WIZARD PRE-ASSEGNA MASSIVO -->
+  <div class="modal-overlay" id="bulk-pre-assign-modal">
+    <div class="modal modal-wide">
+      <h2>Pre-assegna Badge a Tutti</h2>
+      <p class="modal-sub" id="bulk-pre-assign-progress">Ospite 1 di N</p>
+      <div id="bulk-pre-assign-current" class="modal-info-box"></div>
+      <div class="modal-fields">
+        <div class="modal-field badge-highlight">
+          <label>N° badge fisico</label>
+          <input type="text" id="bulk-pre-assign-input" placeholder="Es. 241001" autocomplete="off" inputmode="numeric">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-save" onclick="bulkPreAssignNext()">Pre-attiva e prossimo</button>
+        <button type="button" class="btn-cancel" onclick="bulkPreAssignSkip()">Salta ospite</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()">Termina</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODALE PRE-ASSEGNA BADGE (per ospiti attesi) -->
   <div class="modal-overlay" id="pre-assign-modal">
     <div class="modal">
@@ -807,6 +827,7 @@
           <button type="button" class="btn btn-success" onclick="document.getElementById('file-import').click()">Importa CSV / Excel</button>
           <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
           <button type="button" class="btn btn-secondary" onclick="downloadTemplate()">Scarica Template</button>
+          <button type="button" class="btn btn-primary" onclick="startBulkPreAssign()" title="Pre-assegna badge a tutti gli ospiti senza badge">⚡ Pre-assegna Lista</button>
         </div>
         <div>
           <button type="button" class="btn btn-light" id="btn-toggle-arrived" onclick="toggleArrivedFilter()">Mostra arrivati</button>
@@ -1208,6 +1229,16 @@
 
       const saveBtn = document.querySelector('#badge-modal .btn-save');
       saveBtn.disabled = true;
+      saveBtn.textContent = 'Verifica badge...';
+
+      const inUse = await checkBadgeInUse(badgeNum);
+      if (inUse.busy) {
+        alert(`Il badge ${badgeNum} è già assegnato a ${inUse.by} (stato: ${inUse.status}).\nUsa un altro numero.`);
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Associa e attiva';
+        return;
+      }
+
       saveBtn.textContent = 'Salvataggio...';
 
       try {
@@ -1503,6 +1534,25 @@
       }
     }
 
+    // ── CHECK BADGE DUPLICATO ─────────────────────────
+    // Restituisce { busy: bool, by: 'Nome Cognome' } se il badge è già attivo
+    async function checkBadgeInUse(badgeNum) {
+      try {
+        const res = await api(
+          `${SUPABASE_URL}/rest/v1/visitors?select=id,first_name,last_name,xatlas_status&badge_number=eq.${encodeURIComponent(badgeNum)}&xatlas_status=in.(pending,active)`
+        );
+        if (!res || !res.ok) return { busy: false };
+        const rows = await res.json();
+        if (rows.length > 0) {
+          const r = rows[0];
+          return { busy: true, by: `${r.first_name} ${r.last_name}`, status: r.xatlas_status };
+        }
+        return { busy: false };
+      } catch (_) {
+        return { busy: false };
+      }
+    }
+
     // ── PRE-ASSEGNA BADGE (per ospiti attesi) ─────────
     let preAssignGuestId = null;
 
@@ -1526,6 +1576,17 @@
 
       const saveBtn = document.querySelector('#pre-assign-modal .btn-save');
       saveBtn.disabled = true;
+      saveBtn.textContent = 'Verifica badge...';
+
+      // Check duplicato badge
+      const inUse = await checkBadgeInUse(badgeNum);
+      if (inUse.busy) {
+        alert(`Il badge ${badgeNum} è già assegnato a ${inUse.by} (stato: ${inUse.status}).\nUsa un altro numero.`);
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Pre-attiva badge';
+        return;
+      }
+
       saveBtn.textContent = 'Pre-attivazione...';
 
       const payload = {
@@ -1563,10 +1624,101 @@
       }
     }
 
+    // ── WIZARD PRE-ASSEGNA MASSIVO ─────────────────────
+    let bulkQueue = [];
+    let bulkIndex = 0;
+
+    function startBulkPreAssign() {
+      // Filtra ospiti senza visitor associato (no arrivati e no pre-attivati)
+      bulkQueue = guestData.filter(g => !arrivedSet.has(g.id) && !preAssignedMap.has(g.id));
+      if (bulkQueue.length === 0) {
+        alert('Nessun ospite da pre-attivare. Tutti hanno già un badge o sono arrivati.');
+        return;
+      }
+      bulkIndex = 0;
+      showBulkCurrent();
+      document.getElementById('bulk-pre-assign-modal').classList.add('active');
+    }
+
+    function showBulkCurrent() {
+      if (bulkIndex >= bulkQueue.length) {
+        alert(`Wizard completato! ${bulkIndex} ospiti processati.`);
+        closeModal();
+        loadGuestList();
+        return;
+      }
+      const g = bulkQueue[bulkIndex];
+      document.getElementById('bulk-pre-assign-progress').textContent = `Ospite ${bulkIndex + 1} di ${bulkQueue.length}`;
+      document.getElementById('bulk-pre-assign-current').innerHTML =
+        `<strong>${esc(g.first_name)} ${esc(g.last_name)}</strong>` +
+        (g.company ? ` — ${esc(g.company)}` : '') +
+        (g.person_to_visit ? `<br><small>Visita: ${esc(g.person_to_visit)}</small>` : '');
+      const input = document.getElementById('bulk-pre-assign-input');
+      input.value = '';
+      setTimeout(() => input.focus(), 50);
+    }
+
+    async function bulkPreAssignNext() {
+      const badgeNum = document.getElementById('bulk-pre-assign-input').value.trim();
+      if (!badgeNum) { alert('Inserisci il numero badge o premi "Salta ospite".'); return; }
+
+      const g = bulkQueue[bulkIndex];
+      if (!g) return;
+
+      const inUse = await checkBadgeInUse(badgeNum);
+      if (inUse.busy) {
+        alert(`Badge ${badgeNum} già usato da ${inUse.by} (${inUse.status}). Inserisci un altro numero.`);
+        return;
+      }
+
+      const payload = {
+        first_name:      g.first_name,
+        last_name:       g.last_name,
+        email:           g.email           || null,
+        company:         g.company         || null,
+        person_to_visit: g.person_to_visit || null,
+        visit_reason:    g.visit_reason    || 'Visita',
+        guest_id:        g.id,
+        badge_number:    badgeNum,
+        xatlas_status:   'pending',
+        data_consent:    false,
+        signature:       null
+      };
+
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/visitors`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify(payload)
+        });
+        if (!res || !res.ok) {
+          const b = res ? await res.json().catch(() => ({})) : {};
+          throw new Error(b.message || `Errore ${res?.status}`);
+        }
+        bulkIndex++;
+        showBulkCurrent();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+
+    function bulkPreAssignSkip() {
+      bulkIndex++;
+      showBulkCurrent();
+    }
+
+    // Tasto Invio nel wizard avvia il prossimo
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && document.getElementById('bulk-pre-assign-modal').classList.contains('active')) {
+        e.preventDefault();
+        bulkPreAssignNext();
+      }
+    });
+
     // ── TEMPLATE DOWNLOAD ─────────────────────────────
     function downloadTemplate() {
-      const header = ['Nome','Cognome','Email','Azienda','Persona_da_Visitare','Motivo_Visita','Data_Prevista'];
-      const example = ['Mario','Rossi','mario.rossi@esempio.it','Esempio Srl','Luca Verdi','Appuntamento di lavoro',new Date().toISOString().split('T')[0]];
+      const header = ['Nome','Cognome','Email','Azienda','Persona_da_Visitare','Motivo_Visita','Data_Prevista','Numero_Badge'];
+      const example = ['Mario','Rossi','mario.rossi@esempio.it','Esempio Srl','Luca Verdi','Appuntamento di lavoro',new Date().toISOString().split('T')[0],'241001'];
       const csv = [header, example].map(r => r.map(c => `"${c}"`).join(',')).join('\r\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -1614,7 +1766,7 @@
     async function parseAndImportRows(rows) {
       if (rows.length < 2) { alert('Il file non contiene dati.'); return; }
 
-      // Normalizza intestazioni
+      // Normalizza intestazioni — campi guest_list + colonna speciale Numero_Badge
       const colMap = {
         'nome': 'first_name', 'cognome': 'last_name',
         'email': 'email', 'azienda': 'company',
@@ -1622,38 +1774,98 @@
         'motivo_visita': 'visit_reason',
         'data_prevista': 'expected_date'
       };
+      const BADGE_COL = 'numero_badge';
 
-      const headers = rows[0].map(h => h.toLowerCase().trim().replace(/ /g, '_'));
-      const colIdx = {};
-      headers.forEach((h, i) => { if (colMap[h]) colIdx[colMap[h]] = i; });
+      const headers   = rows[0].map(h => h.toLowerCase().trim().replace(/ /g, '_'));
+      const colIdx    = {};
+      let   badgeIdx  = -1;
+      headers.forEach((h, i) => {
+        if (colMap[h]) colIdx[colMap[h]] = i;
+        if (h === BADGE_COL) badgeIdx = i;
+      });
 
       if (colIdx.first_name === undefined || colIdx.last_name === undefined) {
         alert('Colonne "Nome" e "Cognome" non trovate. Usa il template scaricabile.');
         return;
       }
 
-      const records = rows.slice(1).map(r => {
+      // Costruisci due array paralleli: guests (per guest_list) e badges (numero o null)
+      const guests = [];
+      const badges = [];
+      rows.slice(1).forEach(r => {
         const rec = {};
         Object.entries(colIdx).forEach(([field, idx]) => {
           const val = r[idx] ? String(r[idx]).trim() : null;
           rec[field] = val || null;
         });
-        return rec;
-      }).filter(r => r.first_name && r.last_name);
+        if (rec.first_name && rec.last_name) {
+          guests.push(rec);
+          const b = badgeIdx >= 0 && r[badgeIdx] ? String(r[badgeIdx]).trim() : null;
+          badges.push(b || null);
+        }
+      });
 
-      if (records.length === 0) { alert('Nessun record valido trovato.'); return; }
+      if (guests.length === 0) { alert('Nessun record valido trovato.'); return; }
 
-      if (!confirm(`Importare ${records.length} ospiti?`)) return;
+      const withBadge = badges.filter(Boolean).length;
+      const msg = withBadge > 0
+        ? `Importare ${guests.length} ospiti (di cui ${withBadge} con pre-attivazione badge)?`
+        : `Importare ${guests.length} ospiti?`;
+      if (!confirm(msg)) return;
 
       try {
+        // INSERT batch in guest_list, ritorna ID generati
         const res = await api(`${SUPABASE_URL}/rest/v1/guest_list`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify(records)
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify(guests)
         });
         if (!res) return;
         if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.message || `Errore ${res.status}`); }
-        alert(`${records.length} ospiti importati con successo.`);
+        const inserted = await res.json();
+
+        // Per ogni ospite con badge: check duplicato e crea visitor stub
+        const stubs = [];
+        const skipped = [];
+        for (let i = 0; i < inserted.length; i++) {
+          const badge = badges[i];
+          if (!badge) continue;
+          const inUse = await checkBadgeInUse(badge);
+          if (inUse.busy) {
+            skipped.push(`${inserted[i].first_name} ${inserted[i].last_name} → badge ${badge} già usato da ${inUse.by}`);
+            continue;
+          }
+          stubs.push({
+            first_name:      inserted[i].first_name,
+            last_name:       inserted[i].last_name,
+            email:           inserted[i].email           || null,
+            company:         inserted[i].company         || null,
+            person_to_visit: inserted[i].person_to_visit || null,
+            visit_reason:    inserted[i].visit_reason    || 'Visita',
+            guest_id:        inserted[i].id,
+            badge_number:    badge,
+            xatlas_status:   'pending',
+            data_consent:    false,
+            signature:       null
+          });
+        }
+
+        if (stubs.length > 0) {
+          const stubRes = await api(`${SUPABASE_URL}/rest/v1/visitors`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+            body: JSON.stringify(stubs)
+          });
+          if (!stubRes || !stubRes.ok) {
+            const b = stubRes ? await stubRes.json().catch(() => ({})) : {};
+            throw new Error('Errore pre-attivazione: ' + (b.message || stubRes?.status));
+          }
+        }
+
+        let summary = `${guests.length} ospiti importati`;
+        if (stubs.length > 0)   summary += `\n${stubs.length} badge pre-attivati`;
+        if (skipped.length > 0) summary += `\n${skipped.length} badge SCARTATI:\n - ` + skipped.join('\n - ');
+        alert(summary);
         loadGuestList();
       } catch (err) {
         alert('Errore importazione: ' + err.message);
