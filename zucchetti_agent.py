@@ -52,7 +52,7 @@ SITE_ID                     = 176
 ORGANIZATIONAL_STRUCTURE_ID = 173
 AUTH_GROUP_ID               = 249   # gruppo VISITATORI
 
-POLL_INTERVAL = 10   # secondi tra ogni ciclo
+POLL_INTERVAL = 5    # secondi tra ogni ciclo (era 10, ridotto per latenza minima badge)
 MAX_RETRIES   = 3    # tentativi prima di loggare errore e passare oltre
 
 # ── Logging ───────────────────────────────────────────────────────────────────

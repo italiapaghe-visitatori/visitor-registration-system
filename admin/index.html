@@ -1017,6 +1017,16 @@
       return 'altro';
     }
 
+    // Tempo totale stimato dall'associazione fino a quando il badge è pronto al tornello
+    // (10s polling agente + ~25s NET9x sync verso SuperTRAX)
+    const SYNC_TOTAL_SECONDS = 35;
+
+    function getActivationElapsed(visitorId) {
+      const ts = sessionStorage.getItem(`activation_${visitorId}`);
+      if (!ts) return null;
+      return Math.floor((Date.now() - parseInt(ts, 10)) / 1000);
+    }
+
     function renderXatlasStatus(row) {
       const s = row.xatlas_status;
       const b = esc(row.badge_number);
@@ -1025,8 +1035,19 @@
       if (!s) {
         return `<span class="xstatus xstatus-none">Nessun badge</span>`;
       }
+      // Countdown di sync se l'associazione è stata fatta da poco
+      const elapsed = getActivationElapsed(row.id);
+      const inSyncWindow = elapsed !== null && elapsed < SYNC_TOTAL_SECONDS && (s === 'pending' || s === 'active') && !entry;
+      if (inSyncWindow) {
+        const remaining = Math.max(0, SYNC_TOTAL_SECONDS - elapsed);
+        return `<span class="xstatus xstatus-pending" data-countdown-vid="${esc(row.id)}">&#9201; Sync in corso... ${remaining}s</span>`;
+      }
       if (s === 'pending') {
         return `<span class="xstatus xstatus-pending">&#9679; Badge ${b} — Attivazione...</span>`;
+      }
+      if (s === 'active' && elapsed !== null && elapsed >= SYNC_TOTAL_SECONDS && elapsed < SYNC_TOTAL_SECONDS + 60 && !entry) {
+        // Finestra di 60s in cui mostriamo "Pronto" prima del Badge XXX standard
+        return `<span class="xstatus xstatus-active" data-countdown-vid="${esc(row.id)}">&#9989; Badge ${b} pronto</span>`;
       }
       if (s === 'active') {
         return `<span class="xstatus xstatus-active">&#9679; Badge ${b}${entry ? ' — Entrato ' + entry : ''}</span>`;
@@ -1036,6 +1057,36 @@
       }
       return `<span class="xstatus xstatus-none">${esc(s)}</span>`;
     }
+
+    // Aggiornamento countdown ogni secondo + auto-reload dati ogni 5s mentre c'è almeno un sync attivo
+    setInterval(() => {
+      const countdowns = document.querySelectorAll('[data-countdown-vid]');
+      if (countdowns.length === 0) return;
+      countdowns.forEach(el => {
+        const vid = el.getAttribute('data-countdown-vid');
+        const elapsed = getActivationElapsed(vid);
+        if (elapsed === null) return;
+        const remaining = Math.max(0, SYNC_TOTAL_SECONDS - elapsed);
+        if (remaining > 0) {
+          el.innerHTML = `&#9201; Sync in corso... ${remaining}s`;
+          el.className = 'xstatus xstatus-pending';
+        } else {
+          // Trova badge_number dal currentData
+          const row = currentData.find(r => String(r.id) === String(vid));
+          const b = row ? esc(row.badge_number) : '';
+          el.innerHTML = `&#9989; Badge ${b} pronto`;
+          el.className = 'xstatus xstatus-active';
+        }
+      });
+    }, 1000);
+
+    // Auto-reload dati ogni 5s se c'è almeno un visitor in stato pending o sync
+    setInterval(() => {
+      if (currentView !== 'visitors') return;
+      const hasPending = currentData.some(r => r.xatlas_status === 'pending') ||
+                         document.querySelectorAll('[data-countdown-vid]').length > 0;
+      if (hasPending) loadData();
+    }, 5000);
 
     function renderTable(data) {
       if (data.length === 0) {
@@ -1193,6 +1244,9 @@
         if (!res) return;
         const body = await res.json().catch(() => []);
         if (!res.ok) throw new Error(body?.message || `Errore ${res.status}`);
+
+        // Salva timestamp di inizio attivazione per countdown sync
+        sessionStorage.setItem(`activation_${badgeCurrentId}`, Date.now().toString());
 
         const idx = currentData.findIndex(r => String(r.id) === String(badgeCurrentId));
         if (idx !== -1) { currentData[idx].badge_number = badgeNum; currentData[idx].xatlas_status = 'pending'; }
