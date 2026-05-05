@@ -1718,10 +1718,16 @@
     // ── TEMPLATE DOWNLOAD ─────────────────────────────
     function downloadTemplate() {
       const header = ['Nome','Cognome','Email','Azienda','Persona_da_Visitare','Motivo_Visita','Data_Prevista','Numero_Badge'];
-      const example = ['Mario','Rossi','mario.rossi@esempio.it','Esempio Srl','Luca Verdi','Appuntamento di lavoro',new Date().toISOString().split('T')[0],'241001'];
-      const csv = [header, example].map(r => r.map(c => `"${c}"`).join(',')).join('\r\n');
+      const today  = new Date().toISOString().split('T')[0];
+      // 3 righe esempio: 2 con badge pre-attivato, 1 senza badge (pre-attivare poi manualmente)
+      const examples = [
+        ['Mario',  'Rossi',   'mario.rossi@esempio.it',   'Esempio Srl',  'Luca Verdi', 'Appuntamento di lavoro',     today, '241001'],
+        ['Anna',   'Bianchi', 'anna.bianchi@esempio.it',  'Bianchi Spa',  'Luca Verdi', 'Visita',                     today, ''      ],
+        ['Giulia', 'Ferrari', 'giulia.ferrari@esempio.it','Ferrari & Co', 'Luca Verdi', 'Corso di formazione in aula',today, '241002']
+      ];
+      const csv = [header, ...examples].map(r => r.map(c => `"${c}"`).join(',')).join('\r\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
+      const url  = URL.createObjectURL(blob);
       const a = Object.assign(document.createElement('a'), { href: url, download: 'template_ospiti.csv' });
       a.click();
       URL.revokeObjectURL(url);
