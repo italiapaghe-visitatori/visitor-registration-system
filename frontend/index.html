@@ -1290,16 +1290,29 @@
         if (!gRes.ok) return;
         const allToday = await gRes.json();
 
-        // Visitatori già registrati (con guest_id): spariscono dalla lista
+        // Visitatori di oggi (per matching su id E su nome — robusto vs guest_id mancante)
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayIso = todayStart.toISOString();
         const vRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/visitors?select=guest_id&guest_id=not.is.null`,
+          `${SUPABASE_URL}/rest/v1/visitors?select=guest_id,first_name,last_name&created_at=gte.${encodeURIComponent(todayIso)}`,
           { headers: hdrs }
         );
         const vData = vRes.ok ? await vRes.json() : [];
+
+        // Set di guest_id già usati (link diretto)
         const registeredIds = new Set(vData.map(v => v.guest_id).filter(Boolean));
 
+        // Set di nomi normalizzati registrati oggi (fallback se guest_id mancante)
+        const norm = (s) => (s || '').toLowerCase().trim();
+        const registeredNames = new Set(vData.map(v => norm(v.first_name) + '|' + norm(v.last_name)));
+
         // Mostra solo ospiti attesi non ancora registrati al kiosk
-        allGuests = allToday.filter(g => !registeredIds.has(g.id));
+        allGuests = allToday.filter(g => {
+          if (registeredIds.has(g.id)) return false;
+          if (registeredNames.has(norm(g.first_name) + '|' + norm(g.last_name))) return false;
+          return true;
+        });
 
         if (allGuests.length > 0 && !selectedGuestId) {
           activeAlpha = '';
