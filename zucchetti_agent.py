@@ -184,6 +184,7 @@ def ensure_card_free(card_id: int) -> bool:
     Verifica che la card non sia già assegnata. Se ha user_id che punta
     a un utente NON esistente (orfano), libera automaticamente la card.
     Se la card è assegnata a un utente reale, NON la tocca → ritorna False.
+    Inoltre estende la validità della card se è scaduta (1900 → 2100).
     """
     conn = None
     try:
@@ -191,7 +192,7 @@ def ensure_card_free(card_id: int) -> bool:
         cur  = conn.cursor()
         cur.execute(
             """
-            SELECT c.user_id, u.identifier
+            SELECT c.user_id, u.identifier, c.validity_end
             FROM card c
             LEFT JOIN user_identifier u ON u.id = c.user_id
             WHERE c.id = %s;
@@ -202,8 +203,23 @@ def ensure_card_free(card_id: int) -> bool:
         if row is None:
             cur.close(); conn.close()
             return False
-        owner_id, owner_identifier = row
+        owner_id, owner_identifier, validity_end = row
+
+        # Estendi validità se scaduta o sta per scadere (entro 1 mese)
+        if validity_end is None or validity_end < datetime.now() + timedelta(days=30):
+            cur.execute(
+                """
+                UPDATE card
+                SET validity_start = '1900-01-01 00:00:00',
+                    validity_end   = '2100-12-31 23:59:59'
+                WHERE id = %s;
+                """,
+                (card_id,),
+            )
+            log.info(f"Card {card_id}: validità estesa a 1900→2100 (era {validity_end})")
+
         if owner_id is None:
+            conn.commit()
             cur.close(); conn.close()
             return True  # già libera
 
@@ -216,6 +232,7 @@ def ensure_card_free(card_id: int) -> bool:
             return True
 
         # Utente reale: non liberare
+        conn.commit()
         log.warning(
             f"Card {card_id} è assegnata a {owner_identifier} (id={owner_id}), "
             "non liberata automaticamente. Risolvere manualmente."
