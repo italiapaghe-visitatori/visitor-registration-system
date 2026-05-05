@@ -300,8 +300,9 @@
 
     /* ── STATUS BADGES ── */
     .gtype { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-    .gtype-atteso { background: #c6f6d5; color: #22543d; }
-    .gtype-walkin { background: #e2e8f0; color: #718096; }
+    .gtype-atteso   { background: #c6f6d5; color: #22543d; }
+    .gtype-walkin   { background: #e2e8f0; color: #718096; }
+    .gtype-concluso { background: #ebf8ff; color: #2c5282; }
 
     .xstatus { font-size: 12px; font-weight: 600; white-space: nowrap; }
     .xstatus-none     { color: #a0aec0; }
@@ -1077,9 +1078,15 @@
           ? '<span class="consent-yes">&#10003; S&igrave;</span>'
           : '<span class="consent-no">&#10007; No</span>';
 
-        const gTypeHtml = row.guest_id
-          ? '<span class="gtype gtype-atteso">Atteso</span>'
-          : '<span class="gtype gtype-walkin">Walk-in</span>';
+        // TIPO visita: Atteso/Walk-in indicano la fonte; "Concluso" se uscito
+        let gTypeHtml;
+        if (row.xatlas_status === 'checked_out') {
+          gTypeHtml = '<span class="gtype gtype-concluso">Concluso</span>';
+        } else if (row.guest_id) {
+          gTypeHtml = '<span class="gtype gtype-atteso">Atteso</span>';
+        } else {
+          gTypeHtml = '<span class="gtype gtype-walkin">Walk-in</span>';
+        }
 
         const xstatusHtml = renderXatlasStatus(row);
 
