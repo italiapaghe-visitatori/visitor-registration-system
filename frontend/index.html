@@ -736,6 +736,86 @@
       body { padding: 36px 20px 52px; }
     }
 
+    /* ── MODALITÀ QR (mobile self-service) ── */
+    /* In modalità QR nascondiamo lo screensaver: il device è personale, non condiviso */
+    html.qr-mode #screensaver { display: none !important; }
+
+    /* Banner top informativo per chi accede dal QR */
+    .qr-banner {
+      display: none;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: #fff;
+      padding: 14px 18px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.3px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .qr-banner small { display: block; font-weight: 500; opacity: 0.9; font-size: 12px; margin-top: 3px; }
+    html.qr-mode .qr-banner { display: block; }
+
+    /* Schermata finale persistente "ritira badge alla reception" */
+    #qr-success {
+      display: none;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100dvh;
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+      color: #fff;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      z-index: 9998;
+    }
+    #qr-success.active { display: flex; }
+    #qr-success .checkmark {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 70px;
+      margin-bottom: 28px;
+      border: 4px solid rgba(255,255,255,0.4);
+      animation: qrCheckBounce 0.6s ease-out;
+    }
+    @keyframes qrCheckBounce {
+      0%   { transform: scale(0); opacity: 0; }
+      60%  { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    #qr-success h1 {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 14px;
+      max-width: 480px;
+      line-height: 1.25;
+    }
+    #qr-success p {
+      font-size: 17px;
+      max-width: 420px;
+      line-height: 1.5;
+      opacity: 0.95;
+    }
+    #qr-success .desk-cta {
+      margin-top: 32px;
+      background: rgba(255,255,255,0.2);
+      border: 2px solid rgba(255,255,255,0.5);
+      padding: 16px 26px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
     /* ── SCREENSAVER ── */
     #screensaver {
       display: none;
@@ -907,6 +987,20 @@
   </style>
 </head>
 <body>
+
+  <!-- BANNER QR (visibile solo se html.qr-mode) -->
+  <div class="qr-banner">
+    📱 Registrazione self-service
+    <small>Scegli il tuo nome dalla lista, firma e ritira il badge alla reception</small>
+  </div>
+
+  <!-- SCHERMATA FINALE QR (mostrata dopo submit in modalità QR) -->
+  <div id="qr-success">
+    <div class="checkmark">✓</div>
+    <h1>Registrazione completata!</h1>
+    <p>Grazie per esserti registrato.</p>
+    <div class="desk-cta">📍 Vai alla reception per ritirare il tuo badge</div>
+  </div>
 
   <!-- SCREENSAVER -->
   <div id="screensaver" onclick="dismissScreensaver()" ontouchstart="dismissScreensaver()">
@@ -1272,6 +1366,13 @@
     const SUPABASE_URL      = CONFIG.supabase.url;
     const SUPABASE_ANON_KEY = CONFIG.supabase.anonKey;
 
+    // Modalità QR: l'ospite ha aperto la pagina dal proprio cellulare scansionando il QR al desk.
+    // Cambia: messaggio finale persistente "ritira il badge alla reception", niente screensaver,
+    // niente auto-reset del form (un device = un utente), polling guest_list più frequente (8s).
+    const QS = new URLSearchParams(window.location.search);
+    const IS_QR_MODE = QS.get('mode') === 'qr';
+    if (IS_QR_MODE) document.documentElement.classList.add('qr-mode');
+
     // ── GUEST LOOKUP ─────────────────────────────────
     let allGuests                 = [];
     let selectedGuestId           = null;
@@ -1329,8 +1430,9 @@
     }
 
     loadGuestList();
-    // Aggiorna la lista ogni 60 secondi (kiosk sempre aperto)
-    setInterval(loadGuestList, 60000);
+    // Polling guest_list: 8s in modalità QR (race-condition window minima fra mobile contemporanei),
+    // 60s in modalità kiosk (un solo dispositivo, basso carico).
+    setInterval(loadGuestList, IS_QR_MODE ? 8000 : 60000);
 
     function escHtml(s) {
       return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1663,18 +1765,23 @@
         }
 
         if (res.ok) {
-          showMsg('success', '✓ Registrazione completata con successo! Benvenuto/a.');
-          document.getElementById('visitor-form').reset();
-          clearSig();
-          setDefaults();
-          updateAgreementName();
-          // Ripristina lookup ospiti per il prossimo visitatore
-          selectedGuestId = null;
-          document.getElementById('guest-confirm').style.display = 'none';
-          document.getElementById('guest-search').value          = '';
-          // Ricarica la lista: rimuove l'ospite appena registrato
-          loadGuestList();
-          setTimeout(() => { document.getElementById('message').style.display = 'none'; }, 4500);
+          if (IS_QR_MODE) {
+            // Mobile/QR: schermata finale persistente con istruzioni per il desk.
+            // Non resettiamo il form né l'ospite: un device = un utente.
+            showQrSuccessScreen();
+          } else {
+            // Kiosk: messaggio breve + auto-reset per il prossimo visitatore al tablet condiviso.
+            showMsg('success', '✓ Registrazione completata con successo! Benvenuto/a.');
+            document.getElementById('visitor-form').reset();
+            clearSig();
+            setDefaults();
+            updateAgreementName();
+            selectedGuestId = null;
+            document.getElementById('guest-confirm').style.display = 'none';
+            document.getElementById('guest-search').value          = '';
+            loadGuestList();
+            setTimeout(() => { document.getElementById('message').style.display = 'none'; }, 4500);
+          }
         } else {
           const err = await res.json().catch(() => ({}));
           throw new Error(err.message || `Errore del server (${res.status})`);
@@ -1688,6 +1795,18 @@
     });
 
     setDefaults();
+
+    // ── QR SUCCESS SCREEN (modalità mobile) ─────────
+    function showQrSuccessScreen() {
+      // Nasconde messaggi inline residui e mostra l'overlay verde a tutto schermo.
+      const m = document.getElementById('message');
+      if (m) m.style.display = 'none';
+      document.getElementById('qr-success').classList.add('active');
+      // Ferma eventuali screensaver/timer
+      if (typeof ssTimer !== 'undefined') clearTimeout(ssTimer);
+      // Scroll in cima per garantire visibilità su mobile
+      window.scrollTo(0, 0);
+    }
 
     // ── SCREENSAVER ──────────────────────────────────
     const SS_TIMEOUT = 60; // secondi di inattività prima dello screensaver
@@ -1738,18 +1857,21 @@
     }
 
     function resetSsTimer() {
+      if (IS_QR_MODE) return; // In modalità QR (mobile) lo screensaver è disabilitato
       clearTimeout(ssTimer);
       ssTimer = setTimeout(showScreensaver, SS_TIMEOUT * 1000);
     }
 
     // Ripristina il timer ad ogni interazione
-    ['touchstart','touchmove','mousedown','mousemove','keydown','scroll'].forEach(evt => {
-      document.addEventListener(evt, () => {
-        if (!ss.classList.contains('active')) resetSsTimer();
-      }, { passive: true });
-    });
+    if (!IS_QR_MODE) {
+      ['touchstart','touchmove','mousedown','mousemove','keydown','scroll'].forEach(evt => {
+        document.addEventListener(evt, () => {
+          if (!ss.classList.contains('active')) resetSsTimer();
+        }, { passive: true });
+      });
+    }
 
-    resetSsTimer(); // Avvia il timer al caricamento
+    resetSsTimer(); // Avvia il timer al caricamento (no-op in QR mode)
   </script>
 </body>
 </html>

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Gestione Visitatori — Admin</title>
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -32,6 +33,68 @@
     .header h1 { color: #fff; font-size: 20px; font-weight: 700; }
 
     .header-right { display: flex; align-items: center; gap: 10px; }
+
+    /* ── QR MODAL PREVIEW + PRINT ── */
+    #qr-preview-area {
+      display: flex;
+      gap: 32px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      padding: 24px 12px;
+      margin: 16px 0;
+      background: #f7fafc;
+      border-radius: 12px;
+    }
+    #qr-canvas-wrap {
+      background: #fff;
+      padding: 18px;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    #qr-canvas-wrap img, #qr-canvas-wrap canvas { display: block; }
+    .qr-instructions h3 {
+      font-size: 18px;
+      font-weight: 800;
+      color: #2d3748;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+    .qr-instructions ol { padding-left: 22px; color: #4a5568; line-height: 1.7; font-size: 14px; }
+    .qr-instructions ol li { margin-bottom: 4px; }
+
+    /* Stampa A4: solo il foglio QR, niente header/sidebar */
+    @media print {
+      @page { size: A4 portrait; margin: 18mm; }
+      body * { visibility: hidden; }
+      #qr-modal, #qr-modal * { visibility: visible; }
+      #qr-modal {
+        position: absolute !important;
+        inset: 0 !important;
+        background: #fff !important;
+        display: block !important;
+      }
+      #qr-modal-content {
+        box-shadow: none !important;
+        border: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 0 !important;
+      }
+      /* Nascondi titolo modale, sotto-testo, input URL e azioni quando si stampa */
+      #qr-modal h2, #qr-modal .modal-sub, #qr-modal .modal-fields, #qr-modal .modal-actions { display: none !important; }
+      #qr-preview-area {
+        flex-direction: column;
+        gap: 16mm;
+        padding: 0;
+        background: transparent;
+      }
+      #qr-canvas-wrap { padding: 0; box-shadow: none; }
+      #qr-canvas-wrap img, #qr-canvas-wrap canvas { width: 130mm !important; height: 130mm !important; }
+      .qr-instructions { text-align: center; max-width: 150mm; }
+      .qr-instructions h3 { font-size: 28pt !important; margin-bottom: 12mm !important; }
+      .qr-instructions ol { font-size: 14pt !important; text-align: left; line-height: 2 !important; padding-left: 30px !important; }
+    }
 
     /* ── AGENT STATUS PILL ── */
     .agent-status {
@@ -585,6 +648,38 @@
     </div>
   </div>
 
+  <!-- MODALE GENERA QR EVENTO -->
+  <div class="modal-overlay" id="qr-modal">
+    <div class="modal modal-wide" id="qr-modal-content">
+      <h2>📱 Genera QR per Registrazione Self-Service</h2>
+      <p class="modal-sub">
+        Stampa il QR e mettilo al desk. Gli ospiti lo scansionano col proprio cellulare per registrarsi in autonomia.
+      </p>
+      <div class="modal-fields">
+        <div class="modal-field">
+          <label>URL frontend (modificabile se diverso)</label>
+          <input type="text" id="qr-url-input" oninput="rebuildQr()" autocomplete="off">
+        </div>
+      </div>
+      <div id="qr-preview-area">
+        <div id="qr-canvas-wrap"></div>
+        <div class="qr-instructions">
+          <h3>REGISTRAZIONE VISITATORI</h3>
+          <ol>
+            <li>Inquadra il QR con la fotocamera del telefono</li>
+            <li>Cerca il tuo nome dalla lista</li>
+            <li>Firma sul tuo dispositivo</li>
+            <li>Vai alla reception per il badge</li>
+          </ol>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-save" onclick="window.print()">🖨 Stampa QR</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODALE PRE-ASSEGNA BADGE (per ospiti attesi) -->
   <div class="modal-overlay" id="pre-assign-modal">
     <div class="modal">
@@ -868,6 +963,7 @@
           <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
           <button type="button" class="btn btn-secondary" onclick="downloadTemplate()">Scarica Template</button>
           <button type="button" class="btn btn-primary" onclick="startBulkPreAssign()" title="Pre-assegna badge a tutti gli ospiti senza badge">⚡ Pre-assegna Lista</button>
+          <button type="button" class="btn btn-light" onclick="openQrModal()" title="Genera QR per registrazione self-service da mobile">📱 Genera QR Evento</button>
         </div>
         <div>
           <button type="button" class="btn btn-light" id="btn-toggle-arrived" onclick="toggleArrivedFilter()">Mostra arrivati</button>
@@ -1415,6 +1511,38 @@
     document.addEventListener('click', e => {
       if (e.target.classList.contains('modal-overlay')) closeModal();
     });
+
+    // ── QR EVENTO ────────────────────────────────────
+    // Calcola l'URL del frontend partendo da quello dell'admin (sostituisce /admin/ con /frontend/)
+    // Aggiunge ?mode=qr per attivare la modalità mobile self-service.
+    function defaultFrontendQrUrl() {
+      const here = window.location.href.split('?')[0].split('#')[0];
+      const guess = here.replace(/\/admin\/[^/]*$/, '/frontend/').replace(/\/admin\/?$/, '/frontend/');
+      const url = guess.endsWith('/') ? guess : guess + '/';
+      return url + '?mode=qr';
+    }
+
+    let qrInstance = null;
+    function rebuildQr() {
+      const url = document.getElementById('qr-url-input').value.trim();
+      const wrap = document.getElementById('qr-canvas-wrap');
+      wrap.innerHTML = '';
+      if (!url || typeof QRCode === 'undefined') return;
+      qrInstance = new QRCode(wrap, {
+        text: url,
+        width: 260,
+        height: 260,
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
+
+    function openQrModal() {
+      const input = document.getElementById('qr-url-input');
+      if (!input.value) input.value = defaultFrontendQrUrl();
+      document.getElementById('qr-modal').classList.add('active');
+      // Genera al prossimo tick per assicurare che il container sia visibile
+      setTimeout(rebuildQr, 30);
+    }
 
     // ── GUEST LIST ────────────────────────────────────
     let guestData      = [];
