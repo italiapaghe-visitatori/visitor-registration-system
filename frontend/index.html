@@ -1273,8 +1273,9 @@
     const SUPABASE_ANON_KEY = CONFIG.supabase.anonKey;
 
     // ── GUEST LOOKUP ─────────────────────────────────
-    let allGuests       = [];
-    let selectedGuestId = null;
+    let allGuests                 = [];
+    let selectedGuestId           = null;
+    let preAssignedVisitorByGuest = new Map();
 
     async function loadGuestList() {
       try {
@@ -1290,27 +1291,27 @@
         if (!gRes.ok) return;
         const allToday = await gRes.json();
 
-        // Visitatori di oggi (per matching su id E su nome — robusto vs guest_id mancante)
+        // Visitatori di oggi: signature SET = già firmato (escludi) | signature NULL = pre-attivato (mostra ancora)
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
         const todayIso = todayStart.toISOString();
         const vRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/visitors?select=guest_id,first_name,last_name&created_at=gte.${encodeURIComponent(todayIso)}`,
+          `${SUPABASE_URL}/rest/v1/visitors?select=id,guest_id,first_name,last_name,signature&created_at=gte.${encodeURIComponent(todayIso)}`,
           { headers: hdrs }
         );
         const vData = vRes.ok ? await vRes.json() : [];
 
-        // Set di guest_id già usati (link diretto)
-        const registeredIds = new Set(vData.map(v => v.guest_id).filter(Boolean));
-
-        // Set di nomi normalizzati registrati oggi (fallback se guest_id mancante)
+        // Già firmati al kiosk → escludi dalla lista
+        const signedIds = new Set(vData.filter(v => v.signature).map(v => v.guest_id).filter(Boolean));
         const norm = (s) => (s || '').toLowerCase().trim();
-        const registeredNames = new Set(vData.map(v => norm(v.first_name) + '|' + norm(v.last_name)));
+        const signedNames = new Set(vData.filter(v => v.signature).map(v => norm(v.first_name) + '|' + norm(v.last_name)));
 
-        // Mostra solo ospiti attesi non ancora registrati al kiosk
+        // Pre-attivati (stub senza firma): map guest_id → visitor_id per fare PATCH al submit
+        preAssignedVisitorByGuest = new Map(vData.filter(v => !v.signature && v.guest_id).map(v => [v.guest_id, v.id]));
+
         allGuests = allToday.filter(g => {
-          if (registeredIds.has(g.id)) return false;
-          if (registeredNames.has(norm(g.first_name) + '|' + norm(g.last_name))) return false;
+          if (signedIds.has(g.id)) return false;
+          if (signedNames.has(norm(g.first_name) + '|' + norm(g.last_name))) return false;
           return true;
         });
 
@@ -1630,17 +1631,36 @@
         } catch (_) { /* non blocca la registrazione */ }
       }
 
+      // Se l'ospite era già pre-attivato (stub creato dall'admin), aggiorna invece di creare nuovo
+      const existingStubId = (payload.guest_id && preAssignedVisitorByGuest.get(payload.guest_id)) || null;
+
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/visitors`, {
-          method: 'POST',
-          headers: {
-            'Content-Type':  'application/json',
-            'apikey':        SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Prefer':        'return=minimal'
-          },
-          body: JSON.stringify(payload)
-        });
+        let res;
+        if (existingStubId) {
+          // PATCH: completa lo stub esistente con firma + consensi
+          res = await fetch(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(existingStubId)}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type':  'application/json',
+              'apikey':        SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              'Prefer':        'return=minimal'
+            },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          // INSERT: nuovo visitor (walk-in o ospite non pre-attivato)
+          res = await fetch(`${SUPABASE_URL}/rest/v1/visitors`, {
+            method: 'POST',
+            headers: {
+              'Content-Type':  'application/json',
+              'apikey':        SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              'Prefer':        'return=minimal'
+            },
+            body: JSON.stringify(payload)
+          });
+        }
 
         if (res.ok) {
           showMsg('success', '✓ Registrazione completata con successo! Benvenuto/a.');

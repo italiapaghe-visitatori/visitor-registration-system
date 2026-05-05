@@ -532,6 +532,28 @@
     </div>
   </div>
 
+  <!-- MODALE PRE-ASSEGNA BADGE (per ospiti attesi) -->
+  <div class="modal-overlay" id="pre-assign-modal">
+    <div class="modal">
+      <h2>Pre-assegna Badge</h2>
+      <p class="modal-sub" id="pre-assign-guest-name"></p>
+      <div class="modal-fields">
+        <div class="modal-field badge-highlight">
+          <label>N° badge fisico da assegnare in anticipo</label>
+          <input type="text" id="pre-assign-badge-input" placeholder="Es. 241026" autocomplete="off" inputmode="numeric">
+        </div>
+        <div class="modal-info-box">
+          Il badge verrà attivato immediatamente al tornello (entro 30s).<br>
+          Quando l'ospite arriverà al kiosk, basterà che firmi e potrà passare subito.
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-save" onclick="savePreAssign()">Pre-attiva badge</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODALE ASSOCIA BADGE -->
   <div class="modal-overlay" id="badge-modal">
     <div class="modal">
@@ -1315,9 +1337,10 @@
     });
 
     // ── GUEST LIST ────────────────────────────────────
-    let guestData   = [];
-    let arrivedSet  = new Set();
-    let showArrived = false;
+    let guestData      = [];
+    let arrivedSet     = new Set();   // ospiti già arrivati e firmati al kiosk
+    let preAssignedMap = new Map();   // guest_id → badge_number per ospiti pre-attivati
+    let showArrived    = false;
 
     function toggleArrivedFilter() {
       showArrived = !showArrived;
@@ -1338,10 +1361,11 @@
         if (!res.ok) throw new Error(`Errore ${res.status}`);
         guestData = await res.json();
 
-        // Carica visitor con guest_id per sapere chi è arrivato
-        const arrivedRes  = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id&guest_id=not.is.null`);
-        const arrivedData = arrivedRes?.ok ? await arrivedRes.json() : [];
-        arrivedSet = new Set(arrivedData.map(v => v.guest_id)); // aggiorna variabile modulo
+        // Carica visitor con guest_id: signature SET = arrivato/firmato | signature NULL = pre-attivato
+        const visitorRes  = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id,signature,badge_number,xatlas_status&guest_id=not.is.null`);
+        const visitorData = visitorRes?.ok ? await visitorRes.json() : [];
+        arrivedSet     = new Set(visitorData.filter(v => v.signature).map(v => v.guest_id));
+        preAssignedMap = new Map(visitorData.filter(v => !v.signature).map(v => [v.guest_id, { badge: v.badge_number, status: v.xatlas_status }]));
 
         renderGuestTable(guestData, arrivedSet);
 
@@ -1368,10 +1392,16 @@
       tbody.innerHTML = '';
 
       visible.forEach(g => {
-        const arrived = arrivedSet.has(g.id);
-        const statusHtml = arrived
-          ? '<span class="gtype gtype-atteso">Arrivato</span>'
-          : '<span class="gtype gtype-walkin">In attesa</span>';
+        const arrived    = arrivedSet.has(g.id);
+        const preAssign  = preAssignedMap.get(g.id);
+        let statusHtml;
+        if (arrived) {
+          statusHtml = '<span class="gtype gtype-atteso">Arrivato</span>';
+        } else if (preAssign) {
+          statusHtml = `<span class="xstatus xstatus-pending" title="Badge gia attivato in anticipo">&#9201; Badge ${esc(preAssign.badge)} pronto</span>`;
+        } else {
+          statusHtml = '<span class="gtype gtype-walkin">In attesa</span>';
+        }
 
         const dateFormatted = g.expected_date ? g.expected_date.split('-').reverse().join('/') : '—';
 
@@ -1386,6 +1416,7 @@
           <td>${esc(g.visit_reason) || '—'}</td>
           <td>${statusHtml}</td>
           <td>
+            ${(!arrived && !preAssign) ? `<button type="button" class="btn-badge-assign" data-id="${esc(g.id)}" onclick="openPreAssignModal(this)">Pre-assegna Badge</button>` : ''}
             <button type="button" class="btn-delete" data-id="${esc(g.id)}" onclick="deleteGuest(this)">Rimuovi</button>
           </td>
         `;
@@ -1462,6 +1493,66 @@
         alert('Errore: ' + err.message);
         btn.disabled = false;
         btn.textContent = 'Rimuovi';
+      }
+    }
+
+    // ── PRE-ASSEGNA BADGE (per ospiti attesi) ─────────
+    let preAssignGuestId = null;
+
+    function openPreAssignModal(btn) {
+      preAssignGuestId = btn.dataset.id;
+      const guest = guestData.find(g => String(g.id) === String(preAssignGuestId));
+      if (!guest) return;
+      document.getElementById('pre-assign-guest-name').textContent = `${guest.first_name} ${guest.last_name}${guest.company ? ' — ' + guest.company : ''}`;
+      document.getElementById('pre-assign-badge-input').value = '';
+      document.getElementById('pre-assign-modal').classList.add('active');
+      setTimeout(() => document.getElementById('pre-assign-badge-input').focus(), 100);
+    }
+
+    async function savePreAssign() {
+      if (!preAssignGuestId) return;
+      const badgeNum = document.getElementById('pre-assign-badge-input').value.trim();
+      if (!badgeNum) { alert('Inserisci il numero badge.'); return; }
+
+      const guest = guestData.find(g => String(g.id) === String(preAssignGuestId));
+      if (!guest) return;
+
+      const saveBtn = document.querySelector('#pre-assign-modal .btn-save');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Pre-attivazione...';
+
+      const payload = {
+        first_name:      guest.first_name,
+        last_name:       guest.last_name,
+        email:           guest.email           || null,
+        company:         guest.company         || null,
+        person_to_visit: guest.person_to_visit || null,
+        visit_reason:    guest.visit_reason    || 'Visita',
+        guest_id:        guest.id,
+        badge_number:    badgeNum,
+        xatlas_status:   'pending',
+        data_consent:    false,
+        signature:       null
+      };
+
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/visitors`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify(payload)
+        });
+        if (!res) return;
+        if (!res.ok) {
+          const b = await res.json().catch(() => ({}));
+          throw new Error(b.message || `Errore ${res.status}`);
+        }
+        closeModal();
+        loadGuestList();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Pre-attiva badge';
       }
     }
 

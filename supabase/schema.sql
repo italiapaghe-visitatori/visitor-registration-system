@@ -109,3 +109,17 @@ ALTER TABLE visitors
 
 -- xatlas_status valori: NULL | 'pending' | 'active' | 'checked_out'
 -- guest_id: valorizzato dal kiosk se il visitatore è in lista ospiti attesi
+
+-- ============================================================
+-- POLICY anon UPDATE su record STUB (pre-attivati)
+-- Necessaria per permettere al kiosk di completare la firma su
+-- visitor records creati in anticipo dall'admin (pre-assegna badge).
+-- Solo i record con signature NULL possono essere modificati da anon
+-- (= stub pre-attivati). Una volta firmati, immutabili per anon.
+-- ============================================================
+
+DROP POLICY IF EXISTS "anon_update_pre_stub" ON visitors;
+CREATE POLICY "anon_update_pre_stub" ON visitors
+  FOR UPDATE
+  USING (signature IS NULL)
+  WITH CHECK (true);
