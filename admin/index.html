@@ -705,10 +705,10 @@
           <div class="sub">registrazioni odierne</div>
         </div>
         <div class="stat-card stat-card-success">
-          <span class="stat-icon">&#9989;</span>
-          <h3>Badge attivi ora</h3>
+          <span class="stat-icon">&#127968;</span>
+          <h3>Dentro ora</h3>
           <div class="value" id="stat-active">—</div>
-          <div class="sub">in struttura</div>
+          <div class="sub">entrati, non usciti</div>
         </div>
         <div class="stat-card stat-card-warning">
           <span class="stat-icon">&#9203;</span>
@@ -802,21 +802,26 @@
     <div class="view" id="view-guests">
 
       <!-- Riepilogo -->
-      <div class="stats-bar guest-stats-bar">
-        <div class="stat-card">
+      <div class="stats-bar stats-4 guest-stats-bar">
+        <div class="stat-card stat-card-primary">
           <h3>Totale ospiti</h3>
           <div class="value" id="g-stat-total">—</div>
-          <div class="sub">importati + manuali</div>
+          <div class="sub">in lista</div>
         </div>
         <div class="stat-card stat-card-warning">
-          <h3>In attesa</h3>
+          <h3>Da arrivare</h3>
           <div class="value" id="g-stat-waiting">—</div>
-          <div class="sub">non ancora arrivati</div>
+          <div class="sub">non ancora al kiosk</div>
         </div>
         <div class="stat-card stat-card-success">
-          <h3>Arrivati</h3>
-          <div class="value" id="g-stat-arrived">—</div>
-          <div class="sub">registrati al kiosk</div>
+          <h3>Dentro ora</h3>
+          <div class="value" id="g-stat-inside">—</div>
+          <div class="sub">entrati, non usciti</div>
+        </div>
+        <div class="stat-card stat-card-info">
+          <h3>Usciti</h3>
+          <div class="value" id="g-stat-out">—</div>
+          <div class="sub">visita conclusa</div>
         </div>
       </div>
 
@@ -1161,15 +1166,16 @@
         return res.headers.get('content-range')?.split('/')[1] ?? '—';
       };
       try {
-        const [total, todayCount, activeCount, pendingCount] = await Promise.all([
+        const [total, todayCount, insideCount, pendingCount] = await Promise.all([
           fetchCount(),
           fetchCount(`&created_at=gte.${today}T00:00:00`),
-          fetchCount(`&xatlas_status=eq.active`),
+          // Dentro ora: entry_time settato, exit_time vuoto, non checked_out
+          fetchCount(`&entry_time=not.is.null&exit_time=is.null&xatlas_status=neq.checked_out`),
           fetchCount(`&xatlas_status=eq.pending`)
         ]);
         document.getElementById('stat-total').textContent   = total;
         document.getElementById('stat-today').textContent   = todayCount;
-        document.getElementById('stat-active').textContent  = activeCount;
+        document.getElementById('stat-active').textContent  = insideCount;
         document.getElementById('stat-pending').textContent = pendingCount;
       } catch (_) { /* non-critical */ }
     }
@@ -1399,21 +1405,53 @@
         if (!res.ok) throw new Error(`Errore ${res.status}`);
         guestData = await res.json();
 
-        // Carica visitor con guest_id: signature SET = arrivato/firmato | signature NULL = pre-attivato
-        const visitorRes  = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id,signature,badge_number,xatlas_status&guest_id=not.is.null`);
+        // Carica visitor con guest_id (servono entry_time/exit_time per "dentro ora")
+        const visitorRes  = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id,signature,badge_number,xatlas_status,entry_time,exit_time&guest_id=not.is.null`);
         const visitorData = visitorRes?.ok ? await visitorRes.json() : [];
         arrivedSet     = new Set(visitorData.filter(v => v.signature).map(v => v.guest_id));
         preAssignedMap = new Map(visitorData.filter(v => !v.signature).map(v => [v.guest_id, { badge: v.badge_number, status: v.xatlas_status }]));
 
+        // Stati per i 4 contatori:
+        // - Da arrivare: in guest_list ma nessun visitor con quell'id O visitor stub senza firma
+        // - Dentro ora: entry_time SET ma exit_time NULL E xatlas_status != 'checked_out'
+        // - Usciti: xatlas_status == 'checked_out'
+        const insideIds = new Set(
+          visitorData
+            .filter(v => v.entry_time && !v.exit_time && v.xatlas_status !== 'checked_out')
+            .map(v => v.guest_id)
+        );
+        const outIds = new Set(
+          visitorData
+            .filter(v => v.xatlas_status === 'checked_out')
+            .map(v => v.guest_id)
+        );
+        const totale  = guestData.length;
+        const dentro  = guestData.filter(g => insideIds.has(g.id)).length;
+        const usciti  = guestData.filter(g => outIds.has(g.id)).length;
+        const attesa  = totale - dentro - usciti;
+
         renderGuestTable(guestData, arrivedSet);
 
-        document.getElementById('g-stat-total').textContent   = guestData.length;
-        document.getElementById('g-stat-arrived').textContent = arrivedSet.size;
-        document.getElementById('g-stat-waiting').textContent = guestData.length - arrivedSet.size;
+        document.getElementById('g-stat-total').textContent   = totale;
+        document.getElementById('g-stat-waiting').textContent = attesa;
+        document.getElementById('g-stat-inside').textContent  = dentro;
+        document.getElementById('g-stat-out').textContent     = usciti;
       } catch (err) {
         document.getElementById('guest-table-status').textContent = 'Errore caricamento: ' + err.message;
       }
     }
+
+    // Auto-refresh contatori quando si è sulla tab Ospiti
+    setInterval(() => {
+      if (currentView === 'guests') loadGuestList();
+    }, 10000);
+
+    // Auto-refresh stats e tabella quando si è sulla tab Visitatori
+    setInterval(() => {
+      if (currentView === 'visitors' && document.visibilityState !== 'hidden') {
+        loadData();
+      }
+    }, 10000);
 
     function renderGuestTable(data, arrivedSet) {
       const visible = showArrived ? data : data.filter(g => !arrivedSet.has(g.id));
