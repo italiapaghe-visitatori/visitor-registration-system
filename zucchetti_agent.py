@@ -179,6 +179,58 @@ def find_card_id_by_clear_code(clear_code: str) -> int | None:
         return None
 
 
+def ensure_card_free(card_id: int) -> bool:
+    """
+    Verifica che la card non sia già assegnata. Se ha user_id che punta
+    a un utente NON esistente (orfano), libera automaticamente la card.
+    Se la card è assegnata a un utente reale, NON la tocca → ritorna False.
+    """
+    conn = None
+    try:
+        conn = psycopg2.connect(**AXS_DB)
+        cur  = conn.cursor()
+        cur.execute(
+            """
+            SELECT c.user_id, u.identifier
+            FROM card c
+            LEFT JOIN user_identifier u ON u.id = c.user_id
+            WHERE c.id = %s;
+            """,
+            (card_id,),
+        )
+        row = cur.fetchone()
+        if row is None:
+            cur.close(); conn.close()
+            return False
+        owner_id, owner_identifier = row
+        if owner_id is None:
+            cur.close(); conn.close()
+            return True  # già libera
+
+        if owner_identifier is None:
+            # user_id punta a utente non esistente → orfano, libera
+            cur.execute("UPDATE card SET user_id = NULL WHERE id = %s;", (card_id,))
+            conn.commit()
+            log.info(f"Card {card_id}: liberata da user_id orfano {owner_id}")
+            cur.close(); conn.close()
+            return True
+
+        # Utente reale: non liberare
+        log.warning(
+            f"Card {card_id} è assegnata a {owner_identifier} (id={owner_id}), "
+            "non liberata automaticamente. Risolvere manualmente."
+        )
+        cur.close(); conn.close()
+        return False
+
+    except Exception as e:
+        log.error(f"Errore ensure_card_free({card_id}): {e}")
+        if conn:
+            try: conn.close()
+            except Exception: pass
+        return False
+
+
 def find_or_create_card_id(clear_code: str) -> int | None:
     """
     Cerca card.id per clear_code. Se non esiste la crea automaticamente
@@ -278,6 +330,13 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tu
         raise RuntimeError(
             f"Impossibile ottenere card_id per badge {badge_number} "
             "(lookup fallito e auto-creazione non riuscita)"
+        )
+
+    # 1b) Verifica che la card sia libera (auto-libera se orfana, fallisce se utente reale)
+    if not ensure_card_free(card_id):
+        raise RuntimeError(
+            f"Card {badge_number} (id={card_id}) è già assegnata a un utente reale. "
+            "Liberarla manualmente prima di riprovare."
         )
 
     # 2) Crea utente esterno
