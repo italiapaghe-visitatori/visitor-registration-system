@@ -17,7 +17,7 @@ import logging
 import os
 import sys
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import psycopg2
 import requests
@@ -87,6 +87,29 @@ def sb_patch(path, data):
     r = requests.patch(f"{SUPABASE_URL}/rest/v1/{path}", headers=_sb_headers, json=data, timeout=15)
     r.raise_for_status()
     return r.json()
+
+
+AGENT_VERSION = "1.1.0-heartbeat"
+
+
+def update_heartbeat(notes: str | None = None):
+    """Aggiorna il timestamp di vita dell'agente su Supabase.
+    Best-effort: errori silenziosi (non vogliamo bloccare il loop principale)."""
+    try:
+        payload = {
+            "last_heartbeat": datetime.now(timezone.utc).isoformat(),
+            "agent_version": AGENT_VERSION,
+        }
+        if notes is not None:
+            payload["notes"] = notes
+        requests.patch(
+            f"{SUPABASE_URL}/rest/v1/agent_status?id=eq.1",
+            headers=_sb_headers,
+            json=payload,
+            timeout=5,
+        )
+    except Exception:
+        pass
 
 
 # ── XAtlas session ────────────────────────────────────────────────────────────
@@ -721,13 +744,16 @@ def startup_catchup():
 
 def run_loop():
     log.info("Zucchetti Bridge Agent avviato")
+    update_heartbeat(notes="started")
     startup_catchup()
     while True:
         try:
             process_pending_badges()
             process_active_transactions()
+            update_heartbeat()
         except Exception as e:
             log.error(f"Errore imprevisto nel ciclo principale: {e}")
+            update_heartbeat(notes=f"error: {str(e)[:200]}")
         time.sleep(POLL_INTERVAL)
 
 
@@ -761,6 +787,7 @@ try:
                 (self._svc_name_, ""),
             )
             log.info("Service SvcDoRun avviato")
+            update_heartbeat(notes="service started")
             try:
                 startup_catchup()
             except Exception as e:
@@ -769,8 +796,10 @@ try:
                 try:
                     process_pending_badges()
                     process_active_transactions()
+                    update_heartbeat()
                 except Exception as e:
                     log.error(f"Errore nel service loop: {e}")
+                    update_heartbeat(notes=f"error: {str(e)[:200]}")
                 for _ in range(POLL_INTERVAL * 10):
                     if not self._running:
                         break

@@ -123,3 +123,45 @@ CREATE POLICY "anon_update_pre_stub" ON visitors
   FOR UPDATE
   USING (signature IS NULL)
   WITH CHECK (true);
+
+-- ============================================================
+-- MIGRATION v3 — Anti race-condition + Heartbeat agente
+-- Eseguire nel SQL Editor di Supabase Dashboard
+-- ============================================================
+
+-- 1) UNIQUE PARTIAL INDEX su badge_number per record attivi
+--    Impedisce a due operatori di assegnare lo stesso badge a visitatori diversi.
+--    Se un secondo INSERT/UPDATE prova a duplicare un badge in pending/active,
+--    PostgreSQL solleva errore 23505 (unique_violation) → admin mostra messaggio.
+--    I record con xatlas_status = 'checked_out' (usciti) sono ESCLUSI:
+--    il badge è libero e riassegnabile al prossimo visitatore.
+CREATE UNIQUE INDEX IF NOT EXISTS visitors_badge_active_unique
+  ON visitors (badge_number)
+  WHERE badge_number IS NOT NULL
+    AND xatlas_status IN ('pending', 'active');
+
+-- 2) Tabella heartbeat agente Python
+--    Single-row table: l'agente aggiorna last_heartbeat ad ogni loop (~5s).
+--    L'admin legge questo timestamp per mostrare stato connessione.
+CREATE TABLE IF NOT EXISTS agent_status (
+  id              INTEGER PRIMARY KEY DEFAULT 1,
+  last_heartbeat  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  agent_version   TEXT,
+  notes           TEXT,
+  CONSTRAINT agent_status_singleton CHECK (id = 1)
+);
+
+-- Riga iniziale (idempotente)
+INSERT INTO agent_status (id, last_heartbeat) VALUES (1, NOW())
+  ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE agent_status ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "agent_status_anon_read"   ON agent_status;
+DROP POLICY IF EXISTS "agent_status_auth_read"   ON agent_status;
+DROP POLICY IF EXISTS "agent_status_anon_update" ON agent_status;
+
+-- Lettura: chiunque (admin auth + kiosk anon)
+CREATE POLICY "agent_status_anon_read" ON agent_status FOR SELECT USING (true);
+-- Scrittura: nessuna policy → solo service_role bypassa RLS e scrive
+-- (l'agente Python usa la service_key, non la anon key)

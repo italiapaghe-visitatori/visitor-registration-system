@@ -33,6 +33,38 @@
 
     .header-right { display: flex; align-items: center; gap: 10px; }
 
+    /* ── AGENT STATUS PILL ── */
+    .agent-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(255,255,255,0.18);
+      border: 1.5px solid rgba(255,255,255,0.3);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 20px;
+      cursor: help;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .agent-status:hover { background: rgba(255,255,255,0.28); }
+    .agent-status .dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: #cbd5e0;
+      box-shadow: 0 0 6px currentColor;
+    }
+    .agent-status.ok      .dot { background: #48bb78; color: #48bb78; animation: pulseDot 2s infinite; }
+    .agent-status.warn    .dot { background: #f6ad55; color: #f6ad55; }
+    .agent-status.offline .dot { background: #fc8181; color: #fc8181; }
+    .agent-status.unknown .dot { background: #a0aec0; color: #a0aec0; }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.55; }
+    }
+
     #user-email {
       color: rgba(255,255,255,0.85);
       font-size: 13px;
@@ -675,6 +707,9 @@
     </div>
 
     <div class="header-right">
+      <span id="agent-status" class="agent-status unknown" title="Stato agente XAtlas">
+        <span class="dot"></span><span id="agent-status-text">Agente: …</span>
+      </span>
       <span id="user-email"></span>
       <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')">Visitatori</button>
       <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')">Ospiti Attesi</button>
@@ -924,6 +959,7 @@
       }
 
       loadData();
+      refreshAgentStatus();
     });
 
     // ── AUTH ─────────────────────────────────────────
@@ -1257,8 +1293,8 @@
           }
         );
         if (!res) return;
-        const body = await res.json().catch(() => []);
-        if (!res.ok) throw new Error(body?.message || `Errore ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(parseBadgeError(body, res.status, badgeNum));
 
         const idx = currentData.findIndex(r => String(r.id) === String(badgeCurrentId));
         if (idx !== -1) { currentData[idx].badge_number = badgeNum; currentData[idx].xatlas_status = 'pending'; }
@@ -1453,6 +1489,46 @@
       }
     }, 10000);
 
+    // ── AGENT STATUS INDICATOR ───────────────────────────────
+    // Legge agent_status.last_heartbeat e aggiorna il pill nell'header.
+    // Stati: ok (<30s) | warn (30s-2min) | offline (>2min) | unknown (errore lettura)
+    async function refreshAgentStatus() {
+      const pill = document.getElementById('agent-status');
+      const txt  = document.getElementById('agent-status-text');
+      if (!pill || !txt) return;
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/agent_status?id=eq.1&select=last_heartbeat,agent_version,notes`,
+          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${accessToken}` } }
+        );
+        if (!res.ok) throw new Error('http ' + res.status);
+        const rows = await res.json();
+        if (!rows.length) { setAgentPill('unknown', 'Agente: nessun dato', 'Heartbeat non ancora registrato'); return; }
+        const hb = new Date(rows[0].last_heartbeat);
+        const ageSec = Math.max(0, Math.round((Date.now() - hb.getTime()) / 1000));
+        const ver  = rows[0].agent_version || '?';
+        const note = rows[0].notes ? ` — ${rows[0].notes}` : '';
+        let label, cls, ageStr;
+        if (ageSec < 60)       ageStr = `${ageSec}s fa`;
+        else if (ageSec < 3600) ageStr = `${Math.floor(ageSec/60)}m fa`;
+        else                    ageStr = `${Math.floor(ageSec/3600)}h fa`;
+        if (ageSec < 30)        { cls = 'ok';      label = 'Agente: connesso'; }
+        else if (ageSec < 120)  { cls = 'warn';    label = `Agente: lento (${ageStr})`; }
+        else                    { cls = 'offline'; label = `Agente: offline (${ageStr})`; }
+        setAgentPill(cls, label, `Versione ${ver} — ultimo heartbeat ${hb.toLocaleString('it-IT')}${note}`);
+      } catch (err) {
+        setAgentPill('unknown', 'Agente: stato sconosciuto', 'Errore lettura: ' + err.message);
+      }
+    }
+    function setAgentPill(cls, text, tooltip) {
+      const pill = document.getElementById('agent-status');
+      pill.className = 'agent-status ' + cls;
+      pill.title = tooltip;
+      document.getElementById('agent-status-text').textContent = text;
+    }
+    // Aggiorna ogni 5s (lieve)
+    setInterval(refreshAgentStatus, 5000);
+
     function renderGuestTable(data, arrivedSet) {
       const visible = showArrived ? data : data.filter(g => !arrivedSet.has(g.id));
 
@@ -1591,6 +1667,21 @@
       }
     }
 
+    // Trasforma l'errore PostgREST in messaggio leggibile, riconoscendo
+    // unique_violation (23505) sull'indice partial visitors_badge_active_unique:
+    // significa che un altro operatore ha appena assegnato lo stesso badge.
+    function parseBadgeError(body, status, badgeNum) {
+      const msg     = body && (body.message || body.hint || '');
+      const code    = body && body.code;
+      const details = body && body.details;
+      if (code === '23505' || /visitors_badge_active_unique|already exists/i.test(msg + ' ' + details)) {
+        return `Badge ${badgeNum} già assegnato a un altro visitatore (collisione rilevata dal database).\n` +
+               `Probabile causa: un altro operatore ha appena registrato lo stesso badge.\n` +
+               `Aggiorna la pagina e riprova con un altro numero.`;
+      }
+      return msg || `Errore ${status}`;
+    }
+
     // ── PRE-ASSEGNA BADGE (per ospiti attesi) ─────────
     let preAssignGuestId = null;
 
@@ -1650,7 +1741,7 @@
         if (!res) return;
         if (!res.ok) {
           const b = await res.json().catch(() => ({}));
-          throw new Error(b.message || `Errore ${res.status}`);
+          throw new Error(parseBadgeError(b, res.status, badgeNum));
         }
         closeModal();
         loadGuestList();
@@ -1731,7 +1822,7 @@
         });
         if (!res || !res.ok) {
           const b = res ? await res.json().catch(() => ({})) : {};
-          throw new Error(b.message || `Errore ${res?.status}`);
+          throw new Error(parseBadgeError(b, res?.status, badgeNum));
         }
         bulkIndex++;
         showBulkCurrent();
@@ -1902,7 +1993,10 @@
           });
           if (!stubRes || !stubRes.ok) {
             const b = stubRes ? await stubRes.json().catch(() => ({})) : {};
-            throw new Error('Errore pre-attivazione: ' + (b.message || stubRes?.status));
+            const dupBadge = (b.code === '23505' || /visitors_badge_active_unique/i.test(b.message + ' ' + b.details));
+            throw new Error(dupBadge
+              ? 'Errore pre-attivazione: uno dei badge nel CSV è già assegnato a un visitatore attivo. Verifica i numeri badge nel file e riprova.'
+              : 'Errore pre-attivazione: ' + (b.message || stubRes?.status));
           }
         }
 
