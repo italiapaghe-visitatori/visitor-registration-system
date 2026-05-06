@@ -816,6 +816,50 @@
       font-size: 16px;
     }
 
+    /* Schermata QR non valido (arancione/rosso) */
+    #qr-invalid {
+      display: none;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100dvh;
+      background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+      color: #fff;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      z-index: 9998;
+    }
+    #qr-invalid.active { display: flex; }
+    #qr-invalid .qr-invalid-icon {
+      font-size: 76px;
+      margin-bottom: 24px;
+    }
+    #qr-invalid h1 {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 14px;
+      max-width: 480px;
+      line-height: 1.25;
+    }
+    #qr-invalid p {
+      font-size: 17px;
+      max-width: 420px;
+      line-height: 1.5;
+      opacity: 0.95;
+    }
+    #qr-invalid .desk-cta {
+      margin-top: 32px;
+      background: rgba(255,255,255,0.2);
+      border: 2px solid rgba(255,255,255,0.5);
+      padding: 16px 26px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
     /* ── SCREENSAVER ── */
     #screensaver {
       display: none;
@@ -1002,6 +1046,14 @@
     <div class="desk-cta">📍 Vai alla reception per ritirare il tuo badge</div>
   </div>
 
+  <!-- SCHERMATA QR NON VALIDO (scaduto / non ancora attivo / evento non trovato) -->
+  <div id="qr-invalid">
+    <div class="qr-invalid-icon">⚠️</div>
+    <h1>QR non valido</h1>
+    <p class="qr-invalid-msg">Il QR che hai scansionato non è più valido.</p>
+    <div class="desk-cta">📍 Richiedi un QR aggiornato alla reception</div>
+  </div>
+
   <!-- SCREENSAVER -->
   <div id="screensaver" onclick="dismissScreensaver()" ontouchstart="dismissScreensaver()">
     <div class="ss-circle"></div>
@@ -1093,6 +1145,19 @@
         <div class="form-group" id="company-group">
           <label for="company">Azienda</label>
           <input type="text" id="company" name="company" autocomplete="organization" placeholder="Es. Rossi Srl">
+        </div>
+
+        <p class="section-label">Documento di identità</p>
+
+        <div class="form-row">
+          <div class="form-group" id="document-type-group">
+            <label for="document_type">Tipo Documento <span class="req">*</span></label>
+            <select id="document_type" name="document_type"></select>
+          </div>
+          <div class="form-group" id="document-id-group">
+            <label for="document_id">Numero Documento <span class="req">*</span></label>
+            <input type="text" id="document_id" name="document_id" autocomplete="off" placeholder="Es. AB1234567" inputmode="text">
+          </div>
         </div>
 
         <p class="section-label">Dettagli visita</p>
@@ -1272,6 +1337,18 @@
         opt.textContent = r.label;
         sel.appendChild(opt);
       });
+
+      // Document types
+      const docSel = document.getElementById('document_type');
+      if (docSel && CONFIG.documentTypes) {
+        docSel.innerHTML = '';
+        CONFIG.documentTypes.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.value;
+          opt.textContent = d.label;
+          docSel.appendChild(opt);
+        });
+      }
     })();
 
     // ── SIGNATURE PAD ────────────────────────────────
@@ -1371,7 +1448,103 @@
     // niente auto-reset del form (un device = un utente), polling guest_list più frequente (8s).
     const QS = new URLSearchParams(window.location.search);
     const IS_QR_MODE = QS.get('mode') === 'qr';
+    const QR_EVENT_ID = QS.get('event') || null;
     if (IS_QR_MODE) document.documentElement.classList.add('qr-mode');
+
+    // Stato evento (popolato da loadEventForQr in QR mode, oppure dall'evento attivo in kiosk)
+    let CURRENT_EVENT = null;
+
+    // ── QR VALIDITY + LOCK-OUT (3 livelli) ───────────
+    // Livello 1: localStorage flag → device bloccato dopo registrazione
+    // Livello 2: filtro guest_list già firmati (signature IS NOT NULL) → sparisce dalla lista
+    // Livello 3: RLS policy "anon_update_pre_stub" → server rifiuta PATCH se signature già esiste
+    function lockoutCheckLocalStorage() {
+      if (!IS_QR_MODE || !QR_EVENT_ID) return false;
+      try {
+        const flag = localStorage.getItem('vrs_qr_registered_' + QR_EVENT_ID);
+        if (flag) {
+          const data = JSON.parse(flag);
+          showQrAlreadyRegistered(data);
+          return true;
+        }
+      } catch (_) { /* corrupt → ignore */ }
+      return false;
+    }
+
+    function setLockoutFlag(visitorId) {
+      if (!IS_QR_MODE || !QR_EVENT_ID) return;
+      try {
+        localStorage.setItem('vrs_qr_registered_' + QR_EVENT_ID, JSON.stringify({
+          visitor_id: visitorId || null,
+          signed_at:  new Date().toISOString(),
+          event_id:   QR_EVENT_ID
+        }));
+      } catch (_) { /* localStorage disabled / quota */ }
+    }
+
+    async function loadEventForQr() {
+      if (!IS_QR_MODE || !QR_EVENT_ID) return null;
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/events?id=eq.${encodeURIComponent(QR_EVENT_ID)}&select=*`,
+          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+        );
+        if (!res.ok) return null;
+        const rows = await res.json();
+        return rows[0] || null;
+      } catch (_) { return null; }
+    }
+
+    function isoToday() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function checkQrValidity(event) {
+      // Ritorna { valid: bool, reason: string, message: string }
+      if (!event) return { valid: false, reason: 'not_found', message: 'Evento non trovato. Richiedi un QR aggiornato alla reception.' };
+      const today = isoToday();
+      const validFrom = event.qr_valid_from || event.event_start_date || null;
+      const validTo   = event.event_end_date || event.event_start_date;
+      if (validFrom && today < validFrom) {
+        return { valid: false, reason: 'too_early', message: `Il QR sarà attivo dal ${formatItDate(validFrom)}. Riprova in quella data.` };
+      }
+      if (validTo && today > validTo) {
+        return { valid: false, reason: 'expired', message: `Evento concluso il ${formatItDate(validTo)}. Il QR è scaduto, richiedi uno nuovo alla reception se serve.` };
+      }
+      return { valid: true };
+    }
+
+    function formatItDate(iso) {
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    function showQrAlreadyRegistered(data) {
+      const el = document.getElementById('qr-success');
+      if (!el) return;
+      el.querySelector('h1').textContent = 'Registrazione già effettuata';
+      el.querySelector('p').textContent  = 'Hai già completato la registrazione per questo evento.';
+      el.querySelector('.desk-cta').textContent = '📍 Andare al desk il giorno dell\'evento per ritirare il badge';
+      el.classList.add('active');
+      hideKioskUI();
+    }
+
+    function showQrInvalidScreen(reason, message) {
+      const el = document.getElementById('qr-invalid');
+      if (!el) return;
+      el.querySelector('.qr-invalid-msg').textContent = message;
+      el.classList.add('active');
+      hideKioskUI();
+    }
+
+    function hideKioskUI() {
+      // Nasconde header, screensaver, form (ma lascia gli overlay sopra)
+      document.body.style.overflow = 'hidden';
+      const ss = document.getElementById('screensaver');
+      if (ss) ss.classList.remove('active');
+    }
 
     // ── GUEST LOOKUP ─────────────────────────────────
     let allGuests                 = [];
@@ -1429,10 +1602,29 @@
       } catch (_) { /* non blocca il form */ }
     }
 
-    loadGuestList();
-    // Polling guest_list: 8s in modalità QR (race-condition window minima fra mobile contemporanei),
-    // 60s in modalità kiosk (un solo dispositivo, basso carico).
-    setInterval(loadGuestList, IS_QR_MODE ? 8000 : 60000);
+    // Bootstrap QR mode: lockout + validazione evento PRIMA di caricare il form.
+    // In kiosk mode: si carica direttamente come oggi.
+    (async function bootstrap() {
+      if (IS_QR_MODE) {
+        // 1. Lock-out localStorage: se questo device ha già firmato, mostra schermata e stop
+        if (lockoutCheckLocalStorage()) return;
+        // 2. Se manca event_id nel querystring → QR non valido
+        if (!QR_EVENT_ID) {
+          showQrInvalidScreen('missing_event', 'Questo QR non è completo. Richiedi un QR aggiornato alla reception.');
+          return;
+        }
+        // 3. Carica evento e valida range date
+        CURRENT_EVENT = await loadEventForQr();
+        const validity = checkQrValidity(CURRENT_EVENT);
+        if (!validity.valid) {
+          showQrInvalidScreen(validity.reason, validity.message);
+          return;
+        }
+        // 4. Tutto OK → carica lista ospiti normalmente
+      }
+      loadGuestList();
+      setInterval(loadGuestList, IS_QR_MODE ? 8000 : 60000);
+    })();
 
     function escHtml(s) {
       return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1606,6 +1798,8 @@
       check('visitDate',     'visit_date');
       check('entryTime',     'entry_time');
       check('visitReason',   'visit_reason');
+      check('documentType',  'document_type');
+      check('documentId',    'document_id');
       check('personToVisit', 'person_to_visit');
       check('badgeNumber',   'badge_number');
       check('phone',         'phone');
@@ -1703,12 +1897,22 @@
         company:          document.getElementById('company').value.trim() || null,
         person_to_visit:  document.getElementById('person_to_visit').value.trim() || null,
         visit_reason:     document.getElementById('visit_reason').value,
+        document_type:    document.getElementById('document_type').value || null,
+        document_id:      document.getElementById('document_id').value.trim() || null,
         department:       document.getElementById('department').value.trim() || null,
         vehicle_plate:    document.getElementById('vehicle_plate').value.trim().toUpperCase() || null,
         data_consent:     consentEl.checked,
         badge_agreement:  document.getElementById('badge_agreement').checked,
         signature:        (signatureOn && hasDrawn) ? canvas.toDataURL('image/jpeg', 0.7) : null
       };
+
+      // Tag evento (in QR mode è obbligatorio; in kiosk si potrebbe leggere l'evento attivo, ma
+      // per ora lasciamo che il kiosk non si associ automaticamente — l'admin gestisce a freddo).
+      if (IS_QR_MODE && CURRENT_EVENT) {
+        payload.event_id   = CURRENT_EVENT.id;
+        payload.event_name = CURRENT_EVENT.name;
+        payload.event_date = CURRENT_EVENT.event_start_date;
+      }
 
       // Usa guest_id dalla selezione utente; fallback silenzioso per nome/email se non selezionato
       if (selectedGuestId) {
@@ -1766,8 +1970,14 @@
 
         if (res.ok) {
           if (IS_QR_MODE) {
-            // Mobile/QR: schermata finale persistente con istruzioni per il desk.
-            // Non resettiamo il form né l'ospite: un device = un utente.
+            // Mobile/QR: scrivi flag lockout + schermata finale persistente.
+            // Tenta di estrarre l'id del visitor creato/aggiornato (se header restituito).
+            let createdId = null;
+            try {
+              const body = await res.clone().json().catch(() => null);
+              if (Array.isArray(body) && body[0]?.id) createdId = body[0].id;
+            } catch (_) {}
+            setLockoutFlag(createdId || existingStubId);
             showQrSuccessScreen();
           } else {
             // Kiosk: messaggio breve + auto-reset per il prossimo visitatore al tablet condiviso.

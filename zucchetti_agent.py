@@ -89,7 +89,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.1.0-heartbeat"
+AGENT_VERSION = "1.2.0-events"
 
 
 def update_heartbeat(notes: str | None = None):
@@ -604,12 +604,62 @@ def process_pending_badges():
                 time.sleep(2)
 
 
+def is_event_open(event_id):
+    """Ritorna True se l'evento esiste e non è ancora chiuso."""
+    if not event_id:
+        return False
+    try:
+        rows = sb_get("events", params={
+            "id": f"eq.{event_id}",
+            "select": "id,closed_at",
+        })
+        if not rows:
+            return False
+        return rows[0].get("closed_at") is None
+    except Exception as e:
+        log.warning(f"is_event_open({event_id}): {e}")
+        return False
+
+
+def record_movement(visitor_id, event_id, ts_iso, direction, badge, tx_id=None):
+    """Append-only log delle timbrature in visitor_movements (prova legale)."""
+    try:
+        body = {
+            "visitor_id":   visitor_id,
+            "event_id":     event_id,
+            "timestamp":    ts_iso,
+            "direction":    direction,
+            "badge_number": badge,
+            "source":       "xatlas",
+        }
+        if tx_id is not None:
+            body["raw_transaction_id"] = tx_id
+        r = requests.post(
+            f"{SUPABASE_URL}/rest/v1/visitor_movements",
+            headers=_sb_headers,
+            json=body,
+            timeout=10,
+        )
+        if not r.ok:
+            log.warning(f"record_movement HTTP {r.status_code}: {r.text[:200]}")
+    except Exception as e:
+        log.warning(f"record_movement fallito: {e}")
+
+
 def process_active_transactions():
-    """Legge transazioni AXS_DB per i badge attivi e aggiorna Supabase."""
+    """Legge transazioni AXS_DB per i badge attivi e aggiorna Supabase.
+
+    Comportamento differenziato in base a visitor.event_id:
+    - Se visitor è in un evento ancora aperto: ogni timbratura registrata in
+      visitor_movements (prova legale), aggiorna entry/exit_time, ma NON archivia
+      al primo exit (i rientri sono attesi). Badge resta attivo per tutto l'evento.
+    - Altrimenti (giorni normali): comportamento attuale. Primo exit = checked_out
+      + libera badge.
+    """
     try:
         active = sb_get("visitors", params={
             "xatlas_status": "eq.active",
-            "select": "id,badge_number,xatlas_user_id,entry_time,exit_time",
+            "select": "id,badge_number,xatlas_user_id,entry_time,exit_time,event_id",
         })
     except Exception as e:
         log.error(f"Errore lettura active da Supabase: {e}")
@@ -630,38 +680,60 @@ def process_active_transactions():
             continue
 
         vid      = v["id"]
+        eid      = v.get("event_id")
         is_entry = bool(tx.get("entry"))   # true=entrata, false=uscita
         ts       = tx.get("event_timestamp")
+        tx_id    = tx.get("id")
         if not ts:
             continue
         time_str = ts.strftime("%H:%M") if hasattr(ts, "strftime") else str(ts)[11:16]
+        ts_iso   = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
 
-        if is_entry and not v.get("entry_time"):
-            try:
-                sb_patch(f"visitors?id=eq.{vid}", {
-                    "entry_time": time_str,
-                    "visit_date": ts.strftime("%Y-%m-%d") if hasattr(ts, "strftime") else str(ts)[:10],
-                })
-                log.info(f"Entrata registrata: visitor={vid} badge={badge} ora={time_str}")
-            except Exception as e:
-                log.error(f"Errore PATCH entry_time per visitor {vid}: {e}")
+        # Sempre traccia il movimento (prova legale completa)
+        record_movement(vid, eid, ts_iso, "entry" if is_entry else "exit", badge, tx_id)
 
-        elif not is_entry:
+        if is_entry:
             try:
-                sb_patch(f"visitors?id=eq.{vid}", {
-                    "exit_time":     time_str,
-                    "xatlas_status": "checked_out",
-                })
-                log.info(f"Uscita registrata: visitor={vid} badge={badge} ora={time_str}")
-                # Libera badge: prima dissocia tessera da utente, poi elimina utente
-                xid = v.get("xatlas_user_id")
-                if xid:
-                    cid = tx.get("card_id") or find_card_id_by_clear_code(badge)
-                    if cid is not None:
-                        unassign_xatlas_card(xid, cid)
-                    delete_xatlas_user(xid)
+                patch = {}
+                # Prima entrata: imposta entry_time + visit_date
+                if not v.get("entry_time"):
+                    patch["entry_time"] = time_str
+                    patch["visit_date"] = ts.strftime("%Y-%m-%d") if hasattr(ts, "strftime") else str(ts)[:10]
+                # Rientro durante evento attivo: reset exit_time (è dentro adesso)
+                if eid and is_event_open(eid) and v.get("exit_time"):
+                    patch["exit_time"] = None
+                    log.info(f"Rientro evento: visitor={vid} badge={badge} ora={time_str}")
+                if patch:
+                    sb_patch(f"visitors?id=eq.{vid}", patch)
+                    if "entry_time" in patch:
+                        log.info(f"Entrata registrata: visitor={vid} badge={badge} ora={time_str}")
             except Exception as e:
-                log.error(f"Errore PATCH exit_time per visitor {vid}: {e}")
+                log.error(f"Errore PATCH entry per visitor {vid}: {e}")
+
+        else:
+            # Uscita: comportamento dipende da evento attivo
+            event_open = eid and is_event_open(eid)
+            try:
+                if event_open:
+                    # In evento: solo aggiorna exit_time, NON archiviare, NON liberare badge.
+                    # Il visitor potrebbe rientrare (pausa pranzo/sigaretta/auto).
+                    sb_patch(f"visitors?id=eq.{vid}", {"exit_time": time_str})
+                    log.info(f"Uscita evento (no archive): visitor={vid} badge={badge} ora={time_str}")
+                else:
+                    # Giorno normale: comportamento attuale.
+                    sb_patch(f"visitors?id=eq.{vid}", {
+                        "exit_time":     time_str,
+                        "xatlas_status": "checked_out",
+                    })
+                    log.info(f"Uscita registrata: visitor={vid} badge={badge} ora={time_str}")
+                    xid = v.get("xatlas_user_id")
+                    if xid:
+                        cid = tx.get("card_id") or find_card_id_by_clear_code(badge)
+                        if cid is not None:
+                            unassign_xatlas_card(xid, cid)
+                        delete_xatlas_user(xid)
+            except Exception as e:
+                log.error(f"Errore PATCH exit per visitor {vid}: {e}")
 
 
 def startup_catchup():
@@ -742,6 +814,48 @@ def startup_catchup():
                     log.error(f"Catchup uscita (PATCH/cleanup XAtlas) visitor={vid}: {e}")
 
 
+def cleanup_archived_visitors():
+    """Libera badge per visitor archiviati (xatlas_status=checked_out) ma con
+    xatlas_user_id ancora valorizzato. Tipicamente succede dopo chiusura evento
+    massiva dall'admin: i record passano a checked_out, l'agente al ciclo
+    successivo libera le card e cancella gli utenti VIS* da XAtlas."""
+    try:
+        rows = sb_get("visitors", params={
+            "xatlas_status": "eq.checked_out",
+            "xatlas_user_id": "not.is.null",
+            "select": "id,xatlas_user_id,badge_number",
+            "limit": "20",  # max 20 per ciclo per non saturare XAtlas API
+        })
+    except Exception as e:
+        log.warning(f"cleanup_archived_visitors: lettura Supabase fallita: {e}")
+        return
+
+    if not rows:
+        return
+
+    log.info(f"cleanup_archived_visitors: trovati {len(rows)} visitor da liberare")
+    for v in rows:
+        vid = v["id"]
+        xid = v.get("xatlas_user_id")
+        badge = v.get("badge_number")
+        try:
+            cid = find_card_id_by_clear_code(badge) if badge else None
+            if xid and cid is not None:
+                try:
+                    unassign_xatlas_card(xid, cid)
+                except Exception as e:
+                    log.warning(f"unassign_xatlas_card({xid},{cid}) per visitor {vid}: {e}")
+            if xid:
+                try:
+                    delete_xatlas_user(xid)
+                except Exception as e:
+                    log.warning(f"delete_xatlas_user({xid}) per visitor {vid}: {e}")
+            sb_patch(f"visitors?id=eq.{vid}", {"xatlas_user_id": None})
+            log.info(f"cleanup: badge {badge} liberato per visitor {vid} (xatlas_user {xid})")
+        except Exception as e:
+            log.error(f"cleanup_archived_visitors visitor {vid}: {e}")
+
+
 def run_loop():
     log.info("Zucchetti Bridge Agent avviato")
     update_heartbeat(notes="started")
@@ -750,6 +864,7 @@ def run_loop():
         try:
             process_pending_badges()
             process_active_transactions()
+            cleanup_archived_visitors()
             update_heartbeat()
         except Exception as e:
             log.error(f"Errore imprevisto nel ciclo principale: {e}")
@@ -796,6 +911,7 @@ try:
                 try:
                     process_pending_badges()
                     process_active_transactions()
+                    cleanup_archived_visitors()
                     update_heartbeat()
                 except Exception as e:
                     log.error(f"Errore nel service loop: {e}")

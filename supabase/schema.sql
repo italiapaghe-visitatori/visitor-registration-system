@@ -165,3 +165,94 @@ DROP POLICY IF EXISTS "agent_status_anon_update" ON agent_status;
 CREATE POLICY "agent_status_anon_read" ON agent_status FOR SELECT USING (true);
 -- Scrittura: nessuna policy → solo service_role bypassa RLS e scrive
 -- (l'agente Python usa la service_key, non la anon key)
+
+-- ============================================================
+-- MIGRATION v4 — Eventi + Tracciamento timbrature legale + QR pre-registrazione
+-- Eseguire nel SQL Editor di Supabase Dashboard
+-- ============================================================
+
+-- 1) TABELLA events: 1 evento attivo alla volta, range di date, QR validity range
+CREATE TABLE IF NOT EXISTS events (
+  id                UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name              TEXT NOT NULL,
+  event_start_date  DATE NOT NULL,
+  event_end_date    DATE NOT NULL,
+  qr_valid_from     DATE,                          -- pre-registrazione attiva da (default = oggi)
+  daily_open_time   TIME,                          -- opzionale (Phase D futura)
+  daily_close_time  TIME,                          -- opzionale (Phase D futura)
+  is_active         BOOLEAN DEFAULT FALSE,
+  notes             TEXT,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  closed_at         TIMESTAMPTZ,
+  CONSTRAINT events_dates_valid CHECK (event_end_date >= event_start_date)
+);
+
+-- Constraint: solo 1 evento attivo alla volta
+CREATE UNIQUE INDEX IF NOT EXISTS events_only_one_active
+  ON events ((TRUE)) WHERE is_active = TRUE;
+
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "events_anon_read"   ON events;
+DROP POLICY IF EXISTS "events_auth_insert" ON events;
+DROP POLICY IF EXISTS "events_auth_update" ON events;
+DROP POLICY IF EXISTS "events_auth_delete" ON events;
+-- Lettura: chiunque (frontend QR mode legge per validare validità)
+CREATE POLICY "events_anon_read"   ON events FOR SELECT USING (true);
+-- Scrittura: solo authenticated (admin)
+CREATE POLICY "events_auth_insert" ON events FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "events_auth_update" ON events FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "events_auth_delete" ON events FOR DELETE USING (auth.role() = 'authenticated');
+
+-- 2) NUOVE COLONNE su visitors: associazione evento + documento di identità
+ALTER TABLE visitors
+  ADD COLUMN IF NOT EXISTS event_id      UUID REFERENCES events(id) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS event_name    TEXT,                              -- snapshot per archive
+  ADD COLUMN IF NOT EXISTS event_date    DATE,                              -- snapshot (event_start_date)
+  ADD COLUMN IF NOT EXISTS document_id   TEXT,                              -- numero documento
+  ADD COLUMN IF NOT EXISTS document_type TEXT;                              -- 'CI' | 'PASSAPORTO' | 'PATENTE'
+
+CREATE INDEX IF NOT EXISTS idx_visitors_event_id ON visitors(event_id);
+
+-- 3) TABELLA visitor_movements: append-only, prova legale completa di ogni timbratura
+CREATE TABLE IF NOT EXISTS visitor_movements (
+  id                  BIGSERIAL PRIMARY KEY,
+  visitor_id          BIGINT NOT NULL REFERENCES visitors(id) ON DELETE CASCADE,
+  event_id            UUID REFERENCES events(id),
+  timestamp           TIMESTAMPTZ NOT NULL,
+  direction           TEXT NOT NULL CHECK (direction IN ('entry','exit')),
+  source              TEXT DEFAULT 'xatlas',                                -- 'xatlas' | 'manual' | 'midnight_cleanup'
+  badge_number        TEXT,
+  raw_transaction_id  BIGINT,                                               -- riferimento AXS_DB.transaction.id
+  created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS vm_by_visitor ON visitor_movements(visitor_id, "timestamp" DESC);
+CREATE INDEX IF NOT EXISTS vm_by_event   ON visitor_movements(event_id,   "timestamp" DESC);
+
+ALTER TABLE visitor_movements ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "vm_auth_read" ON visitor_movements;
+-- Lettura: solo admin (i timestamp sono dati personali)
+CREATE POLICY "vm_auth_read" ON visitor_movements FOR SELECT USING (auth.role() = 'authenticated');
+-- Scrittura: nessuna policy → solo service_role (agente Python) può scrivere
+
+-- 4) TABELLA badge_pool: badge pre-attivi anonimi per assegnazione al volo (Phase B)
+CREATE TABLE IF NOT EXISTS badge_pool (
+  id              BIGSERIAL PRIMARY KEY,
+  badge_number    TEXT NOT NULL,
+  xatlas_user_id  INTEGER,                                                  -- popolato da agente quando attiva
+  card_id         INTEGER,
+  status          TEXT DEFAULT 'preparing' CHECK (status IN ('preparing','available','in_use','released')),
+  event_id        UUID REFERENCES events(id),
+  visitor_id      BIGINT REFERENCES visitors(id) DEFAULT NULL,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  activated_at    TIMESTAMPTZ,
+  assigned_at     TIMESTAMPTZ
+);
+-- Solo un'entry "viva" per badge_number (evita duplicati attivi)
+CREATE UNIQUE INDEX IF NOT EXISTS badge_pool_active_unique
+  ON badge_pool (badge_number)
+  WHERE status IN ('preparing','available','in_use');
+
+ALTER TABLE badge_pool ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "badge_pool_auth_all" ON badge_pool;
+-- Lettura/Scrittura: solo admin (l'agente Python usa service_role e bypassa)
+CREATE POLICY "badge_pool_auth_all" ON badge_pool FOR ALL USING (auth.role() = 'authenticated');

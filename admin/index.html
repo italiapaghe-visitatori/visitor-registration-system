@@ -110,6 +110,36 @@
     .btn-print-title { font-size: 17px; font-weight: 800; letter-spacing: 0.2px; }
     .btn-print-sub { font-size: 12.5px; font-weight: 500; opacity: 0.92; }
 
+    .btn-qr-secondary {
+      background: #edf2f7;
+      color: #2d3748;
+      border: 1.5px solid #cbd5e0;
+      border-radius: 9px;
+      padding: 12px 14px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-qr-secondary:hover { background: #e2e8f0; }
+
+    .qr-validity-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      background: linear-gradient(135deg, #ebf4ff 0%, #c3dafe 100%);
+      border: 1.5px solid #90cdf4;
+      color: #2c5282;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin: 8px 0 16px;
+    }
+    .qr-validity-info .aeb-pulse { background: #3182ce; }
+    .qr-validity-sep { opacity: 0.5; }
+
     /* Stampa A4: solo il foglio QR, niente header/sidebar */
     @media print {
       @page { size: A4 portrait; margin: 18mm; }
@@ -142,6 +172,65 @@
       .qr-instructions h3 { font-size: 28pt !important; margin-bottom: 12mm !important; }
       .qr-instructions ol { font-size: 14pt !important; text-align: left; line-height: 2 !important; padding-left: 30px !important; }
     }
+
+    /* ── BANNER EVENTO ATTIVO ── */
+    .active-event-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+      color: #fff;
+      padding: 12px 22px;
+      border-radius: 12px;
+      margin-bottom: 18px;
+      box-shadow: 0 3px 14px rgba(237,137,54,0.32);
+    }
+    .aeb-info { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .aeb-info strong { font-size: 16px; font-weight: 800; }
+    .aeb-date { font-size: 13px; opacity: 0.92; }
+    .aeb-pulse {
+      display: inline-block;
+      width: 11px; height: 11px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(255,255,255,0.7);
+      animation: aebPulse 1.6s infinite;
+    }
+    @keyframes aebPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.7); }
+      70%  { box-shadow: 0 0 0 12px rgba(255,255,255,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+    }
+    .aeb-actions { display: flex; gap: 8px; }
+    .btn-aeb-qr, .btn-aeb-close {
+      background: rgba(255,255,255,0.22);
+      color: #fff;
+      border: 1.5px solid rgba(255,255,255,0.45);
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+      transition: background 0.15s;
+    }
+    .btn-aeb-qr:hover, .btn-aeb-close:hover { background: rgba(255,255,255,0.36); }
+    .btn-aeb-close { background: rgba(0,0,0,0.18); }
+
+    /* ── TABELLA EVENTI ── */
+    .event-status-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .event-status-active   { background: #c6f6d5; color: #22543d; }
+    .event-status-future   { background: #bee3f8; color: #2a4365; }
+    .event-status-past     { background: #e2e8f0; color: #4a5568; }
+    .event-status-closed   { background: #fed7d7; color: #742a2a; }
 
     /* ── AGENT STATUS PILL ── */
     .agent-status {
@@ -700,11 +789,17 @@
     <div class="modal modal-wide" id="qr-modal-content">
       <h2>📱 Genera QR per Registrazione Self-Service</h2>
       <p class="modal-sub">
-        Stampa il QR e mettilo al desk. Gli ospiti lo scansionano col proprio cellulare per registrarsi in autonomia.
+        Stampa il QR per il desk oppure invialo ai partecipanti per pre-registrarsi giorni prima dell'evento.
       </p>
+      <div id="qr-validity-info" class="qr-validity-info" style="display:none">
+        <span class="aeb-pulse"></span>
+        <span><strong>Evento:</strong> <span id="qr-validity-event">—</span></span>
+        <span class="qr-validity-sep">·</span>
+        <span><strong>QR attivo:</strong> <span id="qr-validity-range">—</span></span>
+      </div>
       <div class="modal-fields">
         <div class="modal-field">
-          <label>URL frontend (modificabile se diverso)</label>
+          <label>URL del QR (modificabile)</label>
           <input type="text" id="qr-url-input" oninput="rebuildQr()" autocomplete="off">
         </div>
       </div>
@@ -728,6 +823,8 @@
             <span class="btn-print-sub">Foglio A4 con QR grande + istruzioni numerate</span>
           </span>
         </button>
+        <button type="button" class="btn-qr-secondary" onclick="copyQrUrl()" title="Copia il link negli appunti per inviarlo via email/WhatsApp">📋 Copia link</button>
+        <button type="button" class="btn-qr-secondary" onclick="downloadQrPng()" title="Scarica QR come immagine PNG">🖼️ Scarica PNG</button>
         <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
       </div>
     </div>
@@ -827,6 +924,43 @@
     </div>
   </div>
 
+  <!-- MODALE NUOVO EVENTO -->
+  <div class="modal-overlay" id="event-modal">
+    <div class="modal modal-wide">
+      <h2 id="event-modal-title">🎫 Nuovo Evento</h2>
+      <p class="modal-sub">Crea un evento per raggruppare i visitatori e attivare la modalità "no auto-archive su exit". I rientri (pause) non chiudono il visitatore.</p>
+      <div class="modal-fields">
+        <div class="modal-field">
+          <label>Nome evento <span class="req">*</span></label>
+          <input type="text" id="event-name-input" placeholder="Es. Team Building DVI CL 1e 10 — Maggio 2026" autocomplete="off">
+        </div>
+        <div class="modal-row-2">
+          <div class="modal-field">
+            <label>Data inizio <span class="req">*</span></label>
+            <input type="date" id="event-start-input" title="Primo giorno dell'evento">
+          </div>
+          <div class="modal-field">
+            <label>Data fine <span class="req">*</span></label>
+            <input type="date" id="event-end-input" title="Ultimo giorno dell'evento (= inizio se 1 giorno)">
+          </div>
+        </div>
+        <div class="modal-field">
+          <label>QR attivo dal (opzionale)</label>
+          <input type="date" id="event-qrfrom-input" title="Da questo giorno gli ospiti possono pre-registrarsi via QR. Default: oggi.">
+          <small style="color:#a0aec0;font-size:12px;display:block;margin-top:4px;">Lascia vuoto per attivare il QR da oggi (gli ospiti possono pre-registrarsi).</small>
+        </div>
+        <div class="modal-field">
+          <label>Note</label>
+          <textarea id="event-notes-input" placeholder="Note interne..." rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-save" onclick="saveEvent()">Crea evento</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODALE GESTIONE UTENTI -->
   <div class="modal-overlay" id="users-modal">
     <div class="modal">
@@ -861,6 +995,7 @@
       <span id="user-email"></span>
       <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')">Visitatori</button>
       <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')">Ospiti Attesi</button>
+      <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')">🎫 Eventi</button>
       <button type="button" class="btn btn-light" onclick="document.getElementById('users-modal').classList.add('active')">Utenti</button>
       <button type="button" class="btn btn-light" onclick="exportCSV()">Esporta CSV</button>
       <button type="button" class="btn btn-light" onclick="loadData()">Aggiorna</button>
@@ -870,6 +1005,19 @@
 
   <div class="container">
     <div id="error-banner" class="error-banner"></div>
+
+    <!-- BANNER EVENTO ATTIVO (visibile solo se c'è un evento aperto) -->
+    <div id="active-event-banner" class="active-event-banner" style="display:none">
+      <div class="aeb-info">
+        <span class="aeb-pulse"></span>
+        <strong id="aeb-name">—</strong>
+        <span id="aeb-date" class="aeb-date">—</span>
+      </div>
+      <div class="aeb-actions">
+        <button type="button" class="btn-aeb-qr" onclick="openQrModalForActiveEvent()">📱 QR</button>
+        <button type="button" class="btn-aeb-close" onclick="closeActiveEvent()">Chiudi evento</button>
+      </div>
+    </div>
 
     <!-- ── VIEW: VISITATORI ── -->
     <div class="view active" id="view-visitors">
@@ -1049,6 +1197,60 @@
       </div>
     </div>
 
+    <!-- ── VIEW: EVENTI ── -->
+    <div class="view" id="view-events">
+      <div class="stats-bar stats-4">
+        <div class="stat-card stat-card-primary">
+          <span class="stat-icon">&#127915;</span>
+          <h3>Totale eventi</h3>
+          <div class="value" id="ev-stat-total">—</div>
+          <div class="sub">creati nel sistema</div>
+        </div>
+        <div class="stat-card stat-card-success">
+          <span class="stat-icon">&#128293;</span>
+          <h3>Evento attivo</h3>
+          <div class="value" id="ev-stat-active-name">—</div>
+          <div class="sub" id="ev-stat-active-date">—</div>
+        </div>
+        <div class="stat-card stat-card-info">
+          <span class="stat-icon">&#128101;</span>
+          <h3>Visitatori evento</h3>
+          <div class="value" id="ev-stat-visitors">—</div>
+          <div class="sub">totale registrati nell'evento attivo</div>
+        </div>
+        <div class="stat-card stat-card-warning">
+          <span class="stat-icon">&#128205;</span>
+          <h3>Dentro ora</h3>
+          <div class="value" id="ev-stat-inside">—</div>
+          <div class="sub">presenti nell'evento attivo</div>
+        </div>
+      </div>
+
+      <div class="guest-actions">
+        <div class="guest-actions-left">
+          <button type="button" class="btn btn-primary" onclick="openEventModal()">+ Nuovo Evento</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div id="event-table-status" class="table-status">Caricamento eventi...</div>
+        <div class="table-scroll table-hidden" id="event-table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Periodo</th>
+                <th>QR attivo dal</th>
+                <th>Stato</th>
+                <th class="no-sort">Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="event-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <footer class="admin-footer">
@@ -1112,6 +1314,7 @@
 
       loadData();
       refreshAgentStatus();
+      refreshActiveEventBanner();
     });
 
     // ── AUTH ─────────────────────────────────────────
@@ -1156,9 +1359,14 @@
       currentView = v;
       document.getElementById('view-visitors').classList.toggle('active', v === 'visitors');
       document.getElementById('view-guests').classList.toggle('active', v === 'guests');
+      const evView = document.getElementById('view-events');
+      if (evView) evView.classList.toggle('active', v === 'events');
       document.getElementById('tab-visitors').classList.toggle('active-tab', v === 'visitors');
       document.getElementById('tab-guests').classList.toggle('active-tab', v === 'guests');
+      const evTab = document.getElementById('tab-events');
+      if (evTab) evTab.classList.toggle('active-tab', v === 'events');
       if (v === 'guests') loadGuestList();
+      if (v === 'events') loadEvents();
     }
 
     // ── VISITORS DATA ─────────────────────────────────
@@ -1593,11 +1801,15 @@
     }
 
     function openQrModal() {
-      const input = document.getElementById('qr-url-input');
-      if (!input.value) input.value = defaultFrontendQrUrl();
-      document.getElementById('qr-modal').classList.add('active');
-      // Genera al prossimo tick per assicurare che il container sia visibile
-      setTimeout(rebuildQr, 30);
+      // Se c'è un evento attivo, genera QR specifico per quell'evento (validità dinamica)
+      if (activeEvent && activeEvent.id) {
+        openQrForEvent(activeEvent.id);
+        return;
+      }
+      // Altrimenti chiede di crearne uno
+      if (confirm('Per generare un QR serve un evento attivo. Vuoi andare alla tab Eventi per crearne/avviarne uno?')) {
+        switchView('events');
+      }
     }
 
     // ── GUEST LIST ────────────────────────────────────
@@ -1712,6 +1924,268 @@
     }
     // Aggiorna ogni 5s (lieve)
     setInterval(refreshAgentStatus, 5000);
+
+    // ── EVENTI ───────────────────────────────────────
+    let eventsData = [];
+    let activeEvent = null;
+
+    async function refreshActiveEventBanner() {
+      const banner = document.getElementById('active-event-banner');
+      if (!banner) return;
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/events?is_active=eq.true&select=*&limit=1`);
+        if (!res || !res.ok) { banner.style.display = 'none'; activeEvent = null; return; }
+        const rows = await res.json();
+        if (!rows.length) { banner.style.display = 'none'; activeEvent = null; return; }
+        activeEvent = rows[0];
+        document.getElementById('aeb-name').textContent = activeEvent.name;
+        const range = activeEvent.event_start_date === activeEvent.event_end_date
+          ? fmtItDate(activeEvent.event_start_date)
+          : `${fmtItDate(activeEvent.event_start_date)} → ${fmtItDate(activeEvent.event_end_date)}`;
+        document.getElementById('aeb-date').textContent = range;
+        banner.style.display = 'flex';
+      } catch (_) {
+        banner.style.display = 'none';
+      }
+    }
+    setInterval(refreshActiveEventBanner, 15000);
+
+    function fmtItDate(iso) {
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    async function loadEvents() {
+      const status = document.getElementById('event-table-status');
+      const wrap   = document.getElementById('event-table-container');
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/events?select=*&order=event_start_date.desc`);
+        if (!res || !res.ok) throw new Error('Errore caricamento eventi');
+        eventsData = await res.json();
+        document.getElementById('ev-stat-total').textContent = eventsData.length;
+        const active = eventsData.find(e => e.is_active);
+        if (active) {
+          document.getElementById('ev-stat-active-name').textContent = active.name;
+          document.getElementById('ev-stat-active-date').textContent =
+            active.event_start_date === active.event_end_date
+              ? fmtItDate(active.event_start_date)
+              : `${fmtItDate(active.event_start_date)} → ${fmtItDate(active.event_end_date)}`;
+          await loadEventStats(active.id);
+        } else {
+          document.getElementById('ev-stat-active-name').textContent = '—';
+          document.getElementById('ev-stat-active-date').textContent = 'nessun evento attivo';
+          document.getElementById('ev-stat-visitors').textContent = '—';
+          document.getElementById('ev-stat-inside').textContent = '—';
+        }
+        renderEvents();
+        status.style.display = 'none';
+        wrap.classList.remove('table-hidden');
+      } catch (err) {
+        status.textContent = 'Errore: ' + err.message;
+        status.style.display = 'block';
+      }
+    }
+
+    async function loadEventStats(eventId) {
+      try {
+        const r1 = await api(`${SUPABASE_URL}/rest/v1/visitors?select=id&event_id=eq.${eventId}`,
+          { headers: { 'Prefer': 'count=exact' } });
+        const c1 = parseInt(r1.headers.get('content-range')?.split('/')[1] || '0', 10);
+        document.getElementById('ev-stat-visitors').textContent = c1;
+        const r2 = await api(`${SUPABASE_URL}/rest/v1/visitors?select=id&event_id=eq.${eventId}&entry_time=not.is.null&exit_time=is.null&xatlas_status=neq.checked_out`,
+          { headers: { 'Prefer': 'count=exact' } });
+        const c2 = parseInt(r2.headers.get('content-range')?.split('/')[1] || '0', 10);
+        document.getElementById('ev-stat-inside').textContent = c2;
+      } catch (_) { /* silent */ }
+    }
+
+    function renderEvents() {
+      const tbody = document.getElementById('event-table-body');
+      tbody.innerHTML = '';
+      if (eventsData.length === 0) {
+        document.getElementById('event-table-status').textContent = 'Nessun evento creato. Clicca "+ Nuovo Evento" per iniziare.';
+        document.getElementById('event-table-status').style.display = 'block';
+        document.getElementById('event-table-container').classList.add('table-hidden');
+        return;
+      }
+      const today = new Date().toISOString().split('T')[0];
+      eventsData.forEach(e => {
+        const range = e.event_start_date === e.event_end_date
+          ? fmtItDate(e.event_start_date)
+          : `${fmtItDate(e.event_start_date)} → ${fmtItDate(e.event_end_date)}`;
+        const qrFrom = e.qr_valid_from ? fmtItDate(e.qr_valid_from) : '(default)';
+        let statusCls, statusText;
+        if (e.closed_at) { statusCls = 'event-status-closed'; statusText = 'Chiuso'; }
+        else if (e.is_active) { statusCls = 'event-status-active'; statusText = 'Attivo'; }
+        else if (today < e.event_start_date) { statusCls = 'event-status-future'; statusText = 'Futuro'; }
+        else if (today > e.event_end_date) { statusCls = 'event-status-past'; statusText = 'Passato'; }
+        else { statusCls = 'event-status-future'; statusText = 'Pronto'; }
+
+        const actions = [];
+        if (!e.closed_at && !e.is_active) actions.push(`<button class="btn-badge-assign" onclick="activateEvent('${e.id}')">Avvia</button>`);
+        if (e.is_active)                  actions.push(`<button class="btn-badge-assign" onclick="closeActiveEvent()">Chiudi</button>`);
+        actions.push(`<button class="btn-light" onclick="openQrForEvent('${e.id}')">📱 QR</button>`);
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${esc(e.name)}</strong></td>
+          <td>${range}</td>
+          <td>${qrFrom}</td>
+          <td><span class="event-status-pill ${statusCls}">${statusText}</span></td>
+          <td>${actions.join(' ')}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openEventModal() {
+      document.getElementById('event-modal-title').textContent = '🎫 Nuovo Evento';
+      document.getElementById('event-name-input').value = '';
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('event-start-input').value = today;
+      document.getElementById('event-end-input').value = today;
+      document.getElementById('event-qrfrom-input').value = '';
+      document.getElementById('event-notes-input').value = '';
+      document.getElementById('event-modal').classList.add('active');
+    }
+
+    async function saveEvent() {
+      const name = document.getElementById('event-name-input').value.trim();
+      const start = document.getElementById('event-start-input').value;
+      const end   = document.getElementById('event-end-input').value;
+      const qrFrom = document.getElementById('event-qrfrom-input').value || null;
+      const notes  = document.getElementById('event-notes-input').value.trim() || null;
+      if (!name || !start || !end) { alert('Compila nome, data inizio e data fine.'); return; }
+      if (end < start) { alert('La data fine deve essere ≥ data inizio.'); return; }
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ name, event_start_date: start, event_end_date: end, qr_valid_from: qrFrom, notes })
+        });
+        if (!res || !res.ok) { const b = await res?.json().catch(()=>({})); throw new Error(b.message || `Errore ${res?.status}`); }
+        closeModal();
+        loadEvents();
+      } catch (err) {
+        alert('Errore creazione evento: ' + err.message);
+      }
+    }
+
+    async function activateEvent(eventId) {
+      if (!confirm('Avviare questo evento? Disattiverà eventuali altri eventi attivi e tutti i visitatori registrati da ora in poi (kiosk/QR) verranno taggati con questo evento.')) return;
+      try {
+        // Disattiva eventuali altri attivi (constraint: 1 alla volta)
+        await api(`${SUPABASE_URL}/rest/v1/events?is_active=eq.true`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ is_active: false })
+        });
+        // Attiva questo
+        const res = await api(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ is_active: true })
+        });
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        loadEvents();
+        refreshActiveEventBanner();
+      } catch (err) {
+        alert('Errore avvio evento: ' + err.message);
+      }
+    }
+
+    async function closeActiveEvent() {
+      if (!activeEvent) { alert('Nessun evento attivo da chiudere.'); return; }
+      if (!confirm(`Chiudere "${activeEvent.name}"?\n\nTutti i visitatori dell'evento verranno archiviati (xatlas_status = checked_out) e i loro badge liberati al prossimo ciclo agente. Operazione irreversibile.`)) return;
+      try {
+        // Archivia massivamente i visitor dell'evento
+        await api(`${SUPABASE_URL}/rest/v1/visitors?event_id=eq.${activeEvent.id}&xatlas_status=eq.active`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ xatlas_status: 'checked_out' })
+        });
+        // Marca evento chiuso
+        await api(`${SUPABASE_URL}/rest/v1/events?id=eq.${activeEvent.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ is_active: false, closed_at: new Date().toISOString() })
+        });
+        alert('Evento chiuso. I badge verranno liberati nei prossimi minuti.');
+        loadEvents();
+        refreshActiveEventBanner();
+      } catch (err) {
+        alert('Errore chiusura evento: ' + err.message);
+      }
+    }
+
+    function openQrForEvent(eventId) {
+      const ev = eventsData.find(e => e.id === eventId);
+      if (!ev) return;
+      const url = `${defaultFrontendBaseUrl()}?mode=qr&event=${encodeURIComponent(eventId)}`;
+      const input = document.getElementById('qr-url-input');
+      input.value = url;
+
+      // Popola info validità
+      const info = document.getElementById('qr-validity-info');
+      const evName = document.getElementById('qr-validity-event');
+      const evRange = document.getElementById('qr-validity-range');
+      if (info && evName && evRange) {
+        evName.textContent = ev.name;
+        const validFrom = ev.qr_valid_from || ev.event_start_date;
+        const validTo = ev.event_end_date;
+        evRange.textContent = validFrom === validTo
+          ? `solo il ${fmtItDate(validFrom)}`
+          : `dal ${fmtItDate(validFrom)} al ${fmtItDate(validTo)}`;
+        info.style.display = 'flex';
+      }
+
+      document.getElementById('qr-modal').classList.add('active');
+      setTimeout(rebuildQr, 30);
+    }
+
+    async function copyQrUrl() {
+      const url = document.getElementById('qr-url-input').value;
+      try {
+        await navigator.clipboard.writeText(url);
+        alert('✓ Link copiato negli appunti!\n\nOra puoi incollarlo in email/WhatsApp/SMS per inviarlo ai partecipanti.');
+      } catch (_) {
+        // Fallback: select + copy manuale
+        const inp = document.getElementById('qr-url-input');
+        inp.select();
+        document.execCommand('copy');
+        alert('Link selezionato. Premi Ctrl+C per copiare.');
+      }
+    }
+
+    function downloadQrPng() {
+      const wrap = document.getElementById('qr-canvas-wrap');
+      const img = wrap.querySelector('img');
+      const canvas = wrap.querySelector('canvas');
+      let dataUrl;
+      if (img && img.src) {
+        dataUrl = img.src;
+      } else if (canvas) {
+        dataUrl = canvas.toDataURL('image/png');
+      } else {
+        alert('QR non ancora generato.'); return;
+      }
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'qr-evento.png';
+      a.click();
+    }
+
+    function openQrModalForActiveEvent() {
+      if (!activeEvent) { alert('Nessun evento attivo.'); return; }
+      openQrForEvent(activeEvent.id);
+    }
+
+    function defaultFrontendBaseUrl() {
+      const here = window.location.href.split('?')[0].split('#')[0];
+      const guess = here.replace(/\/admin\/[^/]*$/, '/frontend/').replace(/\/admin\/?$/, '/frontend/');
+      return guess.endsWith('/') ? guess : guess + '/';
+    }
 
     function renderGuestTable(data, arrivedSet) {
       const visible = showArrived ? data : data.filter(g => !arrivedSet.has(g.id));
