@@ -1043,7 +1043,7 @@
     <div class="checkmark">✓</div>
     <h1>Registrazione completata!</h1>
     <p>Grazie per esserti registrato.</p>
-    <div class="desk-cta">📍 Vai alla reception per ritirare il tuo badge</div>
+    <div class="desk-cta">📍 Recarsi al desk per il ritiro del badge il giorno dell'evento</div>
   </div>
 
   <!-- SCHERMATA QR NON VALIDO (scaduto / non ancora attivo / evento non trovato) -->
@@ -1526,7 +1526,7 @@
       if (!el) return;
       el.querySelector('h1').textContent = 'Registrazione già effettuata';
       el.querySelector('p').textContent  = 'Hai già completato la registrazione per questo evento.';
-      el.querySelector('.desk-cta').textContent = '📍 Andare al desk il giorno dell\'evento per ritirare il badge';
+      el.querySelector('.desk-cta').textContent = '📍 Recarsi al desk per il ritiro del badge il giorno dell\'evento';
       el.classList.add('active');
       hideKioskUI();
     }
