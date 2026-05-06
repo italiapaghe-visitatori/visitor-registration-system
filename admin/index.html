@@ -63,6 +63,29 @@
     .qr-instructions ol { padding-left: 22px; color: #4a5568; line-height: 1.7; font-size: 14px; }
     .qr-instructions ol li { margin-bottom: 4px; }
 
+    /* Bottone "Genera QR Evento" nelle azioni (visibile e distintivo) */
+    .btn-qr-event {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 22px;
+      background: linear-gradient(135deg, #38b2ac 0%, #319795 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.2px;
+      box-shadow: 0 3px 10px rgba(49,151,149,0.35);
+      transition: transform 0.15s, box-shadow 0.15s;
+      white-space: nowrap;
+    }
+    .btn-qr-event:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(49,151,149,0.45); }
+    .btn-qr-event:active { transform: translateY(0); }
+    .btn-qr-event .btn-qr-icon { font-size: 19px; line-height: 1; }
+    .btn-qr-event .btn-qr-label { font-size: 14px; font-weight: 700; }
+
     /* Bottone "Stampa QR" grande con descrizione */
     .qr-modal-actions { gap: 14px; align-items: stretch; }
     .btn-print-qr {
@@ -993,7 +1016,10 @@
           <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
           <button type="button" class="btn btn-secondary" onclick="downloadTemplate()">Scarica Template</button>
           <button type="button" class="btn btn-primary" onclick="startBulkPreAssign()" title="Pre-assegna badge a tutti gli ospiti senza badge">⚡ Pre-assegna Lista</button>
-          <button type="button" class="btn btn-light" onclick="openQrModal()" title="Genera QR per registrazione self-service da mobile">📱 Genera QR Evento</button>
+          <button type="button" class="btn btn-qr-event" onclick="openQrModal()" title="Genera QR per registrazione self-service da mobile">
+            <span class="btn-qr-icon">📱</span>
+            <span class="btn-qr-label">Genera QR Evento</span>
+          </button>
         </div>
         <div>
           <button type="button" class="btn btn-light" id="btn-toggle-arrived" onclick="toggleArrivedFilter()">Mostra arrivati</button>
