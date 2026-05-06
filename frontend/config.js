@@ -28,6 +28,8 @@ const CONFIG = {
     exitTime: { enabled: false, label: 'Ora Uscita', required: false },
     personToVisit: { enabled: true, label: 'Persona da Visitare', required: false },
     visitReason: { enabled: true, label: 'Motivo della Visita', required: true },
+    documentType: { enabled: true, label: 'Tipo Documento', required: true },
+    documentId:   { enabled: true, label: 'Numero Documento', required: true },
     badgeNumber: { enabled: false, label: 'Numero Badge', required: false },
     phone: { enabled: false, label: 'Numero di Telefono', required: false },
     department: { enabled: false, label: 'Reparto/Ufficio', required: false },
@@ -44,6 +46,7 @@ const CONFIG = {
     { value: 'Consegna documenti', label: 'Consegna documenti' },
     { value: 'Corso di formazione in aula', label: 'Corso di formazione in aula' },
     { value: 'Fornitore', label: 'Fornitore' },
+    { value: 'Team Building DVI CL 1e 10', label: 'Team Building DVI CL 1e 10' },
     { value: 'Incontro di lavoro', label: 'Incontro di lavoro' },
     { value: 'Intervista di lavoro', label: 'Intervista di lavoro' },
     { value: 'Manutenzione/assistenza tecnica', label: 'Manutenzione/assistenza tecnica' },
@@ -62,6 +65,15 @@ const CONFIG = {
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlYmhhdHp4c3h1YWZzbWJkdHN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNjM0ODYsImV4cCI6MjA5MjkzOTQ4Nn0.5nvuSf8sxRcVPTEbgQe8mRERvEuGXCYs4fPogzhjYTI'
   },
   
+  // ===== TIPI DOCUMENTO =====
+  documentTypes: [
+    { value: '',          label: 'Seleziona...' },
+    { value: 'CI',        label: 'Carta d\'Identità' },
+    { value: 'PATENTE',   label: 'Patente' },
+    { value: 'PASSAPORTO',label: 'Passaporto' },
+    { value: 'ALTRO',     label: 'Altro' }
+  ],
+
   // ===== CONTESTO (auto-genera placeholder) =====
   context: 'struttura ricettiva' // Es: 'azienda', 'ospedale', 'scuola', 'hotel'
 };
