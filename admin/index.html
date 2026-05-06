@@ -227,6 +227,77 @@
       letter-spacing: 0.3px;
       text-transform: uppercase;
     }
+    .movements-timeline {
+      max-height: 280px;
+      overflow-y: auto;
+      padding: 12px;
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+    .movements-timeline .movement-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 12px;
+      background: #fff;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      border-left: 4px solid transparent;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .movements-timeline .movement-row.entry { border-left-color: #48bb78; }
+    .movements-timeline .movement-row.exit  { border-left-color: #fc8181; }
+    .movements-timeline .movement-icon {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .movements-timeline .movement-row.entry .movement-icon { background: #c6f6d5; }
+    .movements-timeline .movement-row.exit  .movement-icon { background: #fed7d7; }
+    .movements-timeline .movement-time {
+      font-weight: 700;
+      font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+      color: #2d3748;
+      min-width: 130px;
+    }
+    .movements-timeline .movement-label {
+      font-weight: 600;
+      color: #4a5568;
+      flex: 1;
+    }
+    .movements-timeline .movement-source {
+      font-size: 11px;
+      color: #a0aec0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .movements-loading, .movements-empty {
+      padding: 20px;
+      text-align: center;
+      color: #a0aec0;
+      font-size: 13px;
+    }
+
+    .event-chip {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      color: #92400e;
+      border: 1px solid #fbbf24;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
     .event-status-active   { background: #c6f6d5; color: #22543d; }
     .event-status-future   { background: #bee3f8; color: #2a4365; }
     .event-status-past     { background: #e2e8f0; color: #4a5568; }
@@ -755,6 +826,22 @@
           <label>Motivo visita (modificabile)</label>
           <input type="text" id="det-reason" placeholder="Motivo">
         </div>
+        <div class="modal-row-2">
+          <div class="modal-field">
+            <label>🎫 Evento</label>
+            <input type="text" id="det-event-name" readonly placeholder="—">
+          </div>
+          <div class="modal-field">
+            <label>Documento</label>
+            <input type="text" id="det-document" readonly placeholder="—">
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <p class="section-heading">📋 Storico timbrature (prova legale)</p>
+      <div id="det-movements" class="movements-timeline">
+        <div class="movements-loading">Caricamento timbrature...</div>
       </div>
 
       <div class="modal-actions">
@@ -1068,6 +1155,13 @@
             <input type="text" id="f-lastname" placeholder="Cerca...">
           </div>
           <div class="filter-group">
+            <label>🎫 Evento</label>
+            <select id="f-event" title="Filtra per evento" onchange="onEventFilterChange()">
+              <option value="">Tutti</option>
+              <option value="__none__">Senza evento</option>
+            </select>
+          </div>
+          <div class="filter-group">
             <label>Motivo</label>
             <select id="f-reason" title="Filtra per motivo visita">
               <option value="">Tutti</option>
@@ -1111,6 +1205,7 @@
                 <th class="no-sort">Uscita</th>
                 <th class="no-sort">Persona da Visitare</th>
                 <th class="no-sort">Motivo</th>
+                <th class="no-sort">🎫 Evento</th>
                 <th class="no-sort">Tipo</th>
                 <th class="no-sort">Stato Badge</th>
                 <th class="no-sort">Firma</th>
@@ -1315,6 +1410,7 @@
       loadData();
       refreshAgentStatus();
       refreshActiveEventBanner();
+      populateEventFilter();
     });
 
     // ── AUTH ─────────────────────────────────────────
@@ -1390,18 +1486,53 @@
         // Nasconde archivio (default): solo NON checked_out
         url += `&or=(xatlas_status.is.null,xatlas_status.neq.checked_out)`;
       }
-      const name   = document.getElementById('f-name').value.trim();
-      const last   = document.getElementById('f-lastname').value.trim();
-      const reason = document.getElementById('f-reason').value;
-      const ds     = document.getElementById('f-date-start').value;
-      const de     = document.getElementById('f-date-end').value;
+      const name    = document.getElementById('f-name').value.trim();
+      const last    = document.getElementById('f-lastname').value.trim();
+      const reason  = document.getElementById('f-reason').value;
+      const eventFv = document.getElementById('f-event')?.value || '';
+      const ds      = document.getElementById('f-date-start').value;
+      const de      = document.getElementById('f-date-end').value;
       if (name)   url += `&first_name=ilike.*${encodeURIComponent(name)}*`;
       if (last)   url += `&last_name=ilike.*${encodeURIComponent(last)}*`;
       if (reason) url += `&visit_reason=eq.${encodeURIComponent(reason)}`;
+      if (eventFv === '__none__') {
+        url += `&event_id=is.null`;
+      } else if (eventFv) {
+        url += `&event_id=eq.${encodeURIComponent(eventFv)}`;
+      }
       if (ds)     url += `&visit_date=gte.${ds}`;
       if (de)     url += `&visit_date=lte.${de}`;
       url += `&limit=${PAGE_SIZE}&offset=${currentPage * PAGE_SIZE}`;
       return url;
+    }
+
+    function onEventFilterChange() {
+      currentPage = 0;
+      loadData();
+    }
+
+    async function populateEventFilter() {
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/events?select=id,name,event_start_date,event_end_date,is_active&order=event_start_date.desc&limit=50`);
+        if (!res || !res.ok) return;
+        const list = await res.json();
+        const sel = document.getElementById('f-event');
+        if (!sel) return;
+        // Preserva selezione corrente
+        const cur = sel.value;
+        // Pulisci e ripopola
+        sel.innerHTML = '<option value="">Tutti</option><option value="__none__">Senza evento</option>';
+        list.forEach(ev => {
+          const opt = document.createElement('option');
+          opt.value = ev.id;
+          const date = ev.event_start_date === ev.event_end_date
+            ? fmtItDate(ev.event_start_date)
+            : `${fmtItDate(ev.event_start_date)} → ${fmtItDate(ev.event_end_date)}`;
+          opt.textContent = `${ev.is_active ? '🔴 ' : ''}${ev.name} (${date})`;
+          sel.appendChild(opt);
+        });
+        if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+      } catch (_) { /* silent */ }
     }
 
     async function loadData() {
@@ -1517,6 +1648,10 @@
           ? `<button type="button" class="btn-badge-assign" data-id="${esc(row.id)}" onclick="openBadgeModal(this)">Associa Badge</button>`
           : '';
 
+        const eventHtml = row.event_name
+          ? `<span class="event-chip" title="${esc(row.event_name)}${row.event_date ? ' — ' + fmtItDate(row.event_date) : ''}">🎫 ${esc(row.event_name)}</span>`
+          : '<span style="color:#a0aec0">—</span>';
+
         tr.innerHTML = `
           <td><strong>${esc(row.first_name)}</strong></td>
           <td><strong>${esc(row.last_name)}</strong></td>
@@ -1526,6 +1661,7 @@
           <td>${row.exit_time  ? esc(row.exit_time.slice(0,5))  : '<span style="color:#a0aec0">—</span>'}</td>
           <td>${esc(row.person_to_visit) || '—'}</td>
           <td><span class="badge ${badgeClass(row.visit_reason)}">${esc(row.visit_reason)}</span></td>
+          <td>${eventHtml}</td>
           <td>${gTypeHtml}</td>
           <td>${xstatusHtml}</td>
           <td>${sigHtml}</td>
@@ -1705,7 +1841,56 @@
       document.getElementById('det-person').value      = row.person_to_visit || '';
       document.getElementById('det-reason').value      = row.visit_reason   || '';
 
+      // Evento snapshot
+      const evNameEl = document.getElementById('det-event-name');
+      if (evNameEl) {
+        evNameEl.value = row.event_name
+          ? row.event_name + (row.event_date ? ' (' + fmtItDate(row.event_date) + ')' : '')
+          : '';
+      }
+      // Documento di identità (concatenato per leggibilità)
+      const docEl = document.getElementById('det-document');
+      if (docEl) {
+        const parts = [];
+        if (row.document_type) parts.push(row.document_type);
+        if (row.document_id)   parts.push(row.document_id);
+        docEl.value = parts.join(' · ');
+      }
+
+      // Carica storico timbrature da visitor_movements
+      loadMovementsForVisitor(row.id);
+
       document.getElementById('details-modal').classList.add('active');
+    }
+
+    async function loadMovementsForVisitor(visitorId) {
+      const cont = document.getElementById('det-movements');
+      if (!cont) return;
+      cont.innerHTML = '<div class="movements-loading">Caricamento timbrature...</div>';
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/visitor_movements?visitor_id=eq.${encodeURIComponent(visitorId)}&select=*&order=timestamp.asc`);
+        if (!res || !res.ok) throw new Error('Errore lettura timbrature');
+        const movements = await res.json();
+        if (movements.length === 0) {
+          cont.innerHTML = '<div class="movements-empty">Nessuna timbratura registrata per questo visitatore.</div>';
+          return;
+        }
+        cont.innerHTML = movements.map(m => {
+          const ts = new Date(m.timestamp);
+          const tsStr = ts.toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+          const isEntry = m.direction === 'entry';
+          const icon = isEntry ? '↓' : '↑';
+          const label = isEntry ? 'Ingresso' : 'Uscita';
+          return `<div class="movement-row ${m.direction}">
+            <div class="movement-icon">${icon}</div>
+            <div class="movement-time">${tsStr}</div>
+            <div class="movement-label">${label}${m.badge_number ? ` — badge ${m.badge_number}` : ''}</div>
+            <div class="movement-source">${m.source || ''}</div>
+          </div>`;
+        }).join('');
+      } catch (err) {
+        cont.innerHTML = `<div class="movements-empty">Errore: ${err.message}</div>`;
+      }
     }
 
     async function saveDetails() {
@@ -2025,7 +2210,8 @@
         const actions = [];
         if (!e.closed_at && !e.is_active) actions.push(`<button class="btn-badge-assign" onclick="activateEvent('${e.id}')">Avvia</button>`);
         if (e.is_active)                  actions.push(`<button class="btn-badge-assign" onclick="closeActiveEvent()">Chiudi</button>`);
-        actions.push(`<button class="btn-light" onclick="openQrForEvent('${e.id}')">📱 QR</button>`);
+        actions.push(`<button class="btn-details" onclick="viewEventParticipants('${e.id}')">👥 Partecipanti</button>`);
+        actions.push(`<button class="btn-details" onclick="openQrForEvent('${e.id}')">📱 QR</button>`);
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -2067,6 +2253,7 @@
         if (!res || !res.ok) { const b = await res?.json().catch(()=>({})); throw new Error(b.message || `Errore ${res?.status}`); }
         closeModal();
         loadEvents();
+        populateEventFilter();
       } catch (err) {
         alert('Errore creazione evento: ' + err.message);
       }
@@ -2179,6 +2366,23 @@
     function openQrModalForActiveEvent() {
       if (!activeEvent) { alert('Nessun evento attivo.'); return; }
       openQrForEvent(activeEvent.id);
+    }
+
+    async function viewEventParticipants(eventId) {
+      // Vai alla tab Visitatori applicando il filtro evento
+      switchView('visitors');
+      // Assicura che il dropdown sia popolato (caso primo accesso)
+      await populateEventFilter();
+      const sel = document.getElementById('f-event');
+      if (sel) sel.value = eventId;
+      // Mostra anche archivio (se ci sono già partecipanti checked_out)
+      // Reset altri filtri per non confondere
+      ['f-name', 'f-lastname', 'f-date-start', 'f-date-end'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+      });
+      const reasonSel = document.getElementById('f-reason'); if (reasonSel) reasonSel.value = '';
+      currentPage = 0;
+      loadData();
     }
 
     function defaultFrontendBaseUrl() {

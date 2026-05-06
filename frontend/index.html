@@ -1603,7 +1603,19 @@
     }
 
     // Bootstrap QR mode: lockout + validazione evento PRIMA di caricare il form.
-    // In kiosk mode: si carica direttamente come oggi.
+    // In kiosk mode: si carica direttamente come oggi (ma cerca evento attivo per auto-tag).
+    async function loadActiveEventForKiosk() {
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/events?is_active=eq.true&select=*&limit=1`,
+          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+        );
+        if (!res.ok) return null;
+        const rows = await res.json();
+        return rows[0] || null;
+      } catch (_) { return null; }
+    }
+
     (async function bootstrap() {
       if (IS_QR_MODE) {
         // 1. Lock-out localStorage: se questo device ha già firmato, mostra schermata e stop
@@ -1621,10 +1633,20 @@
           return;
         }
         // 4. Tutto OK → carica lista ospiti normalmente
+      } else {
+        // KIOSK MODE: se c'è un evento attivo, lo usiamo per taggare le nuove registrazioni
+        CURRENT_EVENT = await loadActiveEventForKiosk();
       }
       loadGuestList();
       setInterval(loadGuestList, IS_QR_MODE ? 8000 : 60000);
     })();
+    // Refresh periodico evento attivo in modalità kiosk (ogni 60s):
+    // se l'admin avvia/chiude un evento, il kiosk lo nota.
+    setInterval(async () => {
+      if (!IS_QR_MODE) {
+        CURRENT_EVENT = await loadActiveEventForKiosk();
+      }
+    }, 60000);
 
     function escHtml(s) {
       return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1906,9 +1928,10 @@
         signature:        (signatureOn && hasDrawn) ? canvas.toDataURL('image/jpeg', 0.7) : null
       };
 
-      // Tag evento (in QR mode è obbligatorio; in kiosk si potrebbe leggere l'evento attivo, ma
-      // per ora lasciamo che il kiosk non si associ automaticamente — l'admin gestisce a freddo).
-      if (IS_QR_MODE && CURRENT_EVENT) {
+      // Tag evento: se c'è un evento attivo (CURRENT_EVENT popolato), tagga il visitatore.
+      // QR mode: CURRENT_EVENT viene da loadEventForQr (già validato range date)
+      // Kiosk mode: CURRENT_EVENT viene da loadActiveEventForKiosk (evento is_active=true)
+      if (CURRENT_EVENT) {
         payload.event_id   = CURRENT_EVENT.id;
         payload.event_name = CURRENT_EVENT.name;
         payload.event_date = CURRENT_EVENT.event_start_date;
