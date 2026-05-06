@@ -216,7 +216,7 @@ CREATE INDEX IF NOT EXISTS idx_visitors_event_id ON visitors(event_id);
 -- 3) TABELLA visitor_movements: append-only, prova legale completa di ogni timbratura
 CREATE TABLE IF NOT EXISTS visitor_movements (
   id                  BIGSERIAL PRIMARY KEY,
-  visitor_id          BIGINT NOT NULL REFERENCES visitors(id) ON DELETE CASCADE,
+  visitor_id          UUID NOT NULL REFERENCES visitors(id) ON DELETE CASCADE,
   event_id            UUID REFERENCES events(id),
   timestamp           TIMESTAMPTZ NOT NULL,
   direction           TEXT NOT NULL CHECK (direction IN ('entry','exit')),
@@ -242,7 +242,7 @@ CREATE TABLE IF NOT EXISTS badge_pool (
   card_id         INTEGER,
   status          TEXT DEFAULT 'preparing' CHECK (status IN ('preparing','available','in_use','released')),
   event_id        UUID REFERENCES events(id),
-  visitor_id      BIGINT REFERENCES visitors(id) DEFAULT NULL,
+  visitor_id      UUID REFERENCES visitors(id) DEFAULT NULL,
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   activated_at    TIMESTAMPTZ,
   assigned_at     TIMESTAMPTZ
