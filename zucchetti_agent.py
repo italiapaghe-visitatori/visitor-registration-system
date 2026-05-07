@@ -89,7 +89,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.2.0-events"
+AGENT_VERSION = "1.3.0-pool"
 
 
 def update_heartbeat(notes: str | None = None):
@@ -604,6 +604,43 @@ def process_pending_badges():
                 time.sleep(2)
 
 
+def process_pool_preparation():
+    """Pre-attiva i badge nel pool: crea utenti VIS{badge} generici e assegna le card.
+    Status: preparing -> available. L'admin poi associa il badge a un visitatore al volo
+    (modale Walk-in dal pool) senza ulteriore lavoro dell'agente."""
+    try:
+        pending = sb_get("badge_pool", params={
+            "status": "eq.preparing",
+            "select": "id,badge_number,event_id",
+            "limit": "10",  # max 10 per ciclo per non saturare XAtlas API
+        })
+    except Exception as e:
+        log.warning(f"process_pool_preparation: lettura pool fallita: {e}")
+        return
+
+    if not pending:
+        return
+
+    log.info(f"process_pool_preparation: trovati {len(pending)} badge da pre-attivare")
+    for p in pending:
+        pid   = p["id"]
+        badge = p.get("badge_number")
+        if not badge:
+            continue
+        try:
+            # Identifier "POOL{badge}" per distinguere da utenti VIS normali
+            xid, cid = create_xatlas_user(badge, "Pool", f"Badge{badge}")
+            sb_patch(f"badge_pool?id=eq.{pid}", {
+                "status":         "available",
+                "xatlas_user_id": xid,
+                "card_id":        cid,
+                "activated_at":   datetime.now(timezone.utc).isoformat(),
+            })
+            log.info(f"Pool badge {badge} pre-attivato: pool_id={pid} xatlas={xid} card={cid}")
+        except Exception as e:
+            log.error(f"Pool badge {badge} (pool_id={pid}) attivazione fallita: {e}")
+
+
 def is_event_open(event_id):
     """Ritorna True se l'evento esiste e non è ancora chiuso."""
     if not event_id:
@@ -814,6 +851,64 @@ def startup_catchup():
                     log.error(f"Catchup uscita (PATCH/cleanup XAtlas) visitor={vid}: {e}")
 
 
+_last_midnight_cleanup_date = None
+
+def midnight_cleanup_stale_visitors():
+    """Una volta al giorno (dopo mezzanotte), archivia automaticamente i visitor 'active'
+    creati in giorni precedenti e ancora 'fuori' (entry_time popolato, exit_time popolato,
+    nessun rientro) — quindi sono persone che hanno timbrato ieri e non sono tornate.
+    Salta se l'evento è ancora aperto: in quel caso aspettiamo la chiusura manuale."""
+    global _last_midnight_cleanup_date
+    today = date.today()
+    # Esegui solo una volta per giorno
+    if _last_midnight_cleanup_date == today:
+        return
+    # Esegui solo dopo le 00:30 (lasciamo margine per timbrature in coda)
+    now = datetime.now()
+    if now.hour == 0 and now.minute < 30:
+        return
+
+    try:
+        # Visitor active con visit_date < oggi e exit_time già popolato (sono usciti ieri o prima)
+        ymd = today.strftime("%Y-%m-%d")
+        rows = sb_get("visitors", params={
+            "xatlas_status": "eq.active",
+            "visit_date": f"lt.{ymd}",
+            "exit_time": "not.is.null",
+            "select": "id,event_id,first_name,last_name,visit_date",
+            "limit": "100",
+        })
+    except Exception as e:
+        log.warning(f"midnight_cleanup: lettura fallita: {e}")
+        return
+
+    if not rows:
+        _last_midnight_cleanup_date = today
+        return
+
+    # Filtra: salta visitor di eventi ancora aperti
+    to_archive = []
+    for v in rows:
+        eid = v.get("event_id")
+        if eid and is_event_open(eid):
+            continue  # evento ancora aperto, l'operatore archivierà alla chiusura
+        to_archive.append(v)
+
+    if not to_archive:
+        _last_midnight_cleanup_date = today
+        return
+
+    log.info(f"midnight_cleanup: archivio {len(to_archive)} visitor stale del giorno precedente")
+    for v in to_archive:
+        try:
+            sb_patch(f"visitors?id=eq.{v['id']}", {"xatlas_status": "checked_out"})
+            log.info(f"midnight_cleanup: archiviato {v['first_name']} {v['last_name']} (id={v['id']}, visit_date={v.get('visit_date')})")
+        except Exception as e:
+            log.warning(f"midnight_cleanup PATCH fallito per visitor {v['id']}: {e}")
+
+    _last_midnight_cleanup_date = today
+
+
 def cleanup_archived_visitors():
     """Libera badge per visitor archiviati (xatlas_status=checked_out) ma con
     xatlas_user_id ancora valorizzato. Tipicamente succede dopo chiusura evento
@@ -863,8 +958,10 @@ def run_loop():
     while True:
         try:
             process_pending_badges()
+            process_pool_preparation()
             process_active_transactions()
             cleanup_archived_visitors()
+            midnight_cleanup_stale_visitors()
             update_heartbeat()
         except Exception as e:
             log.error(f"Errore imprevisto nel ciclo principale: {e}")
@@ -910,8 +1007,10 @@ try:
             while self._running:
                 try:
                     process_pending_badges()
+                    process_pool_preparation()
                     process_active_transactions()
                     cleanup_archived_visitors()
+                    midnight_cleanup_stale_visitors()
                     update_heartbeat()
                 except Exception as e:
                     log.error(f"Errore nel service loop: {e}")

@@ -227,6 +227,109 @@
       letter-spacing: 0.3px;
       text-transform: uppercase;
     }
+    /* ── MINIATURE BADGE ── */
+    #minilabels-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      padding: 12px;
+      background: #f7fafc;
+      border-radius: 10px;
+      margin: 12px 0;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+    .minilabel {
+      background: #fff;
+      border: 1.5px dashed #cbd5e0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .minilabel-name { font-weight: 800; font-size: 14px; color: #2d3748; }
+    .minilabel-company { color: #4a5568; margin-top: 2px; }
+    .minilabel-badge {
+      margin-top: 4px;
+      font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+      font-weight: 700;
+      color: #c05621;
+      font-size: 13px;
+    }
+
+    /* Stampa miniature: 8 per A4 */
+    @media print {
+      body.printing-minilabels * { visibility: hidden; }
+      body.printing-minilabels #minilabels-modal,
+      body.printing-minilabels #minilabels-modal * { visibility: visible; }
+      body.printing-minilabels #minilabels-modal {
+        position: absolute !important; inset: 0 !important;
+        background: #fff !important; display: block !important;
+      }
+      body.printing-minilabels #minilabels-modal-content {
+        box-shadow: none !important; border: none !important;
+        padding: 0 !important; max-width: 100% !important; width: 100% !important;
+      }
+      body.printing-minilabels #minilabels-modal h2,
+      body.printing-minilabels #minilabels-modal .modal-sub,
+      body.printing-minilabels #minilabels-modal .modal-info-box,
+      body.printing-minilabels #minilabels-modal .modal-actions { display: none !important; }
+      body.printing-minilabels #minilabels-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 4mm !important;
+        padding: 0 !important;
+        background: transparent !important;
+        max-height: none !important;
+        overflow: visible !important;
+      }
+      body.printing-minilabels .minilabel {
+        page-break-inside: avoid;
+        padding: 8mm !important;
+        border: 1px dashed #999 !important;
+        font-size: 11pt !important;
+      }
+      body.printing-minilabels .minilabel-name { font-size: 14pt !important; }
+      body.printing-minilabels .minilabel-badge { font-size: 13pt !important; }
+    }
+
+    /* ── POOL BADGE ── */
+    .pool-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .pool-stat {
+      background: #f7fafc;
+      border-radius: 10px;
+      padding: 10px 14px;
+      text-align: center;
+      border: 1.5px solid #e2e8f0;
+    }
+    .pool-stat-prep  { background: #fffbeb; border-color: #fbbf24; }
+    .pool-stat-avail { background: #f0fff4; border-color: #68d391; }
+    .pool-stat-inuse { background: #ebf4ff; border-color: #63b3ed; }
+    .pool-stat-label { display: block; font-size: 11px; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
+    .pool-stat-val   { display: block; font-size: 24px; font-weight: 800; color: #2d3748; line-height: 1; }
+    .pool-stat-prep  .pool-stat-val { color: #c05621; }
+    .pool-stat-avail .pool-stat-val { color: #276749; }
+    .pool-stat-inuse .pool-stat-val { color: #2a4365; }
+
+    .pool-status-pill {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .pool-status-preparing { background: #fffbeb; color: #92400e; border: 1px solid #fbbf24; }
+    .pool-status-available { background: #c6f6d5; color: #22543d; }
+    .pool-status-in_use    { background: #bee3f8; color: #2a4365; }
+    .pool-status-released  { background: #e2e8f0; color: #4a5568; }
+
     .movements-timeline {
       max-height: 280px;
       overflow-y: auto;
@@ -636,6 +739,14 @@
     }
     .btn-badge-assign:hover { box-shadow: 0 3px 10px rgba(237,137,54,0.55); }
 
+    .btn-conclude {
+      background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+      color: #fff; border: none; border-radius: 7px;
+      padding: 5px 10px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.18s; white-space: nowrap; margin-right: 4px;
+      box-shadow: 0 2px 6px rgba(49,130,206,0.4);
+    }
+    .btn-conclude:hover { box-shadow: 0 3px 10px rgba(49,130,206,0.55); }
+
     /* ── MODAL ── */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
@@ -826,14 +937,29 @@
           <label>Motivo visita (modificabile)</label>
           <input type="text" id="det-reason" placeholder="Motivo">
         </div>
+        <div class="modal-field">
+          <label>🎫 Evento</label>
+          <input type="text" id="det-event-name" readonly placeholder="—">
+        </div>
+      </div>
+
+      <hr class="divider">
+      <p class="section-heading">📄 Documento di identità (modificabile)</p>
+      <div class="modal-fields">
         <div class="modal-row-2">
           <div class="modal-field">
-            <label>🎫 Evento</label>
-            <input type="text" id="det-event-name" readonly placeholder="—">
+            <label>Tipo documento</label>
+            <select id="det-document-type" title="Tipo documento">
+              <option value="">— Non specificato —</option>
+              <option value="CI">Carta d'Identità</option>
+              <option value="PATENTE">Patente</option>
+              <option value="PASSAPORTO">Passaporto</option>
+              <option value="ALTRO">Altro</option>
+            </select>
           </div>
           <div class="modal-field">
-            <label>Documento</label>
-            <input type="text" id="det-document" readonly placeholder="—">
+            <label>Numero documento</label>
+            <input type="text" id="det-document-id" placeholder="Es. AB1234567" autocomplete="off">
           </div>
         </div>
       </div>
@@ -1007,6 +1133,157 @@
       <div class="modal-actions">
         <button type="button" class="btn-save" onclick="saveGuest()">Aggiungi ospite</button>
         <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE GESTIONE POOL BADGE -->
+  <div class="modal-overlay" id="pool-modal">
+    <div class="modal modal-wide">
+      <h2>🎟️ Pool Badge per Evento</h2>
+      <p class="modal-sub" id="pool-modal-event">—</p>
+
+      <div class="pool-stats">
+        <div class="pool-stat"><span class="pool-stat-label">Totale</span><span class="pool-stat-val" id="pool-stat-total">0</span></div>
+        <div class="pool-stat pool-stat-prep"><span class="pool-stat-label">In preparazione</span><span class="pool-stat-val" id="pool-stat-prep">0</span></div>
+        <div class="pool-stat pool-stat-avail"><span class="pool-stat-label">Disponibili</span><span class="pool-stat-val" id="pool-stat-avail">0</span></div>
+        <div class="pool-stat pool-stat-inuse"><span class="pool-stat-label">In uso</span><span class="pool-stat-val" id="pool-stat-inuse">0</span></div>
+      </div>
+
+      <div class="modal-info-box">
+        <strong>Come funziona:</strong> aggiungi qui i numeri dei badge fisici che vuoi pre-attivare per l'evento.
+        L'agente li attiverà sui tornelli (preparing → available). Al desk, ogni walk-in prende il primo badge disponibile dalla pila — niente ricerca!
+      </div>
+
+      <div class="modal-fields">
+        <div class="modal-row-2">
+          <div class="modal-field">
+            <label>Range badge (da - a)</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input type="number" id="pool-range-from" placeholder="Es. 241001" inputmode="numeric" style="flex:1">
+              <span style="color:#a0aec0;">→</span>
+              <input type="number" id="pool-range-to" placeholder="Es. 241050" inputmode="numeric" style="flex:1">
+            </div>
+          </div>
+          <div class="modal-field">
+            <label>Oppure lista (separati da virgola)</label>
+            <input type="text" id="pool-list" placeholder="Es. 241001,241002,241003" autocomplete="off">
+          </div>
+        </div>
+        <div class="modal-actions" style="justify-content:flex-start;">
+          <button type="button" class="btn-save" onclick="addBadgesToPool()">+ Aggiungi al pool</button>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <p class="section-heading">Badge nel pool</p>
+      <div id="pool-table-wrap">
+        <div id="pool-table-status" class="table-status">Caricamento pool...</div>
+        <div class="table-scroll" id="pool-table-container" style="max-height:280px;display:none">
+          <table>
+            <thead>
+              <tr>
+                <th>Badge</th>
+                <th>Stato</th>
+                <th>Visitatore</th>
+                <th>Attivato</th>
+                <th class="no-sort">Azione</th>
+              </tr>
+            </thead>
+            <tbody id="pool-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE WALK-IN CON POOL -->
+  <div class="modal-overlay" id="walkin-modal">
+    <div class="modal modal-wide">
+      <h2>👤 Registra Walk-in (Pool Badge)</h2>
+      <p class="modal-sub">Visitatore al desk senza pre-registrazione. Compila i dati e assegna un badge dal pool — è già attivo e pronto al tornello.</p>
+
+      <div id="walkin-no-pool" class="modal-info-box" style="display:none;background:#fed7d7;color:#742a2a;border-color:#fc8181;">
+        ⚠️ <strong>Nessun badge disponibile nel pool.</strong> Vai in Eventi → Gestione Pool per aggiungerne.
+      </div>
+
+      <div id="walkin-form-wrap">
+        <div class="modal-fields">
+          <div class="modal-row-2">
+            <div class="modal-field">
+              <label>Nome <span class="req">*</span></label>
+              <input type="text" id="wi-first-name" autocomplete="off" placeholder="Mario">
+            </div>
+            <div class="modal-field">
+              <label>Cognome <span class="req">*</span></label>
+              <input type="text" id="wi-last-name" autocomplete="off" placeholder="Rossi">
+            </div>
+          </div>
+          <div class="modal-row-2">
+            <div class="modal-field">
+              <label>Tipo documento <span class="req">*</span></label>
+              <select id="wi-document-type">
+                <option value="">— Seleziona —</option>
+                <option value="CI">Carta d'Identità</option>
+                <option value="PATENTE">Patente</option>
+                <option value="PASSAPORTO">Passaporto</option>
+                <option value="ALTRO">Altro</option>
+              </select>
+            </div>
+            <div class="modal-field">
+              <label>Numero documento <span class="req">*</span></label>
+              <input type="text" id="wi-document-id" autocomplete="off" placeholder="Es. AB1234567">
+            </div>
+          </div>
+          <div class="modal-row-2">
+            <div class="modal-field">
+              <label>Azienda</label>
+              <input type="text" id="wi-company" autocomplete="off" placeholder="Es. Rossi Srl">
+            </div>
+            <div class="modal-field">
+              <label>Persona da visitare</label>
+              <input type="text" id="wi-person" autocomplete="off">
+            </div>
+          </div>
+          <div class="modal-field">
+            <label>Motivo visita</label>
+            <select id="wi-reason"></select>
+          </div>
+          <div class="modal-field badge-highlight">
+            <label>Badge dal pool (auto-selezionato)</label>
+            <select id="wi-badge-select"></select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-save" onclick="saveWalkIn()">Registra e consegna badge</button>
+          <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE STAMPA MINIATURE BADGE -->
+  <div class="modal-overlay" id="minilabels-modal">
+    <div class="modal modal-wide" id="minilabels-modal-content">
+      <h2>🏷️ Stampa Miniature Badge</h2>
+      <p class="modal-sub">Foglio A4 con etichette tagliabili da incollare sul cordoncino dei badge pre-assegnati. Riconoscimento a colpo d'occhio al desk.</p>
+      <div class="modal-info-box">
+        Stampa solo per ospiti con badge pre-assegnato (Numero_Badge presente). Layout: 8 etichette per pagina.
+      </div>
+      <div id="minilabels-grid"></div>
+      <div class="modal-actions qr-modal-actions">
+        <button type="button" class="btn-print-qr" onclick="window.print()">
+          <span class="btn-print-icon">🖨️</span>
+          <span class="btn-print-text">
+            <span class="btn-print-title">Stampa miniature A4</span>
+            <span class="btn-print-sub">Foglio con etichette tagliabili da incollare sui badge</span>
+          </span>
+        </button>
+        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
       </div>
     </div>
   </div>
@@ -1186,6 +1463,7 @@
             <label>&nbsp;</label>
             <button type="button" class="btn btn-primary" onclick="applyFilters()">Filtra</button>
             <button type="button" class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+            <button type="button" class="btn btn-success" onclick="openWalkInModal()" title="Registra al volo un visitatore walk-in usando un badge dal pool">👤 + Walk-in dal pool</button>
             <button type="button" class="btn btn-secondary btn-archive" id="btn-toggle-archived" onclick="toggleArchived()" title="Commuta tra visitatori attivi e archiviati">Vai all'Archivio</button>
           </div>
         </div>
@@ -1259,6 +1537,7 @@
           <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
           <button type="button" class="btn btn-secondary" onclick="downloadTemplate()">Scarica Template</button>
           <button type="button" class="btn btn-primary" onclick="startBulkPreAssign()" title="Pre-assegna badge a tutti gli ospiti senza badge">⚡ Pre-assegna Lista</button>
+          <button type="button" class="btn btn-secondary" onclick="openMiniLabelsModal()" title="Stampa miniature da incollare sui badge fisici dei pre-assegnati">🏷️ Stampa miniature</button>
           <button type="button" class="btn btn-qr-event" onclick="openQrModal()" title="Genera QR per registrazione self-service da mobile">
             <span class="btn-qr-icon">📱</span>
             <span class="btn-qr-label">Genera QR Evento</span>
@@ -1647,6 +1926,11 @@
         const assignBtn = canAssign
           ? `<button type="button" class="btn-badge-assign" data-id="${esc(row.id)}" onclick="openBadgeModal(this)">Associa Badge</button>`
           : '';
+        // "Concludi visita": solo se evento attivo + visitor.event_id valorizzato + status='active' (badge in uso, non già checked_out)
+        const canConclude = row.xatlas_status === 'active' && row.event_id;
+        const concludeBtn = canConclude
+          ? `<button type="button" class="btn-conclude" data-id="${esc(row.id)}" onclick="concludeVisitor(this)" title="Termina la visita: archivia, libera badge">⏹ Concludi</button>`
+          : '';
 
         const eventHtml = row.event_name
           ? `<span class="event-chip" title="${esc(row.event_name)}${row.event_date ? ' — ' + fmtItDate(row.event_date) : ''}">🎫 ${esc(row.event_name)}</span>`
@@ -1668,6 +1952,7 @@
           <td style="text-align:center;">${consentHtml}</td>
           <td>
             ${assignBtn}
+            ${concludeBtn}
             <button type="button" class="btn-details" data-id="${esc(row.id)}" onclick="openDetailsModal(this)">Dettagli</button>
             <button type="button" class="btn-delete"  data-id="${esc(row.id)}" onclick="deleteRecord(this)">Elimina</button>
           </td>
@@ -1729,14 +2014,18 @@
       function fmtTime(t) { if (!t) return ''; return t.slice(0, 5); }
       function val(v) { return v ?? ''; }
 
-      const headers = ['Nome','Cognome','Azienda','Email','Data visita','Ingresso (tornello)','Uscita (tornello)',
-                       'Persona da visitare','Motivo visita','N° badge','Stato badge','Tipo','Consenso privacy'];
+      const headers = ['Nome','Cognome','Azienda','Email','Tipo Documento','Numero Documento',
+                       'Data visita','Ingresso (tornello)','Uscita (tornello)',
+                       'Persona da visitare','Motivo visita','N° badge','Stato badge','Tipo',
+                       'Evento','Data evento','Consenso privacy'];
       const rows = currentData.map(r => [
         val(r.first_name), val(r.last_name), val(r.company), val(r.email),
+        val(r.document_type), val(r.document_id),
         fmtDate(r.visit_date), fmtTime(r.entry_time), fmtTime(r.exit_time),
         val(r.person_to_visit), val(r.visit_reason), val(r.badge_number),
         val(r.xatlas_status) || 'nessuno',
         r.guest_id ? 'Atteso' : 'Walk-in',
+        val(r.event_name), fmtDate(r.event_date),
         r.data_consent ? 'Sì' : 'No'
       ]);
       const csv = [headers, ...rows].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -1848,14 +2137,11 @@
           ? row.event_name + (row.event_date ? ' (' + fmtItDate(row.event_date) + ')' : '')
           : '';
       }
-      // Documento di identità (concatenato per leggibilità)
-      const docEl = document.getElementById('det-document');
-      if (docEl) {
-        const parts = [];
-        if (row.document_type) parts.push(row.document_type);
-        if (row.document_id)   parts.push(row.document_id);
-        docEl.value = parts.join(' · ');
-      }
+      // Documento di identità — campi editabili (operatore può aggiungere/correggere)
+      const docTypeEl = document.getElementById('det-document-type');
+      const docIdEl   = document.getElementById('det-document-id');
+      if (docTypeEl) docTypeEl.value = row.document_type || '';
+      if (docIdEl)   docIdEl.value   = row.document_id   || '';
 
       // Carica storico timbrature da visitor_movements
       loadMovementsForVisitor(row.id);
@@ -1902,6 +2188,8 @@
       const patch = {
         person_to_visit: document.getElementById('det-person').value.trim() || null,
         visit_reason:    document.getElementById('det-reason').value.trim() || null,
+        document_type:   document.getElementById('det-document-type').value || null,
+        document_id:     document.getElementById('det-document-id').value.trim() || null,
       };
 
       try {
@@ -2211,6 +2499,7 @@
         if (!e.closed_at && !e.is_active) actions.push(`<button class="btn-badge-assign" onclick="activateEvent('${e.id}')">Avvia</button>`);
         if (e.is_active)                  actions.push(`<button class="btn-badge-assign" onclick="closeActiveEvent()">Chiudi</button>`);
         actions.push(`<button class="btn-details" onclick="viewEventParticipants('${e.id}')">👥 Partecipanti</button>`);
+        actions.push(`<button class="btn-details" onclick="openPoolModal('${e.id}')">🎟️ Pool</button>`);
         actions.push(`<button class="btn-details" onclick="openQrForEvent('${e.id}')">📱 QR</button>`);
 
         const tr = document.createElement('tr');
@@ -2389,6 +2678,345 @@
       const here = window.location.href.split('?')[0].split('#')[0];
       const guess = here.replace(/\/admin\/[^/]*$/, '/frontend/').replace(/\/admin\/?$/, '/frontend/');
       return guess.endsWith('/') ? guess : guess + '/';
+    }
+
+    // ── CONCLUDI VISITA INDIVIDUALE ──────────────────
+    async function concludeVisitor(btn) {
+      const id = btn.dataset.id;
+      const row = currentData.find(r => String(r.id) === String(id));
+      if (!row) return;
+      const name = `${row.first_name} ${row.last_name}`;
+      if (!confirm(`Concludere la visita di ${name}?\n\nIl visitatore verrà archiviato e il badge ${row.badge_number || ''} verrà liberato dall'agente al prossimo ciclo (~5 sec).`)) return;
+
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      const nowTime = new Date().toTimeString().slice(0,5);
+      try {
+        // Marca visitor come checked_out + setta exit_time se non già presente
+        const patch = { xatlas_status: 'checked_out' };
+        if (!row.exit_time) patch.exit_time = nowTime;
+
+        const res = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify(patch)
+        });
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+
+        // Se badge proviene dal pool: marca pool entry come 'released'
+        if (row.badge_number) {
+          await api(`${SUPABASE_URL}/rest/v1/badge_pool?badge_number=eq.${encodeURIComponent(row.badge_number)}&status=eq.in_use`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ status: 'released' })
+          });
+        }
+
+        loadData();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = '⏹ Concludi';
+      }
+    }
+
+    // ── STAMPA MINIATURE BADGE ──────────────────────
+    async function openMiniLabelsModal() {
+      // Cerca i visitor stub (signature IS NULL) con badge_number assegnato.
+      // Sono i pre-attivati: serve incollare le miniature sui badge fisici.
+      try {
+        const url = `${SUPABASE_URL}/rest/v1/visitors?signature=is.null&badge_number=not.is.null&xatlas_status=in.(pending,active)&select=first_name,last_name,company,badge_number,event_name&order=last_name.asc`;
+        const res = await api(url);
+        if (!res || !res.ok) throw new Error('Errore caricamento pre-assegnati');
+        const list = await res.json();
+        const grid = document.getElementById('minilabels-grid');
+        if (list.length === 0) {
+          grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#a0aec0;">Nessun pre-assegnato con badge da stampare.<br><small>Tutti gli ospiti pre-assegnati hanno già firmato oppure non sono stati pre-attivati con badge.</small></div>';
+        } else {
+          grid.innerHTML = list.map(p => `
+            <div class="minilabel">
+              <div class="minilabel-name">${esc(p.last_name)} ${esc(p.first_name)}</div>
+              ${p.company ? `<div class="minilabel-company">${esc(p.company)}</div>` : ''}
+              <div class="minilabel-badge">🎟️ Badge ${esc(p.badge_number)}</div>
+              ${p.event_name ? `<div class="minilabel-company" style="font-size:10px;opacity:0.7;">${esc(p.event_name)}</div>` : ''}
+            </div>
+          `).join('');
+        }
+        document.getElementById('minilabels-modal').classList.add('active');
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+
+    // Print mode toggle: aggiunge classe al body per CSS @media print mirato
+    window.addEventListener('beforeprint', () => {
+      const open = document.getElementById('minilabels-modal');
+      if (open && open.classList.contains('active')) {
+        document.body.classList.add('printing-minilabels');
+      }
+    });
+    window.addEventListener('afterprint', () => {
+      document.body.classList.remove('printing-minilabels');
+    });
+
+    // ── POOL BADGE ───────────────────────────────────
+    let currentPoolEventId = null;
+    let poolData = [];
+
+    async function openPoolModal(eventId) {
+      currentPoolEventId = eventId;
+      const ev = eventsData.find(e => e.id === eventId);
+      document.getElementById('pool-modal-event').textContent = ev
+        ? `${ev.name} — ${ev.event_start_date === ev.event_end_date ? fmtItDate(ev.event_start_date) : fmtItDate(ev.event_start_date) + ' → ' + fmtItDate(ev.event_end_date)}`
+        : '';
+      document.getElementById('pool-range-from').value = '';
+      document.getElementById('pool-range-to').value = '';
+      document.getElementById('pool-list').value = '';
+      document.getElementById('pool-modal').classList.add('active');
+      await loadPoolForEvent(eventId);
+    }
+
+    async function loadPoolForEvent(eventId) {
+      const status = document.getElementById('pool-table-status');
+      const wrap = document.getElementById('pool-table-container');
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool?event_id=eq.${eventId}&select=*&order=badge_number.asc`);
+        if (!res || !res.ok) throw new Error('Errore caricamento pool');
+        poolData = await res.json();
+        renderPoolStats();
+        renderPoolTable();
+        status.style.display = poolData.length === 0 ? 'block' : 'none';
+        if (poolData.length === 0) status.textContent = 'Pool vuoto. Aggiungi badge qui sotto.';
+        wrap.style.display = poolData.length > 0 ? 'block' : 'none';
+      } catch (err) {
+        status.textContent = 'Errore: ' + err.message;
+        status.style.display = 'block';
+      }
+    }
+
+    function renderPoolStats() {
+      const total = poolData.length;
+      const prep  = poolData.filter(p => p.status === 'preparing').length;
+      const avail = poolData.filter(p => p.status === 'available').length;
+      const inuse = poolData.filter(p => p.status === 'in_use').length;
+      document.getElementById('pool-stat-total').textContent = total;
+      document.getElementById('pool-stat-prep').textContent  = prep;
+      document.getElementById('pool-stat-avail').textContent = avail;
+      document.getElementById('pool-stat-inuse').textContent = inuse;
+    }
+
+    function renderPoolTable() {
+      const tbody = document.getElementById('pool-table-body');
+      tbody.innerHTML = '';
+      poolData.forEach(p => {
+        const visitorLabel = p.visitor_id ? `→ visitor` : '—';
+        const activated = p.activated_at ? new Date(p.activated_at).toLocaleString('it-IT', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' }) : '—';
+        const action = (p.status === 'preparing' || p.status === 'available')
+          ? `<button class="btn-delete" onclick="removeFromPool(${p.id})">Rimuovi</button>`
+          : '';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${esc(p.badge_number)}</strong></td>
+          <td><span class="pool-status-pill pool-status-${p.status}">${p.status}</span></td>
+          <td>${visitorLabel}</td>
+          <td>${activated}</td>
+          <td>${action}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function addBadgesToPool() {
+      if (!currentPoolEventId) return;
+      const from = parseInt(document.getElementById('pool-range-from').value, 10);
+      const to   = parseInt(document.getElementById('pool-range-to').value, 10);
+      const list = document.getElementById('pool-list').value.trim();
+
+      let badges = [];
+      if (!isNaN(from) && !isNaN(to) && to >= from) {
+        for (let n = from; n <= to; n++) badges.push(String(n));
+      }
+      if (list) {
+        list.split(/[,;\s]+/).filter(Boolean).forEach(s => {
+          const n = s.trim();
+          if (n && !badges.includes(n)) badges.push(n);
+        });
+      }
+      if (badges.length === 0) { alert('Inserisci un range valido o una lista di badge.'); return; }
+      if (badges.length > 200 && !confirm(`Stai per aggiungere ${badges.length} badge al pool. Continuare?`)) return;
+
+      // Filtra duplicati già presenti
+      const existing = new Set(poolData.map(p => p.badge_number));
+      const toAdd = badges.filter(b => !existing.has(b));
+      if (toAdd.length === 0) { alert('Tutti questi badge sono già nel pool.'); return; }
+
+      const payload = toAdd.map(b => ({
+        badge_number: b,
+        event_id:     currentPoolEventId,
+        status:       'preparing'
+      }));
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify(payload)
+        });
+        if (!res || !res.ok) {
+          const b = res ? await res.json().catch(()=>({})) : {};
+          throw new Error(b.message || `Errore ${res?.status}`);
+        }
+        document.getElementById('pool-range-from').value = '';
+        document.getElementById('pool-range-to').value = '';
+        document.getElementById('pool-list').value = '';
+        await loadPoolForEvent(currentPoolEventId);
+        alert(`✓ ${toAdd.length} badge aggiunti al pool. L'agente li attiverà ai tornelli entro 1-2 minuti.`);
+      } catch (err) {
+        alert('Errore aggiunta pool: ' + err.message);
+      }
+    }
+
+    async function removeFromPool(poolId) {
+      if (!confirm('Rimuovere questo badge dal pool?')) return;
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool?id=eq.${poolId}`, {
+          method: 'DELETE',
+          headers: { 'Prefer': 'return=minimal' }
+        });
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        await loadPoolForEvent(currentPoolEventId);
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+
+    // ── WALK-IN DAL POOL ─────────────────────────────
+    async function openWalkInModal() {
+      // Trova evento attivo
+      if (!activeEvent) {
+        alert('Nessun evento attivo. La modalità walk-in dal pool richiede un evento attivo.\n\nVai in tab Eventi e avvia un evento.');
+        return;
+      }
+      // Carica badge pool available per l'evento attivo
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool?event_id=eq.${activeEvent.id}&status=eq.available&select=*&order=badge_number.asc`);
+        const available = res && res.ok ? await res.json() : [];
+
+        const noPool = document.getElementById('walkin-no-pool');
+        const formWrap = document.getElementById('walkin-form-wrap');
+        if (available.length === 0) {
+          noPool.style.display = 'block';
+          formWrap.style.display = 'none';
+        } else {
+          noPool.style.display = 'none';
+          formWrap.style.display = 'block';
+        }
+
+        // Reset form
+        ['wi-first-name','wi-last-name','wi-document-id','wi-company','wi-person'].forEach(id => {
+          const el = document.getElementById(id); if (el) el.value = '';
+        });
+        document.getElementById('wi-document-type').value = '';
+
+        // Popola motivi visita (riusa CONFIG)
+        const reasonSel = document.getElementById('wi-reason');
+        if (reasonSel && reasonSel.options.length === 0) {
+          CONFIG.visitReasons.forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.value; opt.textContent = r.label;
+            reasonSel.appendChild(opt);
+          });
+        }
+        if (reasonSel) reasonSel.value = '';
+
+        // Popola dropdown badge
+        const badgeSel = document.getElementById('wi-badge-select');
+        badgeSel.innerHTML = '';
+        available.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = JSON.stringify({ pool_id: p.id, badge: p.badge_number, xatlas_user_id: p.xatlas_user_id });
+          opt.textContent = `Badge ${p.badge_number}`;
+          badgeSel.appendChild(opt);
+        });
+
+        document.getElementById('walkin-modal').classList.add('active');
+      } catch (err) {
+        alert('Errore caricamento pool: ' + err.message);
+      }
+    }
+
+    async function saveWalkIn() {
+      const fn = document.getElementById('wi-first-name').value.trim();
+      const ln = document.getElementById('wi-last-name').value.trim();
+      const docType = document.getElementById('wi-document-type').value;
+      const docId   = document.getElementById('wi-document-id').value.trim();
+      if (!fn || !ln || !docType || !docId) {
+        alert('Compila Nome, Cognome, Tipo documento, Numero documento (obbligatori).');
+        return;
+      }
+      const badgeSel = document.getElementById('wi-badge-select');
+      if (!badgeSel.value) { alert('Nessun badge selezionato.'); return; }
+      let badgeData;
+      try { badgeData = JSON.parse(badgeSel.value); } catch (_) { alert('Selezione badge non valida.'); return; }
+
+      const saveBtn = document.querySelector('#walkin-modal .btn-save');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Salvataggio...';
+
+      const today = new Date().toISOString().split('T')[0];
+      const visitorPayload = {
+        first_name:      fn,
+        last_name:       ln,
+        company:         document.getElementById('wi-company').value.trim() || null,
+        person_to_visit: document.getElementById('wi-person').value.trim() || null,
+        visit_reason:    document.getElementById('wi-reason').value || 'Visita',
+        document_type:   docType,
+        document_id:     docId,
+        visit_date:      today,
+        badge_number:    badgeData.badge,
+        xatlas_user_id:  badgeData.xatlas_user_id,
+        xatlas_status:   'active',
+        event_id:        activeEvent.id,
+        event_name:      activeEvent.name,
+        event_date:      activeEvent.event_start_date,
+        data_consent:    true,
+        badge_agreement: true,
+        signature:       null
+      };
+
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/visitors`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify(visitorPayload)
+        });
+        if (!res || !res.ok) {
+          const b = res ? await res.json().catch(()=>({})) : {};
+          throw new Error(parseBadgeError(b, res?.status, badgeData.badge));
+        }
+        const created = await res.json();
+        const visitorId = Array.isArray(created) ? created[0].id : created.id;
+
+        // Aggiorna pool entry: status=in_use, visitor_id, assigned_at
+        await api(`${SUPABASE_URL}/rest/v1/badge_pool?id=eq.${badgeData.pool_id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            status: 'in_use',
+            visitor_id: visitorId,
+            assigned_at: new Date().toISOString()
+          })
+        });
+
+        closeModal();
+        loadData();
+        alert(`✓ Walk-in registrato. Consegna il badge ${badgeData.badge} al visitatore.`);
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Registra e consegna badge';
+      }
     }
 
     function renderGuestTable(data, arrivedSet) {
