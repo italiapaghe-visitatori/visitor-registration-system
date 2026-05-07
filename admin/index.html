@@ -636,13 +636,16 @@
     .filter-group select {
       background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
       background-repeat: no-repeat;
-      background-position: right 8px center;
+      background-position: right 10px center;
       background-size: 18px;
-      padding-right: 30px;
+      padding-right: 34px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
     }
 
     .filter-group input:focus,
-    .filter-group select:focus { outline: none; border-color: #667eea; background: #fff; }
+    .filter-group select:focus { outline: none; border-color: #667eea; background-color: #fff; }
 
     .filter-actions { display: flex; gap: 8px; align-items: flex-end; }
 
@@ -879,11 +882,18 @@
     .modal-field select,
     .modal-field textarea {
       width: 100%; height: 46px; border: 2px solid #e8ecf4; border-radius: 8px;
-      padding: 0 13px; font-size: 15px; color: #2d3748; background: #fafbfd;
+      padding: 0 13px; font-size: 15px; color: #2d3748; background-color: #fafbfd;
       transition: border-color 0.18s; -webkit-appearance: none; appearance: none; font-family: inherit;
     }
+    .modal-field select {
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 18px;
+      padding-right: 34px;
+    }
     .modal-field textarea { height: 80px; padding: 10px 13px; resize: vertical; }
-    .modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus { outline: none; border-color: #667eea; background: #fff; }
+    .modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus { outline: none; border-color: #667eea; background-color: #fff; }
     .modal-field input[readonly], .modal-field textarea[readonly] { background: #f7fafc; color: #718096; cursor: default; }
     .modal-field input[readonly]:focus, .modal-field textarea[readonly]:focus { border-color: #e8ecf4; }
 
