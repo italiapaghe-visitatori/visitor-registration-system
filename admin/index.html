@@ -747,6 +747,107 @@
     }
     .btn-conclude:hover { box-shadow: 0 3px 10px rgba(49,130,206,0.55); }
 
+    /* ── ICON BUTTONS COMPATTI (azioni riga tabella) ── */
+    .action-row { display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; }
+    .btn-icon {
+      width: 32px; height: 32px;
+      border-radius: 7px;
+      border: 1.5px solid transparent;
+      background: #fff;
+      cursor: pointer;
+      font-size: 15px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: all 0.15s;
+    }
+    .btn-icon:hover { transform: translateY(-1px); }
+    .btn-details-icon  { border-color: #667eea; color: #667eea; }
+    .btn-details-icon:hover  { background: #eef2ff; }
+    .btn-delete-icon   { border-color: #fc8181; color: #e53e3e; }
+    .btn-delete-icon:hover   { background: #fff5f5; border-color: #e53e3e; }
+    .btn-conclude-icon { border-color: #4299e1; color: #fff; background: linear-gradient(135deg, #4299e1, #3182ce); box-shadow: 0 2px 5px rgba(49,130,206,0.4); }
+    .btn-conclude-icon:hover { box-shadow: 0 3px 9px rgba(49,130,206,0.55); }
+    /* btn-badge-assign è già definito sopra; qui solo override per quando appare singolo */
+
+    /* ── CELLE COMPATTE TABELLA VISITATORI ── */
+    .visitor-name { line-height: 1.3; min-width: 130px; }
+    .visitor-name strong { display: block; font-size: 13px; }
+
+    .doc-cell {
+      font-size: 12px;
+      line-height: 1.35;
+      min-width: 110px;
+    }
+    .doc-cell .doc-type {
+      display: inline-block;
+      background: #edf2f7;
+      color: #2c5282;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      margin-right: 4px;
+    }
+    .doc-cell strong {
+      font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+      font-size: 12.5px;
+      color: #2d3748;
+    }
+
+    .orari-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .orari-cell .o-in  { color: #276749; font-weight: 700; }
+    .orari-cell .o-out { color: #c05621; font-weight: 700; }
+    .orari-cell .o-arrow { color: #cbd5e0; }
+
+    .visit-detail { line-height: 1.4; }
+    .visit-detail .person-sub {
+      display: block;
+      color: #718096;
+      font-size: 11px;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+    }
+
+    .badge-cell { line-height: 1.3; }
+    .badge-cell strong {
+      font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+      font-size: 13px;
+    }
+    .badge-cell .badge-status {
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      margin-top: 1px;
+    }
+    .badge-status-pending     { color: #c05621; }
+    .badge-status-active      { color: #276749; }
+    .badge-status-checked_out { color: #4a5568; }
+
+    .empty-dash { color: #cbd5e0; }
+
+    /* Tabella più compatta (no padding eccessivo) */
+    .table-scroll table td, .table-scroll table th {
+      padding: 9px 10px;
+      font-size: 13px;
+    }
+    .table-scroll table th { font-size: 11px; }
+
     /* ── MODAL ── */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
@@ -1475,19 +1576,15 @@
           <table>
             <thead>
               <tr>
-                <th onclick="sortBy('first_name')">Nome</th>
-                <th onclick="sortBy('last_name')">Cognome</th>
+                <th onclick="sortBy('last_name')">Visitatore</th>
                 <th class="no-sort">Azienda</th>
+                <th class="no-sort">📄 Documento</th>
                 <th onclick="sortBy('visit_date')">Data</th>
-                <th onclick="sortBy('entry_time')" class="no-sort">Ingresso</th>
-                <th class="no-sort">Uscita</th>
-                <th class="no-sort">Persona da Visitare</th>
-                <th class="no-sort">Motivo</th>
+                <th class="no-sort">Orari</th>
+                <th class="no-sort">Motivo / Persona</th>
                 <th class="no-sort">🎫 Evento</th>
                 <th class="no-sort">Tipo</th>
-                <th class="no-sort">Stato Badge</th>
-                <th class="no-sort">Firma</th>
-                <th class="no-sort">Consenso</th>
+                <th class="no-sort">Badge</th>
                 <th class="no-sort">Azioni</th>
               </tr>
             </thead>
@@ -1904,13 +2001,7 @@
       data.forEach(row => {
         const tr = document.createElement('tr');
 
-        const sigSrc  = safeImgSrc(row.signature);
-        const sigHtml = sigSrc ? `<div class="sig-cell"><img src="${sigSrc}" alt="Firma"></div>` : '—';
-        const consentHtml = row.data_consent
-          ? '<span class="consent-yes">&#10003; S&igrave;</span>'
-          : '<span class="consent-no">&#10007; No</span>';
-
-        // TIPO visita: Atteso/Walk-in indicano la fonte; "Concluso" se uscito
+        // TIPO visita
         let gTypeHtml;
         if (row.xatlas_status === 'checked_out') {
           gTypeHtml = '<span class="gtype gtype-concluso">Concluso</span>';
@@ -1920,41 +2011,61 @@
           gTypeHtml = '<span class="gtype gtype-walkin">Walk-in</span>';
         }
 
-        const xstatusHtml = renderXatlasStatus(row);
-
         const canAssign = !row.xatlas_status;
         const assignBtn = canAssign
-          ? `<button type="button" class="btn-badge-assign" data-id="${esc(row.id)}" onclick="openBadgeModal(this)">Associa Badge</button>`
+          ? `<button type="button" class="btn-badge-assign" data-id="${esc(row.id)}" onclick="openBadgeModal(this)" title="Associa badge">🎟️</button>`
           : '';
-        // "Concludi visita": solo se evento attivo + visitor.event_id valorizzato + status='active' (badge in uso, non già checked_out)
         const canConclude = row.xatlas_status === 'active' && row.event_id;
         const concludeBtn = canConclude
-          ? `<button type="button" class="btn-conclude" data-id="${esc(row.id)}" onclick="concludeVisitor(this)" title="Termina la visita: archivia, libera badge">⏹ Concludi</button>`
+          ? `<button type="button" class="btn-icon btn-conclude-icon" data-id="${esc(row.id)}" onclick="concludeVisitor(this)" title="Concludi visita (archivia + libera badge)">⏹</button>`
           : '';
 
         const eventHtml = row.event_name
           ? `<span class="event-chip" title="${esc(row.event_name)}${row.event_date ? ' — ' + fmtItDate(row.event_date) : ''}">🎫 ${esc(row.event_name)}</span>`
-          : '<span style="color:#a0aec0">—</span>';
+          : '<span class="empty-dash">—</span>';
+
+        // Documento — molto visibile per controllo al desk
+        const docHtml = row.document_id
+          ? `<div class="doc-cell"><span class="doc-type">${esc(row.document_type || 'DOC')}</span> <strong>${esc(row.document_id)}</strong></div>`
+          : '<span class="empty-dash">—</span>';
+
+        // Visitatore: cognome + nome bold (compatto in 1 cella)
+        const visitatoreHtml = `<div class="visitor-name"><strong>${esc(row.last_name)}</strong> ${esc(row.first_name)}</div>`;
+
+        // Orari: ingresso → uscita compatto
+        const entryTxt = row.entry_time ? esc(row.entry_time.slice(0,5)) : '—';
+        const exitTxt  = row.exit_time  ? esc(row.exit_time.slice(0,5))  : '—';
+        const orariHtml = `<div class="orari-cell"><span class="o-in">${entryTxt}</span><span class="o-arrow">→</span><span class="o-out">${exitTxt}</span></div>`;
+
+        // Motivo + persona da visitare combinati: motivo come chip principale, persona sotto in piccolo
+        const visitDetailsHtml = `
+          <div class="visit-detail">
+            <span class="badge ${badgeClass(row.visit_reason)}">${esc(row.visit_reason)}</span>
+            ${row.person_to_visit ? `<small class="person-sub">${esc(row.person_to_visit)}</small>` : ''}
+          </div>`;
+
+        // Badge: numero + chip stato compatto sotto
+        const badgeHtml = row.badge_number
+          ? `<div class="badge-cell"><strong>${esc(row.badge_number)}</strong>${row.xatlas_status ? `<small class="badge-status badge-status-${row.xatlas_status}">${row.xatlas_status}</small>` : ''}</div>`
+          : '<span class="empty-dash">—</span>';
 
         tr.innerHTML = `
-          <td><strong>${esc(row.first_name)}</strong></td>
-          <td><strong>${esc(row.last_name)}</strong></td>
-          <td>${esc(row.company) || '—'}</td>
-          <td>${row.visit_date ? esc(row.visit_date) : '<span style="color:#a0aec0">tornello</span>'}</td>
-          <td>${row.entry_time ? esc(row.entry_time.slice(0,5)) : '<span style="color:#a0aec0">—</span>'}</td>
-          <td>${row.exit_time  ? esc(row.exit_time.slice(0,5))  : '<span style="color:#a0aec0">—</span>'}</td>
-          <td>${esc(row.person_to_visit) || '—'}</td>
-          <td><span class="badge ${badgeClass(row.visit_reason)}">${esc(row.visit_reason)}</span></td>
+          <td>${visitatoreHtml}</td>
+          <td>${esc(row.company) || '<span class="empty-dash">—</span>'}</td>
+          <td>${docHtml}</td>
+          <td>${row.visit_date ? esc(row.visit_date) : '<span class="empty-dash">tornello</span>'}</td>
+          <td>${orariHtml}</td>
+          <td>${visitDetailsHtml}</td>
           <td>${eventHtml}</td>
           <td>${gTypeHtml}</td>
-          <td>${xstatusHtml}</td>
-          <td>${sigHtml}</td>
-          <td style="text-align:center;">${consentHtml}</td>
+          <td>${badgeHtml}</td>
           <td>
-            ${assignBtn}
-            ${concludeBtn}
-            <button type="button" class="btn-details" data-id="${esc(row.id)}" onclick="openDetailsModal(this)">Dettagli</button>
-            <button type="button" class="btn-delete"  data-id="${esc(row.id)}" onclick="deleteRecord(this)">Elimina</button>
+            <div class="action-row">
+              ${assignBtn}
+              ${concludeBtn}
+              <button type="button" class="btn-icon btn-details-icon" data-id="${esc(row.id)}" onclick="openDetailsModal(this)" title="Dettagli (doc completo, firma, storico timbrature)">ℹ️</button>
+              <button type="button" class="btn-icon btn-delete-icon" data-id="${esc(row.id)}" onclick="deleteRecord(this)" title="Elimina record">🗑</button>
+            </div>
           </td>
         `;
         tbody.appendChild(tr);
