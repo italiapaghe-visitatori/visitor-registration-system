@@ -1473,7 +1473,7 @@
       <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')">🎫 Eventi</button>
       <button type="button" class="btn btn-light" onclick="document.getElementById('users-modal').classList.add('active')">Utenti</button>
       <button type="button" class="btn btn-light" onclick="exportCSV()">Esporta CSV</button>
-      <button type="button" class="btn btn-light" onclick="loadData()">Aggiorna</button>
+      <button type="button" class="btn btn-light" onclick="refreshCurrentView()" title="Ricarica dati della tab attiva">🔄 Aggiorna</button>
       <button type="button" class="btn btn-danger" onclick="logout()">Esci</button>
     </div>
   </div>
@@ -1834,6 +1834,17 @@
       localStorage.removeItem('sb-access-token');
       localStorage.removeItem('sb-refresh-token');
       window.location.href = 'login.html';
+    }
+
+    // ── REFRESH UNIVERSALE (tasto "Aggiorna" in header) ───
+    // Ricarica i dati della view corrente + cose globali (banner evento, agente, dropdown filtro evento)
+    function refreshCurrentView() {
+      if (currentView === 'visitors')      loadData();
+      else if (currentView === 'guests')   loadGuestList();
+      else if (currentView === 'events')   loadEvents();
+      refreshAgentStatus();
+      refreshActiveEventBanner();
+      populateEventFilter();
     }
 
     // ── VIEW SWITCH ───────────────────────────────────
