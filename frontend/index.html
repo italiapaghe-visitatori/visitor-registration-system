@@ -807,13 +807,46 @@
       opacity: 0.95;
     }
     #qr-success .desk-cta {
-      margin-top: 32px;
+      margin-top: 18px;
       background: rgba(255,255,255,0.2);
       border: 2px solid rgba(255,255,255,0.5);
       padding: 16px 26px;
       border-radius: 14px;
       font-weight: 700;
       font-size: 16px;
+    }
+    #qr-success .event-info-box,
+    #qr-invalid .event-info-box {
+      margin-top: 22px;
+      background: rgba(255,255,255,0.15);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      border-radius: 12px;
+      padding: 14px 18px;
+      max-width: 360px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .event-info-row {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.18);
+      text-align: left;
+    }
+    .event-info-row:last-child { border-bottom: none; }
+    .event-info-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      opacity: 0.85;
+    }
+    .event-info-row strong {
+      font-size: 14.5px;
+      font-weight: 700;
+      line-height: 1.3;
+      word-break: break-word;
     }
 
     /* Schermata QR non valido (arancione/rosso) */
@@ -1156,7 +1189,7 @@
           </div>
           <div class="form-group" id="document-id-group">
             <label for="document_id">Numero Documento <span class="req">*</span></label>
-            <input type="text" id="document_id" name="document_id" autocomplete="off" placeholder="Es. AB1234567" inputmode="text">
+            <input type="text" id="document_id" name="document_id" autocomplete="off" placeholder="Es. AB1234567" inputmode="text" oninput="this.value = this.value.toUpperCase()" style="text-transform: uppercase;">
           </div>
         </div>
 
@@ -1474,11 +1507,18 @@
     function setLockoutFlag(visitorId) {
       if (!IS_QR_MODE || !QR_EVENT_ID) return;
       try {
-        localStorage.setItem('vrs_qr_registered_' + QR_EVENT_ID, JSON.stringify({
-          visitor_id: visitorId || null,
-          signed_at:  new Date().toISOString(),
-          event_id:   QR_EVENT_ID
-        }));
+        const payload = {
+          visitor_id:  visitorId || null,
+          signed_at:   new Date().toISOString(),
+          event_id:    QR_EVENT_ID,
+        };
+        // Snapshot evento per riprodurlo nella schermata "già registrato"
+        if (CURRENT_EVENT) {
+          payload.event_name        = CURRENT_EVENT.name;
+          payload.event_start_date  = CURRENT_EVENT.event_start_date;
+          payload.event_end_date    = CURRENT_EVENT.event_end_date;
+        }
+        localStorage.setItem('vrs_qr_registered_' + QR_EVENT_ID, JSON.stringify(payload));
       } catch (_) { /* localStorage disabled / quota */ }
     }
 
@@ -1521,12 +1561,64 @@
       return `${d}/${m}/${y}`;
     }
 
+    function fmtItDateLite(iso) {
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    function fmtItDateTime(iso) {
+      if (!iso) return '';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      } catch (_) { return iso; }
+    }
+
+    function buildEventInfoHtml(event, signedAtIso) {
+      // Costruisce il blocco "Evento: X · Data: Y · Orario: Z" da mostrare nel success/already
+      if (!event && !signedAtIso) return '';
+      const parts = [];
+      if (event && event.name) {
+        parts.push(`<div class="event-info-row"><span class="event-info-label">📌 Evento</span><strong>${event.name}</strong></div>`);
+      }
+      if (event && (event.event_start_date || event.start_date)) {
+        const s = event.event_start_date || event.start_date;
+        const e = event.event_end_date   || event.end_date;
+        const dateStr = (e && e !== s) ? `dal ${fmtItDateLite(s)} al ${fmtItDateLite(e)}` : fmtItDateLite(s);
+        parts.push(`<div class="event-info-row"><span class="event-info-label">📅 Data evento</span><strong>${dateStr}</strong></div>`);
+      }
+      if (signedAtIso) {
+        parts.push(`<div class="event-info-row"><span class="event-info-label">🕒 Registrato il</span><strong>${fmtItDateTime(signedAtIso)}</strong></div>`);
+      }
+      return parts.length ? `<div class="event-info-box">${parts.join('')}</div>` : '';
+    }
+
+    function injectEventInfo(parentSelector, event, signedAtIso) {
+      const parent = document.querySelector(parentSelector);
+      if (!parent) return;
+      // Rimuovi info precedente se presente
+      const old = parent.querySelector('.event-info-box');
+      if (old) old.remove();
+      const html = buildEventInfoHtml(event, signedAtIso);
+      if (!html) return;
+      // Inserisci subito dopo <p> e prima di .desk-cta
+      const cta = parent.querySelector('.desk-cta');
+      if (cta) cta.insertAdjacentHTML('beforebegin', html);
+      else parent.insertAdjacentHTML('beforeend', html);
+    }
+
     function showQrAlreadyRegistered(data) {
       const el = document.getElementById('qr-success');
       if (!el) return;
       el.querySelector('h1').textContent = 'Registrazione già effettuata';
       el.querySelector('p').textContent  = 'Hai già completato la registrazione per questo evento.';
       el.querySelector('.desk-cta').textContent = '📍 Recarsi al desk per il ritiro del badge il giorno dell\'evento';
+      // Inietta info evento + orario di firma
+      const evt = (data && (data.event_name || data.event_start_date))
+        ? { name: data.event_name, event_start_date: data.event_start_date, event_end_date: data.event_end_date }
+        : CURRENT_EVENT;
+      injectEventInfo('#qr-success', evt, data && data.signed_at ? data.signed_at : null);
       el.classList.add('active');
       hideKioskUI();
     }
@@ -1618,21 +1710,22 @@
 
     (async function bootstrap() {
       if (IS_QR_MODE) {
-        // 1. Lock-out localStorage: se questo device ha già firmato, mostra schermata e stop
-        if (lockoutCheckLocalStorage()) return;
-        // 2. Se manca event_id nel querystring → QR non valido
+        // 1. Se manca event_id nel querystring → QR non valido
         if (!QR_EVENT_ID) {
           showQrInvalidScreen('missing_event', 'Questo QR non è completo. Richiedi un QR aggiornato alla reception.');
           return;
         }
-        // 3. Carica evento e valida range date
+        // 2. Carica evento (anche se poi mostriamo "già registrato" servono name/date per il messaggio)
         CURRENT_EVENT = await loadEventForQr();
+        // 3. Lock-out localStorage: se questo device ha già firmato, mostra schermata con info evento
+        if (lockoutCheckLocalStorage()) return;
+        // 4. Valida range date evento
         const validity = checkQrValidity(CURRENT_EVENT);
         if (!validity.valid) {
           showQrInvalidScreen(validity.reason, validity.message);
           return;
         }
-        // 4. Tutto OK → carica lista ospiti normalmente
+        // 5. Tutto OK → carica lista ospiti normalmente
       } else {
         // KIOSK MODE: se c'è un evento attivo, lo usiamo per taggare le nuove registrazioni
         CURRENT_EVENT = await loadActiveEventForKiosk();
@@ -1920,7 +2013,7 @@
         person_to_visit:  document.getElementById('person_to_visit').value.trim() || null,
         visit_reason:     document.getElementById('visit_reason').value,
         document_type:    document.getElementById('document_type').value || null,
-        document_id:      document.getElementById('document_id').value.trim() || null,
+        document_id:      document.getElementById('document_id').value.trim().toUpperCase() || null,
         department:       document.getElementById('department').value.trim() || null,
         vehicle_plate:    document.getElementById('vehicle_plate').value.trim().toUpperCase() || null,
         data_consent:     consentEl.checked,
@@ -2034,10 +2127,11 @@
       // Nasconde messaggi inline residui e mostra l'overlay verde a tutto schermo.
       const m = document.getElementById('message');
       if (m) m.style.display = 'none';
+      // Inietta info evento + orario corrente di firma
+      injectEventInfo('#qr-success', CURRENT_EVENT, new Date().toISOString());
       document.getElementById('qr-success').classList.add('active');
       // Ferma eventuali screensaver/timer
       if (typeof ssTimer !== 'undefined') clearTimeout(ssTimer);
-      // Scroll in cima per garantire visibilità su mobile
       window.scrollTo(0, 0);
     }
 

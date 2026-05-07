@@ -1070,7 +1070,7 @@
           </div>
           <div class="modal-field">
             <label>Numero documento</label>
-            <input type="text" id="det-document-id" placeholder="Es. AB1234567" autocomplete="off">
+            <input type="text" id="det-document-id" placeholder="Es. AB1234567" autocomplete="off" oninput="this.value = this.value.toUpperCase()" style="text-transform: uppercase;">
           </div>
         </div>
       </div>
@@ -1347,7 +1347,7 @@
             </div>
             <div class="modal-field">
               <label>Numero documento <span class="req">*</span></label>
-              <input type="text" id="wi-document-id" autocomplete="off" placeholder="Es. AB1234567">
+              <input type="text" id="wi-document-id" autocomplete="off" placeholder="Es. AB1234567" oninput="this.value = this.value.toUpperCase()" style="text-transform: uppercase;">
             </div>
           </div>
           <div class="modal-row-2">
@@ -2321,7 +2321,7 @@
         person_to_visit: document.getElementById('det-person').value.trim() || null,
         visit_reason:    document.getElementById('det-reason').value.trim() || null,
         document_type:   document.getElementById('det-document-type').value || null,
-        document_id:     document.getElementById('det-document-id').value.trim() || null,
+        document_id:     document.getElementById('det-document-id').value.trim().toUpperCase() || null,
       };
 
       try {
@@ -3081,7 +3081,7 @@
       const fn = document.getElementById('wi-first-name').value.trim();
       const ln = document.getElementById('wi-last-name').value.trim();
       const docType = document.getElementById('wi-document-type').value;
-      const docId   = document.getElementById('wi-document-id').value.trim();
+      const docId   = document.getElementById('wi-document-id').value.trim().toUpperCase();
       if (!fn || !ln || !docType || !docId) {
         alert('Compila Nome, Cognome, Tipo documento, Numero documento (obbligatori).');
         return;
