@@ -934,6 +934,32 @@
     thead th.no-sort { cursor: default; }
     thead th.no-sort:hover { background: #f7f9fc; }
 
+    /* Header sortable: indicatore freccia + hover più marcato sull'header attivo */
+    thead th.th-sort {
+      cursor: pointer;
+      position: relative;
+      padding-right: 22px;
+      transition: color 0.15s, background 0.15s;
+    }
+    thead th.th-sort::after {
+      content: '⇅';
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      opacity: 0.35;
+      transition: opacity 0.15s;
+    }
+    thead th.th-sort:hover { color: #4c51bf; }
+    thead th.th-sort:hover::after { opacity: 0.65; }
+    thead th.th-sort-asc, thead th.th-sort-desc {
+      color: #4c51bf;
+      background: #ebf4ff;
+    }
+    thead th.th-sort-asc::after  { content: '▲'; opacity: 1; }
+    thead th.th-sort-desc::after { content: '▼'; opacity: 1; }
+
     tbody td { padding: 12px 14px; border-bottom: 1px solid #f0f2f5; font-size: 13px; color: #2d3748; vertical-align: middle; }
     tbody tr:hover { background: #fafbff; }
     tbody tr:last-child td { border-bottom: none; }
@@ -1968,15 +1994,15 @@
           <table>
             <thead>
               <tr>
-                <th onclick="sortBy('last_name')">Visitatore</th>
-                <th class="no-sort">Azienda</th>
-                <th class="no-sort">📄 Documento</th>
-                <th onclick="sortBy('visit_date')">Data</th>
-                <th class="no-sort">Orari</th>
-                <th class="no-sort">Motivo / Persona</th>
-                <th class="no-sort">🎫 Evento</th>
-                <th class="no-sort">Tipo</th>
-                <th class="no-sort">Badge</th>
+                <th class="th-sort" data-col="last_name"  onclick="sortBy('last_name')">Visitatore</th>
+                <th class="th-sort" data-col="company"    onclick="sortBy('company')">Azienda</th>
+                <th class="th-sort" data-col="document_id" onclick="sortBy('document_id')">📄 Documento</th>
+                <th class="th-sort" data-col="visit_date" onclick="sortBy('visit_date')">Data</th>
+                <th class="th-sort" data-col="entry_time" onclick="sortBy('entry_time')">Orari</th>
+                <th class="th-sort" data-col="visit_reason" onclick="sortBy('visit_reason')">Motivo / Persona</th>
+                <th class="th-sort" data-col="event_name" onclick="sortBy('event_name')">🎫 Evento</th>
+                <th class="th-sort" data-col="xatlas_status" onclick="sortBy('xatlas_status')">Tipo</th>
+                <th class="th-sort" data-col="badge_number" onclick="sortBy('badge_number')">Badge</th>
                 <th class="no-sort">Azioni</th>
               </tr>
             </thead>
@@ -2050,13 +2076,13 @@
           <table>
             <thead>
               <tr>
-                <th class="no-sort">Nome</th>
-                <th class="no-sort">Cognome</th>
-                <th class="no-sort">Email</th>
-                <th class="no-sort">Azienda</th>
-                <th class="no-sort">Data Prevista</th>
-                <th class="no-sort">Persona da Visitare</th>
-                <th class="no-sort">Motivo</th>
+                <th class="th-sort" data-col="first_name"      onclick="sortGuestsBy('first_name')">Nome</th>
+                <th class="th-sort" data-col="last_name"       onclick="sortGuestsBy('last_name')">Cognome</th>
+                <th class="th-sort" data-col="email"           onclick="sortGuestsBy('email')">Email</th>
+                <th class="th-sort" data-col="company"         onclick="sortGuestsBy('company')">Azienda</th>
+                <th class="th-sort" data-col="expected_date"   onclick="sortGuestsBy('expected_date')">Data Prevista</th>
+                <th class="th-sort" data-col="person_to_visit" onclick="sortGuestsBy('person_to_visit')">Persona da Visitare</th>
+                <th class="th-sort" data-col="visit_reason"    onclick="sortGuestsBy('visit_reason')">Motivo</th>
                 <th class="no-sort">📧 QR</th>
                 <th class="no-sort">Stato</th>
                 <th class="no-sort">Azioni</th>
@@ -2109,10 +2135,10 @@
           <table>
             <thead>
               <tr>
-                <th>Nome</th>
-                <th>Periodo</th>
-                <th>QR attivo dal</th>
-                <th>Stato</th>
+                <th class="th-sort" data-col="name"             onclick="sortEventsBy('name')">Nome</th>
+                <th class="th-sort" data-col="event_start_date" onclick="sortEventsBy('event_start_date')">Periodo</th>
+                <th class="th-sort" data-col="qr_valid_from"    onclick="sortEventsBy('qr_valid_from')">QR attivo dal</th>
+                <th class="th-sort" data-col="is_active"        onclick="sortEventsBy('is_active')">Stato</th>
                 <th class="no-sort">Azioni</th>
               </tr>
             </thead>
@@ -2563,6 +2589,66 @@
       currentPage = 0;
       loadData();
     }
+
+    // Sorting client-side per Ospiti Attesi (lavora sull'array già caricato in guestData)
+    let guestSortCol = 'last_name';
+    let guestSortDir = 'asc';
+    function sortGuestsBy(col) {
+      guestSortDir = (guestSortCol === col && guestSortDir === 'asc') ? 'desc' : 'asc';
+      guestSortCol = col;
+      const sorted = [...guestData].sort((a, b) => compareForSort(a[col], b[col], guestSortDir));
+      renderGuestTable(sorted, arrivedSet);
+      updateSortIndicators('#view-guests', guestSortCol, guestSortDir);
+    }
+
+    // Sorting client-side per Eventi (eventsData già in memoria)
+    let eventSortCol = 'event_start_date';
+    let eventSortDir = 'desc';
+    function sortEventsBy(col) {
+      eventSortDir = (eventSortCol === col && eventSortDir === 'asc') ? 'desc' : 'asc';
+      eventSortCol = col;
+      eventsData.sort((a, b) => compareForSort(a[col], b[col], eventSortDir));
+      renderEvents();
+      updateSortIndicators('#view-events', eventSortCol, eventSortDir);
+    }
+
+    function compareForSort(a, b, dir) {
+      // Null/undefined vanno in fondo
+      if (a == null && b == null) return 0;
+      if (a == null) return dir === 'asc' ? 1 : -1;
+      if (b == null) return dir === 'asc' ? -1 : 1;
+      // Numeri o date ISO
+      if (typeof a === 'number' && typeof b === 'number') return dir === 'asc' ? a - b : b - a;
+      // Booleani: true prima
+      if (typeof a === 'boolean' && typeof b === 'boolean') {
+        if (a === b) return 0;
+        return dir === 'asc' ? (a ? -1 : 1) : (a ? 1 : -1);
+      }
+      // Default: stringa case-insensitive
+      const sa = String(a).toLowerCase();
+      const sb = String(b).toLowerCase();
+      const cmp = sa.localeCompare(sb, 'it');
+      return dir === 'asc' ? cmp : -cmp;
+    }
+
+    // Aggiorna l'indicatore visivo (▲/▼) sull'header attivo
+    function updateSortIndicators(rootSelector, col, dir) {
+      const root = document.querySelector(rootSelector);
+      if (!root) return;
+      root.querySelectorAll('th.th-sort').forEach(th => {
+        th.classList.remove('th-sort-asc', 'th-sort-desc');
+        if (th.dataset.col === col) {
+          th.classList.add(dir === 'asc' ? 'th-sort-asc' : 'th-sort-desc');
+        }
+      });
+    }
+
+    // Hook: dopo loadData (Visitatori) aggiorna anche l'indicatore
+    const _origLoadData = loadData;
+    loadData = async function() {
+      await _origLoadData.apply(this, arguments);
+      updateSortIndicators('#view-visitors', sortCol, sortDir);
+    };
 
     function nextPage() { currentPage++; loadData(); }
     function prevPage() { if (currentPage > 0) { currentPage--; loadData(); } }
