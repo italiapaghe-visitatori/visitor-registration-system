@@ -363,6 +363,35 @@
       box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
     }
 
+    /* ── EMAIL QR (tab Ospiti Attesi) ── */
+    .email-status {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+    .email-status-sent     { background: #c6f6d5; color: #22543d; }
+    .email-status-pending  { background: #fefcbf; color: #744210; }
+    .email-status-failed   { background: #fed7d7; color: #742a2a; cursor: help; }
+    .email-status-done     { color: #cbd5e0; }
+    .btn-email-send {
+      background: linear-gradient(135deg, #38b2ac 0%, #319795 100%);
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(49,151,149,0.3);
+    }
+    .btn-email-send:hover { box-shadow: 0 3px 10px rgba(49,151,149,0.45); transform: translateY(-1px); }
+
     /* Aggiungi ospite: checkbox "associa a evento" */
     .ag-event-checkbox {
       display: flex;
@@ -1533,6 +1562,27 @@
     </div>
   </div>
 
+  <!-- MODALE EMAIL MANCANTE -->
+  <div class="modal-overlay" id="missing-email-modal">
+    <div class="modal">
+      <h2>📧 Email mancante</h2>
+      <p class="modal-sub" id="missing-email-name">—</p>
+      <div class="modal-info-box">
+        Per inviare il QR personale serve l'email del visitatore. Inseriscila qui sotto e poi invia.
+      </div>
+      <div class="modal-fields">
+        <div class="modal-field">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" id="missing-email-input" placeholder="esempio@azienda.com" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-save" onclick="saveMissingEmailAndSend()">Salva e invia QR</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODALE COMPILA BADGE: griglia editabile per assegnare badge agli ospiti senza usare Excel -->
   <div class="modal-overlay" id="fill-badges-modal">
     <div class="modal modal-wide" id="fill-badges-modal-content">
@@ -1845,6 +1895,7 @@
           <button type="button" class="btn btn-primary" onclick="openFillBadgesModal()" title="Griglia editabile per assegnare badge ai nominativi importati senza usare Excel">📝 Compila Badge</button>
           <button type="button" class="btn btn-primary" onclick="startBulkPreAssign()" title="Pre-assegna badge a tutti gli ospiti senza badge">⚡ Pre-assegna Lista</button>
           <button type="button" class="btn btn-secondary" onclick="openMiniLabelsModal()" title="Stampa miniature da incollare sui badge fisici dei pre-assegnati">🏷️ Stampa miniature</button>
+          <button type="button" class="btn btn-success" onclick="bulkSendQrEmail()" title="Invia QR personale via email a tutti gli ospiti dell'evento attivo">📧 Invia QR a tutti</button>
           <button type="button" class="btn btn-qr-event" onclick="openQrModal()" title="Genera QR per registrazione self-service da mobile">
             <span class="btn-qr-icon">📱</span>
             <span class="btn-qr-label">Genera QR Evento</span>
@@ -1868,6 +1919,7 @@
                 <th class="no-sort">Data Prevista</th>
                 <th class="no-sort">Persona da Visitare</th>
                 <th class="no-sort">Motivo</th>
+                <th class="no-sort">📧 QR</th>
                 <th class="no-sort">Stato</th>
                 <th class="no-sort">Azioni</th>
               </tr>
@@ -2706,6 +2758,7 @@
     let guestData      = [];
     let arrivedSet     = new Set();   // ospiti già arrivati e firmati al kiosk
     let preAssignedMap = new Map();   // guest_id → badge_number per ospiti pre-attivati
+    let emailStatusByGuest = new Map(); // guest_id → ultimo status email_queue ('pending'/'sent'/'failed')
     let showArrived    = false;
 
     function toggleArrivedFilter() {
@@ -2751,6 +2804,17 @@
         const dentro  = guestData.filter(g => insideIds.has(g.id)).length;
         const usciti  = guestData.filter(g => outIds.has(g.id)).length;
         const attesa  = totale - dentro - usciti;
+
+        // Carica stato email_queue per ogni guest (best-effort, non blocca)
+        try {
+          const eqRes = await api(`${SUPABASE_URL}/rest/v1/email_queue?select=guest_id,status&guest_id=not.is.null&order=created_at.desc`);
+          const eqData = eqRes?.ok ? await eqRes.json() : [];
+          // Per ogni guest, prendiamo lo stato dell'ultima email (la prima nell'array sorted desc)
+          emailStatusByGuest = new Map();
+          eqData.forEach(e => {
+            if (!emailStatusByGuest.has(e.guest_id)) emailStatusByGuest.set(e.guest_id, e.status);
+          });
+        } catch (_) { emailStatusByGuest = new Map(); }
 
         renderGuestTable(guestData, arrivedSet);
 
@@ -3098,6 +3162,186 @@
       const here = window.location.href.split('?')[0].split('#')[0];
       const guess = here.replace(/\/admin\/[^/]*$/, '/frontend/').replace(/\/admin\/?$/, '/frontend/');
       return guess.endsWith('/') ? guess : guess + '/';
+    }
+
+    // ── INVIO EMAIL QR PERSONALE ────────────────────────────
+    // Costruisce URL personale per ospite specifico
+    function buildPersonalQrUrl(eventId, guestId) {
+      return `${defaultFrontendBaseUrl()}?mode=qr&event=${encodeURIComponent(eventId)}&guest=${encodeURIComponent(guestId)}`;
+    }
+
+    // Template HTML email (semplice, inline CSS per compatibilità con Outlook/Gmail)
+    function buildEmailHtml(guest, event, qrUrl) {
+      const dateRange = event.event_start_date === event.event_end_date
+        ? fmtItDate(event.event_start_date)
+        : `dal ${fmtItDate(event.event_start_date)} al ${fmtItDate(event.event_end_date)}`;
+      const safeName = `${guest.first_name || ''} ${guest.last_name || ''}`.trim();
+      const visitor = safeName || 'ospite';
+      const eventName = event.name || 'Evento';
+      return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f7fafc;color:#2d3748;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f7fafc;padding:24px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.06);">
+<tr><td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px 32px;color:#fff;">
+<h1 style="margin:0;font-size:22px;font-weight:800;">Invito alla pre-registrazione</h1>
+<p style="margin:8px 0 0;opacity:0.92;font-size:14px;">${eventName} — ${dateRange}</p>
+</td></tr>
+<tr><td style="padding:28px 32px;">
+<p style="margin:0 0 16px;font-size:16px;">Ciao <strong>${visitor}</strong>,</p>
+<p style="margin:0 0 16px;font-size:14px;line-height:1.6;">sei stato invitato a partecipare a <strong>${eventName}</strong>.</p>
+<p style="margin:0 0 24px;font-size:14px;line-height:1.6;">Per evitare attese al desk il giorno dell'evento, completa la <strong>pre-registrazione online</strong> in 1 minuto: clicca sul pulsante qui sotto, conferma firma, documento e consensi privacy. Il giorno dell'evento ti basterà passare al desk per ritirare il badge.</p>
+<table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+<tr><td style="background:linear-gradient(135deg,#48bb78 0%,#38a169 100%);border-radius:10px;padding:0;">
+<a href="${qrUrl}" style="display:inline-block;padding:14px 28px;color:#fff;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:0.3px;">📱 Pre-registrati ora</a>
+</td></tr>
+</table>
+<p style="margin:0 0 8px;font-size:12.5px;color:#718096;">Se il pulsante non funziona, copia e incolla questo link nel browser:</p>
+<p style="margin:0 0 24px;font-size:12px;color:#4a5568;word-break:break-all;background:#f7fafc;padding:10px 12px;border-radius:6px;border:1px solid #e2e8f0;">${qrUrl}</p>
+<div style="border-left:3px solid #f6ad55;padding:10px 14px;background:#fffaf0;margin-bottom:16px;font-size:13px;color:#744210;line-height:1.5;">
+<strong>⚠️ Importante:</strong> il link è personale e dedicato a te. Una volta completata la registrazione, il link mostrerà un messaggio di "Registrazione già effettuata" come ricevuta digitale.
+</div>
+<p style="margin:0;font-size:13px;color:#718096;line-height:1.5;">A presto,<br><strong>Service to Service Srl</strong></p>
+</td></tr>
+<tr><td style="background:#f7fafc;padding:14px 32px;text-align:center;font-size:11px;color:#a0aec0;">
+Questo è un messaggio automatico. Per supporto contatta la reception.
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+    }
+
+    // Invio email singolo (bottone "📧 Invia" nella riga ospite)
+    async function sendQrEmailSingle(btn) {
+      const guestId = btn?.dataset?.id;
+      if (!guestId) return;
+      const guest = guestData.find(g => g.id === guestId);
+      if (!guest) return;
+      if (!activeEvent) {
+        alert('Nessun evento attivo. Avvia un evento prima di inviare i QR.');
+        return;
+      }
+      // Email mancante? Apri modale
+      if (!guest.email || !guest.email.trim()) {
+        openMissingEmailModal(guest);
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = '...';
+      try {
+        await enqueueQrEmail(guest, activeEvent);
+        await loadGuestList();
+      } catch (err) {
+        alert('Errore invio: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = '📧 Invia';
+      }
+    }
+
+    // Invio massivo: tutti gli ospiti dell'evento attivo (non ancora arrivati, con email)
+    async function bulkSendQrEmail() {
+      if (!activeEvent) {
+        alert('Nessun evento attivo. Avvia un evento prima di inviare i QR.');
+        return;
+      }
+      // Filtra ospiti rilevanti
+      const candidates = guestData.filter(g => !arrivedSet.has(g.id));
+      const withEmail    = candidates.filter(g => g.email && g.email.trim());
+      const withoutEmail = candidates.filter(g => !g.email || !g.email.trim());
+      const alreadySent  = withEmail.filter(g => emailStatusByGuest.get(g.id) === 'sent');
+      const toSend       = withEmail.filter(g => emailStatusByGuest.get(g.id) !== 'sent');
+
+      const summary = `Invio massivo QR personali per evento "${activeEvent.name}":\n\n` +
+                      `• Ospiti totali: ${candidates.length}\n` +
+                      `• Da inviare: ${toSend.length}\n` +
+                      `• Già inviate (skip): ${alreadySent.length}\n` +
+                      `• Senza email (skip): ${withoutEmail.length}\n\n` +
+                      `Procedere con l'invio di ${toSend.length} email?`;
+      if (!confirm(summary)) return;
+
+      let ok = 0, fail = 0;
+      for (const g of toSend) {
+        try {
+          await enqueueQrEmail(g, activeEvent);
+          ok++;
+        } catch (e) { fail++; }
+      }
+      let final = `✓ ${ok} email accodate per invio.`;
+      if (fail > 0)              final += `\n⚠️ ${fail} fallite (vedi tab Eventi → audit log).`;
+      if (withoutEmail.length>0) final += `\n📧 ${withoutEmail.length} ospiti senza email — clicca "📧 Invia" sulla riga per inserirla.`;
+      alert(final);
+      loadGuestList();
+    }
+
+    // Inserisce una entry email_queue. L'agente Python la processa via SMTP.
+    async function enqueueQrEmail(guest, event) {
+      const qrUrl = buildPersonalQrUrl(event.id, guest.id);
+      const subject = `[${event.name}] Pre-registrazione visitatore — ${guest.first_name} ${guest.last_name}`;
+      const bodyHtml = buildEmailHtml(guest, event, qrUrl);
+      const payload = {
+        guest_id:    guest.id,
+        event_id:    event.id,
+        to_email:    guest.email.trim(),
+        to_name:     `${guest.first_name} ${guest.last_name}`.trim(),
+        subject:     subject,
+        body_html:   bodyHtml,
+        qr_url:      qrUrl,
+        status:      'pending',
+        created_by:  CURRENT_USER_EMAIL,
+      };
+      const res = await api(`${SUPABASE_URL}/rest/v1/email_queue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(payload)
+      });
+      if (!res || !res.ok) {
+        const b = res ? await res.json().catch(()=>({})) : {};
+        throw new Error(b.message || `HTTP ${res?.status}`);
+      }
+      auditLog('email_qr_send', 'guest_list', guest.id, { to: guest.email, event: event.name });
+    }
+
+    // Modale "Email mancante": chiede l'email all'operatore prima dell'invio
+    let missingEmailGuestId = null;
+    function openMissingEmailModal(guest) {
+      missingEmailGuestId = guest.id;
+      document.getElementById('missing-email-name').textContent =
+        `${guest.first_name} ${guest.last_name}${guest.company ? ' — ' + guest.company : ''}`;
+      document.getElementById('missing-email-input').value = '';
+      document.getElementById('missing-email-modal').classList.add('active');
+      setTimeout(() => document.getElementById('missing-email-input').focus(), 100);
+    }
+
+    async function saveMissingEmailAndSend() {
+      if (!missingEmailGuestId) return;
+      const email = document.getElementById('missing-email-input').value.trim();
+      if (!email || !email.includes('@')) { alert('Inserisci un\'email valida.'); return; }
+      const guest = guestData.find(g => g.id === missingEmailGuestId);
+      if (!guest) return;
+      if (!activeEvent) { alert('Nessun evento attivo.'); return; }
+
+      const saveBtn = document.querySelector('#missing-email-modal .btn-save');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Invio...';
+      try {
+        // 1. Salva email su guest_list
+        const upRes = await api(`${SUPABASE_URL}/rest/v1/guest_list?id=eq.${missingEmailGuestId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ email })
+        });
+        if (!upRes || !upRes.ok) throw new Error('Errore salvataggio email');
+        guest.email = email;
+        // 2. Accoda email
+        await enqueueQrEmail(guest, activeEvent);
+        closeModal();
+        loadGuestList();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Salva e invia QR';
+      }
     }
 
     // ── CONCLUDI VISITA INDIVIDUALE ──────────────────
@@ -3783,15 +4027,31 @@
 
         const dateFormatted = g.expected_date ? g.expected_date.split('-').reverse().join('/') : '—';
 
+        // Stato email
+        const emailStatus = emailStatusByGuest.get(g.id);
+        let emailHtml;
+        if (arrived) {
+          emailHtml = '<span class="email-status email-status-done" title="Già firmato">—</span>';
+        } else if (emailStatus === 'sent') {
+          emailHtml = '<span class="email-status email-status-sent" title="Email QR personale inviata">✓ Inviata</span>';
+        } else if (emailStatus === 'pending' || emailStatus === 'sending') {
+          emailHtml = '<span class="email-status email-status-pending" title="In coda di invio">⏳ In coda</span>';
+        } else if (emailStatus === 'failed') {
+          emailHtml = '<span class="email-status email-status-failed" title="Invio fallito">⚠️ Fallita</span>';
+        } else {
+          emailHtml = `<button type="button" class="btn-email-send" data-id="${esc(g.id)}" onclick="sendQrEmailSingle(this)" title="Invia QR personale via email">📧 Invia</button>`;
+        }
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><strong>${esc(g.first_name)}</strong></td>
           <td><strong>${esc(g.last_name)}</strong></td>
-          <td>${esc(g.email) || '—'}</td>
+          <td>${esc(g.email) || '<span style="color:#cbd5e0">—</span>'}</td>
           <td>${esc(g.company) || '—'}</td>
           <td>${dateFormatted}</td>
           <td>${esc(g.person_to_visit) || '—'}</td>
           <td>${esc(g.visit_reason) || '—'}</td>
+          <td>${emailHtml}</td>
           <td>${statusHtml}</td>
           <td>
             ${(!arrived && !preAssign) ? `<button type="button" class="btn-badge-assign" data-id="${esc(g.id)}" onclick="openPreAssignModal(this)">Pre-assegna Badge</button>` : ''}
