@@ -1661,8 +1661,8 @@
       </div>
 
       <div class="modal-actions">
-        <button type="button" class="btn-save" onclick="saveDetails()">Salva e chiudi</button>
-        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
+        <button type="button" class="btn-save" onclick="saveDetails()" title="Salva le modifiche ai dati del visitor (consenso, note, badge, etc.) e chiudi la modale.">Salva e chiudi</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi la modale.">Chiudi</button>
       </div>
 
       <hr class="divider">
@@ -1673,7 +1673,7 @@
             <strong>L'eliminazione è IRREVERSIBILE</strong> e cancella anche le timbrature legate (storico tornello).
             Per chiudere normalmente una visita usa <strong>"⏹ Concludi"</strong> dalla tabella: archivia mantenendo lo storico.
           </p>
-          <button type="button" class="btn-danger-zone" onclick="confirmHardDelete()">🗑 Elimina record definitivamente</button>
+          <button type="button" class="btn-danger-zone" onclick="confirmHardDelete()" title="ELIMINAZIONE DEFINITIVA del visitor (irreversibile). Richiede di digitare il cognome esatto come conferma. Cancella anche eventuali movements collegati. Usa solo per dati di test, mai per visitatori reali.">🗑 Elimina record definitivamente</button>
         </div>
       </details>
     </div>
@@ -1692,9 +1692,9 @@
         </div>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-save" onclick="bulkPreAssignNext()">Pre-attiva e prossimo</button>
-        <button type="button" class="btn-cancel" onclick="bulkPreAssignSkip()">Salta ospite</button>
-        <button type="button" class="btn-cancel" onclick="closeModal()">Termina</button>
+        <button type="button" class="btn-save" onclick="bulkPreAssignNext()" title="Conferma il badge per l'ospite corrente e passa automaticamente al prossimo della lista. Tasto Invio funziona come scorciatoia per accelerare.">Pre-attiva e prossimo</button>
+        <button type="button" class="btn-cancel" onclick="bulkPreAssignSkip()" title="Salta questo ospite senza assegnargli un badge e passa al prossimo nel wizard.">Salta ospite</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()" title="Esci dal wizard. Le pre-assegnazioni già confermate vengono mantenute, quelle non confermate vengono perse.">Termina</button>
       </div>
     </div>
   </div>
@@ -1731,7 +1731,7 @@
         </div>
       </div>
       <div class="modal-actions qr-modal-actions">
-        <button type="button" class="btn-print-qr" onclick="window.print()">
+        <button type="button" class="btn-print-qr" onclick="window.print()" title="Apri il dialogo di stampa del browser. Solo l'area QR è inclusa nella stampa (CSS @media print).">
           <span class="btn-print-icon">🖨️</span>
           <span class="btn-print-text">
             <span class="btn-print-title">Stampa QR per il desk</span>
@@ -1740,7 +1740,7 @@
         </button>
         <button type="button" class="btn-qr-secondary" onclick="copyQrUrl()" title="Copia il link negli appunti per inviarlo via email/WhatsApp">📋 Copia link</button>
         <button type="button" class="btn-qr-secondary" onclick="downloadQrPng()" title="Scarica QR come immagine PNG">🖼️ Scarica PNG</button>
-        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi la modale.">Chiudi</button>
       </div>
     </div>
   </div>
@@ -1761,8 +1761,8 @@
         </div>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-save" onclick="savePreAssign()">Pre-attiva badge</button>
-        <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+        <button type="button" class="btn-save" onclick="savePreAssign()" title="Pre-attiva il badge inserito per questo ospite: crea visitor stub con xatlas_status='pending'. L'agente Python attiverà il badge nei tornelli al prossimo ciclo.">Pre-attiva badge</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi senza salvare le modifiche.">Annulla</button>
       </div>
     </div>
   </div>
@@ -1783,8 +1783,8 @@
         </div>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-save" onclick="saveBadgeAssignment()">Associa e attiva</button>
-        <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+        <button type="button" class="btn-save" onclick="saveBadgeAssignment()" title="Associa il numero badge al visitor selezionato e marca per attivazione XAtlas. Verifica che il badge non sia già in uso da un altro visitor o pool.">Associa e attiva</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi senza salvare le modifiche.">Annulla</button>
       </div>
     </div>
   </div>
@@ -1840,8 +1840,8 @@
         </div>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-save" onclick="saveGuest()">Aggiungi ospite</button>
-        <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+        <button type="button" class="btn-save" onclick="saveGuest()" title="Crea l'ospite in guest_list. Se è selezionata la checkbox 'Associa a evento', l'ospite viene collegato all'evento attivo.">Aggiungi ospite</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi senza salvare le modifiche.">Annulla</button>
       </div>
     </div>
   </div>
@@ -1883,7 +1883,7 @@
           </div>
         </div>
         <div class="modal-actions" style="justify-content:flex-start;">
-          <button type="button" class="btn-save" onclick="addBadgesToPool()">+ Aggiungi al pool</button>
+          <button type="button" class="btn-save" onclick="addBadgesToPool()" title="Aggiunge i badge specificati (range o lista) al pool dell'evento. L'agente Python li pre-attiva (preparing → available) creando utenti generici 'Pool Badge X' nei tornelli, pronti per walk-in al desk.">+ Aggiungi al pool</button>
         </div>
       </div>
 
@@ -1908,7 +1908,7 @@
       </div>
 
       <div class="modal-actions">
-        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi la modale.">Chiudi</button>
       </div>
     </div>
   </div>
@@ -1979,8 +1979,8 @@
           </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-save" onclick="saveWalkIn()">Registra e consegna badge</button>
-          <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+          <button type="button" class="btn-save" onclick="saveWalkIn()" title="Registra il walk-in al volo: crea visitor 'active' con badge dal pool selezionato, pool entry passa a 'in_use'. L'agente rinominerà l'utente XAtlas dal generico 'Pool Badge X' al nome reale dell'ospite.">Registra e consegna badge</button>
+          <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi senza salvare le modifiche.">Annulla</button>
         </div>
       </div>
     </div>
@@ -2001,8 +2001,8 @@
         </div>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-save" onclick="saveMissingEmailAndSend()">Salva e invia QR</button>
-        <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+        <button type="button" class="btn-save" onclick="saveMissingEmailAndSend()" title="Salva l'email inserita su guest_list e accoda subito l'invio del QR personale all'indirizzo. Utile quando l'ospite era stato creato senza email iniziale.">Salva e invia QR</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi senza salvare le modifiche.">Annulla</button>
       </div>
     </div>
   </div>
@@ -2045,7 +2045,7 @@
 
       <div class="modal-actions">
         <button type="button" class="btn-save" onclick="saveFillBadgesAndPreActivate()" title="Salva i numeri inseriti e crea gli stub pre-attivazione">💾 Salva tutti & ⚡ Pre-attiva</button>
-        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi la modale.">Chiudi</button>
       </div>
     </div>
   </div>
@@ -2060,14 +2060,14 @@
       </div>
       <div id="minilabels-grid"></div>
       <div class="modal-actions qr-modal-actions">
-        <button type="button" class="btn-print-qr" onclick="window.print()">
+        <button type="button" class="btn-print-qr" onclick="window.print()" title="Apri il dialogo di stampa del browser. Solo l'area QR è inclusa nella stampa (CSS @media print).">
           <span class="btn-print-icon">🖨️</span>
           <span class="btn-print-text">
             <span class="btn-print-title">Stampa miniature A4</span>
             <span class="btn-print-sub">Foglio con etichette tagliabili da incollare sui badge</span>
           </span>
         </button>
-        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi la modale.">Chiudi</button>
       </div>
     </div>
   </div>
@@ -2103,8 +2103,8 @@
         </div>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-save" onclick="saveEvent()">Crea evento</button>
-        <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
+        <button type="button" class="btn-save" onclick="saveEvent()" title="Crea l'evento con i dati inseriti. L'evento sarà visibile in lista ma NON viene avviato automaticamente — usa 'Avvia' separatamente quando vuoi renderlo l'evento corrente.">Crea evento</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi senza salvare le modifiche.">Annulla</button>
       </div>
     </div>
   </div>
@@ -2125,7 +2125,7 @@
         <a href="https://supabase.com/dashboard/project/sebhatzxsxuafsmbdtsx/auth/users" target="_blank" rel="noopener" class="btn-supabase-link">
           Apri pannello utenti Supabase
         </a>
-        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi la modale.">Chiudi</button>
       </div>
     </div>
   </div>
@@ -2146,15 +2146,15 @@
         <button type="button" class="btn btn-light" onclick="document.getElementById('users-modal').classList.add('active')" title="Gestione utenti">👤 Utenti</button>
         <button type="button" class="btn btn-light" onclick="exportCSV()" title="Esporta CSV visitatori">📊 CSV</button>
         <button type="button" class="btn btn-light" onclick="refreshCurrentView()" title="Ricarica dati della tab attiva">🔄</button>
-        <button type="button" class="btn btn-danger" onclick="logout()">Esci</button>
+        <button type="button" class="btn btn-danger" onclick="logout()" title="Logout: cancella la sessione corrente e torna alla pagina di login. Richiederà nuovamente le credenziali per rientrare.">Esci</button>
       </div>
       <!-- Riga 2: tab di navigazione -->
       <div class="header-tabs">
-        <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')">Visitatori</button>
-        <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')">Ospiti Attesi</button>
-        <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')">🎫 Eventi</button>
-        <button type="button" class="btn btn-light" id="tab-drafts" onclick="switchView('drafts')">📝 Pre-assegnazione</button>
-        <button type="button" class="btn btn-light" id="tab-audit" onclick="switchView('audit')">📋 Audit</button>
+        <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')" title="Registro passaggi: chi è dentro ora, chi è uscito, stato badge XAtlas, firme e documenti. La vista 'security/reception' durante l'evento.">Visitatori</button>
+        <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')" title="Lista ospiti invitati prima dell'evento: stato invio email QR, badge pronti, arrivi. La vista 'segreteria' nella fase preparatoria.">Ospiti Attesi</button>
+        <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')" title="Gestione eventi: crea/avvia/chiudi, pool badge dedicato, generazione QR pubblico. Solo un evento può essere attivo alla volta.">🎫 Eventi</button>
+        <button type="button" class="btn btn-light" id="tab-drafts" onclick="switchView('drafts')" title="Editor pre-assegnazione massiva badge: importa CSV partecipanti, assegna badge (manuale/auto-numera/pool) con validazione live e cross-check multi-utente, esporta o importa direttamente in Ospiti Attesi.">📝 Pre-assegnazione</button>
+        <button type="button" class="btn btn-light" id="tab-audit" onclick="switchView('audit')" title="Storico azioni operatori (chi ha fatto cosa, quando, su cosa). Utile per accountability in ambienti multi-utente.">📋 Audit</button>
       </div>
     </div>
   </div>
@@ -2170,8 +2170,8 @@
         <span id="aeb-date" class="aeb-date">—</span>
       </div>
       <div class="aeb-actions">
-        <button type="button" class="btn-aeb-qr" onclick="openQrModalForActiveEvent()">📱 QR</button>
-        <button type="button" class="btn-aeb-close" onclick="closeActiveEvent()">Chiudi evento</button>
+        <button type="button" class="btn-aeb-qr" onclick="openQrModalForActiveEvent()" title="Apri modale QR dell'evento attivo: copia link, scarica PNG QR, invia massivo via email a tutti gli ospiti.">📱 QR</button>
+        <button type="button" class="btn-aeb-close" onclick="closeActiveEvent()" title="Concludi l'evento corrente: imposta closed_at, archivia massivamente i visitor dell'evento, libera i badge del pool. Non reversibile.">Chiudi evento</button>
       </div>
     </div>
 
@@ -2253,13 +2253,13 @@
           </div>
           <div class="filter-group filter-actions">
             <label>&nbsp;</label>
-            <button type="button" class="btn btn-primary" onclick="applyFilters()">🔍 Filtra</button>
-            <button type="button" class="btn btn-secondary" onclick="resetFilters()">↺ Reset</button>
+            <button type="button" class="btn btn-primary" onclick="applyFilters()" title="Applica i filtri inseriti (data inizio/fine, nome, cognome, evento, motivo) alla query Supabase e ricarica la tabella visitatori.">🔍 Filtra</button>
+            <button type="button" class="btn btn-secondary" onclick="resetFilters()" title="Cancella tutti i filtri e ricarica la lista completa dei visitatori (rispetta toggle archivio).">↺ Reset</button>
           </div>
         </div>
         <div class="filters-secondary">
-          <button type="button" class="btn btn-success" onclick="openWalkInModal()" title="Registra al volo un visitatore walk-in usando un badge dal pool">👤 Walk-in dal pool</button>
-          <button type="button" class="btn btn-secondary btn-archive" id="btn-toggle-archived" onclick="toggleArchived()" title="Commuta tra visitatori attivi e archiviati">📦 Vai all'Archivio</button></div>
+          <button type="button" class="btn btn-success" onclick="openWalkInModal()" title="Registra al volo un visitatore walk-in usando un badge dal pool dell'evento attivo: form rapido (5 secondi) per ospiti non pre-registrati.">👤 Walk-in dal pool</button>
+          <button type="button" class="btn btn-secondary btn-archive" id="btn-toggle-archived" onclick="toggleArchived()" title="Commuta tra visitatori attivi (xatlas_status pending/active) e archivio (xatlas_status='checked_out').">📦 Vai all'Archivio</button></div>
         </div>
       </div>
 
@@ -2285,9 +2285,9 @@
           </table>
         </div>
         <div class="pagination">
-          <button type="button" class="btn btn-primary" id="btn-prev" onclick="prevPage()">← Prec.</button>
+          <button type="button" class="btn btn-primary" id="btn-prev" onclick="prevPage()" title="Pagina precedente della tabella visitatori (50 record per pagina).">← Prec.</button>
           <span id="page-info">Pagina 1</span>
-          <button type="button" class="btn btn-primary" id="btn-next" onclick="nextPage()">Succ. →</button>
+          <button type="button" class="btn btn-primary" id="btn-next" onclick="nextPage()" title="Pagina successiva della tabella visitatori (50 record per pagina).">Succ. →</button>
         </div>
       </div>
     </div>
@@ -2322,13 +2322,13 @@
       <!-- Azioni -->
       <div class="toolbar-actions">
         <span class="toolbar-label">Ospiti</span>
-        <button type="button" class="btn btn-primary" onclick="openAddGuestModal()">➕ Aggiungi</button>
+        <button type="button" class="btn btn-primary" onclick="openAddGuestModal()" title="Aggiungi un singolo ospite alla guest_list manualmente: nome, cognome, email, persona da visitare, motivo, data prevista. Si può collegare all'evento attivo.">➕ Aggiungi</button>
 
         <span class="toolbar-divider"></span>
         <span class="toolbar-label">Import</span>
-        <button type="button" class="btn btn-success" onclick="document.getElementById('file-import').click()">📥 Importa CSV/Excel</button>
+        <button type="button" class="btn btn-success" onclick="document.getElementById('file-import').click()" title="Import massivo da CSV/Excel: crea righe in guest_list. Se il CSV contiene Numero_Badge, pre-attiva automaticamente i badge sui tornelli (creazione utente XAtlas + assegnazione card).">📥 Importa CSV/Excel</button>
         <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
-        <button type="button" class="btn btn-secondary" onclick="downloadTemplate()">📄 Template</button>
+        <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" title="Scarica un CSV vuoto con le colonne corrette (Nome, Cognome, Email, Azienda, Persona_da_Visitare, Motivo_Visita, Data_Prevista, Numero_Badge) + 3 righe di esempio.">📄 Template</button>
 
         <span class="toolbar-divider"></span>
         <span class="toolbar-label">Badge</span>
@@ -2342,7 +2342,7 @@
         <button type="button" class="btn btn-info" onclick="bulkSendQrEmail()" title="Invia QR personale via email a tutti gli ospiti dell'evento attivo">📧 Invia QR a tutti</button>
 
         <span class="toolbar-spacer"></span>
-        <button type="button" class="btn btn-secondary" id="btn-toggle-arrived" onclick="toggleArrivedFilter()">👁️ Mostra arrivati</button>
+        <button type="button" class="btn btn-secondary" id="btn-toggle-arrived" onclick="toggleArrivedFilter()" title="Commuta tra mostrare/nascondere gli ospiti che hanno già firmato il QR (signature popolata). Default: nasconde gli arrivati per concentrarsi sui non ancora arrivati.">👁️ Mostra arrivati</button>
       </div>
 
       <div class="table-wrap">
@@ -2400,7 +2400,7 @@
 
       <div class="guest-actions">
         <div class="guest-actions-left">
-          <button type="button" class="btn btn-primary" onclick="openEventModal()">+ Nuovo Evento</button>
+          <button type="button" class="btn btn-primary" onclick="openEventModal()" title="Crea un nuovo evento: nome, data inizio/fine, opzionale data attivazione QR. Solo un evento può essere attivo alla volta — se ne avvii uno, gli altri attivi vengono disattivati.">+ Nuovo Evento</button>
         </div>
       </div>
 
@@ -2497,12 +2497,12 @@
           </div>
           <div class="filter-group filter-actions">
             <label>&nbsp;</label>
-            <button type="button" class="btn btn-primary" onclick="loadAuditLog()">🔍 Filtra</button>
-            <button type="button" class="btn btn-secondary" onclick="resetAuditFilters()">↺ Reset</button>
+            <button type="button" class="btn btn-primary" onclick="loadAuditLog()" title="Applica i filtri (data inizio/fine, operatore, tipo azione) e ricarica il log.">🔍 Filtra</button>
+            <button type="button" class="btn btn-secondary" onclick="resetAuditFilters()" title="Cancella tutti i filtri audit log e ricarica le ultime azioni.">↺ Reset</button>
           </div>
         </div>
         <div class="filters-secondary">
-          <button type="button" class="btn btn-secondary" onclick="exportAuditCsv()">📊 Esporta CSV</button>
+          <button type="button" class="btn btn-secondary" onclick="exportAuditCsv()" title="Scarica il log filtrato come CSV (timestamp, operatore, azione, entità, dettagli JSON). Utile per audit periodici/legal.">📊 Esporta CSV</button>
         </div>
       </div>
 
@@ -2523,9 +2523,9 @@
           </table>
         </div>
         <div class="audit-pagination" id="audit-pagination" style="display:none">
-          <button type="button" class="btn btn-secondary" onclick="auditPrevPage()">← Precedente</button>
+          <button type="button" class="btn btn-secondary" onclick="auditPrevPage()" title="Pagina precedente del log (50 record per pagina).">← Precedente</button>
           <span id="audit-page-info">Pagina 1</span>
-          <button type="button" class="btn btn-secondary" onclick="auditNextPage()">Successivo →</button>
+          <button type="button" class="btn btn-secondary" onclick="auditNextPage()" title="Pagina successiva del log (50 record per pagina).">Successivo →</button>
         </div>
       </div>
     </div>
@@ -2558,7 +2558,7 @@
         <div class="filters">
           <div class="filters-secondary" style="justify-content:space-between">
             <div style="display:flex;gap:8px;align-items:center">
-              <button type="button" class="btn btn-primary" onclick="newDraft()">＋ Nuovo draft</button>
+              <button type="button" class="btn btn-primary" onclick="newDraft()" title="Crea un nuovo draft di pre-assegnazione: dai un nome, importa CSV partecipanti, compila i numeri badge nell'editor con auto-save persistente. Permette di interrompere e riprendere senza perdere il lavoro.">＋ Nuovo draft</button>
               <label style="font-size:13px;color:#4a5568;display:flex;align-items:center;gap:6px">
                 <input type="checkbox" id="dr-show-finalized" onchange="loadDrafts()"> Mostra finalizzati e archiviati
               </label>
@@ -2594,7 +2594,7 @@
       <div id="drafts-editor-view" style="display:none">
         <div class="filters" style="display:flex;flex-direction:column;gap:10px">
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <button type="button" class="btn btn-secondary" onclick="closeDraftEditor()">← Torna ai drafts</button>
+            <button type="button" class="btn btn-secondary" onclick="closeDraftEditor()" title="Torna alla lista dei drafts. Eventuali modifiche non salvate vengono salvate al volo prima del ritorno.">← Torna ai drafts</button>
             <input type="text" id="dre-name" placeholder="Nome draft" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;font-weight:600">
             <select id="dre-event" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
               <option value="">— Nessun evento collegato —</option>
@@ -2603,8 +2603,8 @@
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <input type="file" id="dre-file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="dreImportFile(this)">
-            <button type="button" class="btn btn-primary" onclick="document.getElementById('dre-file-input').click()">📥 Importa CSV/Excel</button>
-            <button type="button" class="btn btn-secondary" onclick="dreAddRow()">➕ Aggiungi riga</button>
+            <button type="button" class="btn btn-primary" onclick="document.getElementById('dre-file-input').click()" title="Importa il CSV/Excel con i partecipanti nell'editor. Stesso formato dell'import massivo standard (Nome, Cognome, Email, Azienda, ...). Se ci sono già righe, ti chiede se aggiungere o sostituire.">📥 Importa CSV/Excel</button>
+            <button type="button" class="btn btn-secondary" onclick="dreAddRow()" title="Aggiungi una riga vuota in fondo alla tabella. Utile per inserire manualmente partecipanti aggiuntivi non nel CSV originale.">➕ Aggiungi riga</button>
             <span style="font-size:12px;color:#718096">|</span>
             <span style="font-size:12px;color:#4a5568">Auto-numera badge da:</span>
             <input type="text" id="dre-autonum-start" placeholder="es. 241001" style="width:120px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
@@ -2651,10 +2651,10 @@
           <div class="filters-secondary" style="justify-content:space-between">
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button type="button" class="btn btn-success" onclick="dreExportCsv()" title="Scarica un CSV con tutti i campi compilati">📤 Esporta CSV finale</button>
-              <button type="button" class="btn btn-primary" id="dre-finalize-btn" onclick="dreFinalize()">✅ Finalizza draft</button>
+              <button type="button" class="btn btn-primary" id="dre-finalize-btn" onclick="dreFinalize()" title="Marca il draft come 'finalizzato' (non più modificabile, ma esportabile/importabile). Bloccato se ci sono badge duplicati, nomi mancanti, conflitti con altri operatori o badge già occupati.">✅ Finalizza draft</button>
               <button type="button" class="btn btn-success" id="dre-import-btn" onclick="importDraftToGuests(activeDraft && activeDraft.id)" style="display:none;background:linear-gradient(135deg,#48bb78 0%,#2f855a 100%)" title="Crea direttamente gli ospiti in Ospiti Attesi e pre-attiva i badge nei tornelli (no CSV intermedio)">🚀 Importa in Ospiti Attesi</button>
             </div>
-            <button type="button" class="btn btn-danger" onclick="dreDelete()">🗑 Elimina draft</button>
+            <button type="button" class="btn btn-danger" onclick="dreDelete()" title="Elimina definitivamente il draft (irreversibile). Usalo solo se sei sicuro che non ti servirà più — il record viene cancellato dal DB, non archiviato.">🗑 Elimina draft</button>
           </div>
         </div>
       </div>
@@ -3878,7 +3878,7 @@
         const meta = AUDIT_ACTION_LABELS[r.action] || { label: r.action, color: 'audit-color-grey' };
         const detailsJson = r.details ? JSON.stringify(r.details, null, 2) : '';
         const detailsBtn = detailsJson
-          ? `<button type="button" class="btn-audit-details" onclick="toggleAuditDetails(this)">Vedi</button>`
+          ? `<button type="button" class="btn-audit-details" onclick="toggleAuditDetails(this)" title="Espandi/comprimi i dettagli JSON dell'azione (parametri, valori prima/dopo, riferimenti).">Vedi</button>`
           : '<span class="empty-dash">—</span>';
 
         const tr = document.createElement('tr');
@@ -4036,16 +4036,25 @@
         const actions = [];
         // Avvia: solo se non chiuso, non attivo E data non passata
         if (!e.closed_at && !e.is_active && !isPastDate) {
-          actions.push(`<button class="btn-badge-assign" onclick="activateEvent('${e.id}')">Avvia</button>`);
+          actions.push(`<button class="btn-badge-assign" onclick="activateEvent('${e.id}')" title="Avvia questo evento (lo rende l'evento attivo del sistema). Disattiva eventuali altri attivi. I visitatori registrati da kiosk/QR verranno taggati con questo evento.">Avvia</button>`);
         }
-        if (e.is_active) actions.push(`<button class="btn-badge-assign" onclick="closeActiveEvent()">Chiudi</button>`);
+        if (e.is_active) actions.push(`<button class="btn-badge-assign" onclick="closeActiveEvent()" title="Chiudi l'evento corrente: archivia massivamente i visitor, libera il pool, imposta closed_at. Non reversibile.">Chiudi</button>`);
         // Auto-chiudi: rapido per archivare formalmente un evento "Passato" (set closed_at = ora)
         if (isPastDate) {
           actions.push(`<button class="btn-badge-assign" onclick="markEventClosed('${e.id}')" title="Archivia formalmente l'evento (set closed_at = ora). Dopo questa azione l'evento sarà solo consultabile.">🔒 Archivia</button>`);
         }
-        actions.push(`<button class="btn-details" onclick="viewEventParticipants('${e.id}')">👥 Partecipanti</button>`);
-        actions.push(`<button class="btn-details" onclick="openPoolModal('${e.id}')">🎟️ Pool</button>`);
-        actions.push(`<button class="btn-details" onclick="openQrForEvent('${e.id}')">📱 QR</button>`);
+        const tipPart = e.closed_at || isPastDate
+          ? 'Visualizza i partecipanti dell\'evento (sola lettura, evento concluso).'
+          : 'Visualizza i partecipanti collegati all\'evento (visitor + guest_list).';
+        const tipPool = e.closed_at || isPastDate
+          ? 'Pool badge in modalità sola consultazione (evento concluso).'
+          : 'Gestisci il pool badge dell\'evento: aggiungi/rimuovi numeri, vedi quali sono attivi, in uso, disponibili.';
+        const tipQr = e.closed_at || isPastDate
+          ? 'QR non disponibile: evento concluso.'
+          : 'Apri modale QR dell\'evento: copia link pubblico, scarica PNG QR per stampa/locandina.';
+        actions.push(`<button class="btn-details" onclick="viewEventParticipants('${e.id}')" title="${tipPart}">👥 Partecipanti</button>`);
+        actions.push(`<button class="btn-details" onclick="openPoolModal('${e.id}')" title="${tipPool}">🎟️ Pool</button>`);
+        actions.push(`<button class="btn-details" onclick="openQrForEvent('${e.id}')" title="${tipQr}">📱 QR</button>`);
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -4911,7 +4920,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         const visitorLabel = p.visitor_id ? `→ visitor` : '—';
         const activated = p.activated_at ? new Date(p.activated_at).toLocaleString('it-IT', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' }) : '—';
         const action = (!isClosed && (p.status === 'preparing' || p.status === 'available'))
-          ? `<button class="btn-delete" onclick="removeFromPool(${p.id})">Rimuovi</button>`
+          ? `<button class="btn-delete" onclick="removeFromPool(${p.id})" title="Rimuovi questo badge dal pool dell'evento. Permesso solo se status è 'preparing' o 'available' (non se in_use). L'utente XAtlas associato resta — viene cancellato dall'agente al prossimo cleanup.">Rimuovi</button>`
           : '';
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -5324,8 +5333,8 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           <td>${emailHtml}</td>
           <td>${statusHtml}</td>
           <td>
-            ${(!arrived && !preAssign) ? `<button type="button" class="btn-badge-assign" data-id="${esc(g.id)}" onclick="openPreAssignModal(this)">Pre-assegna Badge</button>` : ''}
-            <button type="button" class="btn-delete" data-id="${esc(g.id)}" onclick="deleteGuest(this)">Rimuovi</button>
+            ${(!arrived && !preAssign) ? `<button type="button" class="btn-badge-assign" data-id="${esc(g.id)}" onclick="openPreAssignModal(this)" title="Apri modale per pre-assegnare un badge a questo ospite (creazione visitor stub xatlas_status='pending', l'agente attiverà il badge nei tornelli).">Pre-assegna Badge</button>` : ''}
+            <button type="button" class="btn-delete" data-id="${esc(g.id)}" onclick="deleteGuest(this)" title="Rimuove questo ospite dalla guest_list. NON è permesso se ha già firmato il QR o ha un visitor pre-assegnato (audit/integrità).">Rimuovi</button>
           </td>
         `;
         tbody.appendChild(tr);
@@ -5987,7 +5996,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           <td title="${d.updated_at || ''}">${updatedTxt}</td>
           <td>${esc(d.updated_by || d.created_by || '—')}</td>
           <td style="display:flex;gap:6px">
-            <button type="button" class="btn btn-primary" style="padding:6px 12px;font-size:12px" onclick="openDraftEditor('${d.id}')">${canEdit ? '✏️ Apri' : '👁️ Visualizza'}</button>
+            <button type="button" class="btn btn-primary" style="padding:6px 12px;font-size:12px" onclick="openDraftEditor('${d.id}')" title="${canEdit ? 'Apri questo draft in modalità modifica: editor tabellare con auto-save, validazione live, pool badge, cross-check con altri operatori.' : 'Apri questo draft in sola lettura (status finalized o archived). Puoi consultare i dati ma non modificarli.'}">${canEdit ? '✏️ Apri' : '👁️ Visualizza'}</button>
             ${d.status === 'finalized' ? `<button type="button" class="btn btn-success" style="padding:6px 12px;font-size:12px" onclick="event.stopPropagation();importDraftToGuests('${d.id}')" title="Crea ospiti in Ospiti Attesi e attiva i badge">🚀 Importa</button>` : ''}
           </td>
         `;
