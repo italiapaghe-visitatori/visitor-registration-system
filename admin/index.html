@@ -843,6 +843,42 @@
     }
     .btn-conclude:hover { box-shadow: 0 3px 10px rgba(49,130,206,0.55); }
 
+    /* ── DANGER ZONE (eliminazione record dal modale dettagli) ── */
+    .danger-zone {
+      margin-top: 18px;
+      background: #fff5f5;
+      border: 1.5px solid #fc8181;
+      border-radius: 10px;
+      padding: 12px 16px;
+    }
+    .danger-zone summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: #c53030;
+      font-size: 13px;
+      padding: 4px 0;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .danger-zone summary:hover { color: #9b2c2c; }
+    .danger-zone-body {
+      padding-top: 12px;
+      color: #742a2a;
+    }
+    .danger-zone-body p { font-size: 12.5px; line-height: 1.5; margin-bottom: 12px; }
+    .btn-danger-zone {
+      background: #fff;
+      color: #c53030;
+      border: 2px solid #c53030;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .btn-danger-zone:hover { background: #c53030; color: #fff; }
+
     /* ── ICON BUTTONS COMPATTI (azioni riga tabella) ── */
     .action-row { display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; }
     .btn-icon {
@@ -1178,6 +1214,18 @@
         <button type="button" class="btn-save" onclick="saveDetails()">Salva e chiudi</button>
         <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
       </div>
+
+      <hr class="divider">
+      <details class="danger-zone">
+        <summary>⚠️ Zona pericolosa (solo per record di test/errore)</summary>
+        <div class="danger-zone-body">
+          <p>
+            <strong>L'eliminazione è IRREVERSIBILE</strong> e cancella anche le timbrature legate (storico tornello).
+            Per chiudere normalmente una visita usa <strong>"⏹ Concludi"</strong> dalla tabella: archivia mantenendo lo storico.
+          </p>
+          <button type="button" class="btn-danger-zone" onclick="confirmHardDelete()">🗑 Elimina record definitivamente</button>
+        </div>
+      </details>
     </div>
   </div>
 
@@ -2275,7 +2323,6 @@
               ${assignBtn}
               ${concludeBtn}
               <button type="button" class="btn-icon btn-details-icon" data-id="${esc(row.id)}" onclick="openDetailsModal(this)" title="Dettagli (doc completo, firma, storico timbrature)">ℹ️</button>
-              <button type="button" class="btn-icon btn-delete-icon" data-id="${esc(row.id)}" onclick="deleteRecord(this)" title="Elimina record">🗑</button>
             </div>
           </td>
         `;
@@ -2543,28 +2590,69 @@
     }
 
     // ── DELETE ────────────────────────────────────────
-    async function deleteRecord(btn) {
-      const id = btn.dataset.id;
-      if (!id) { alert('ID record non trovato.'); return; }
-      if (!confirm('Eliminare questo record? L\'operazione non è reversibile.')) return;
-      btn.disabled = true;
-      btn.textContent = '...';
+    // Eliminazione hard: invocata SOLO dal modale Dettagli con doppia conferma
+    // (sostituisce il vecchio bottone 🗑 in tabella che era pericoloso).
+    async function confirmHardDelete() {
+      if (!detailsCurrentId) return;
+      const row = currentData.find(r => String(r.id) === String(detailsCurrentId));
+      const name = row ? `${row.first_name} ${row.last_name}` : 'questo visitatore';
+      const evt  = row && row.event_name ? ` (evento: ${row.event_name})` : '';
+
+      // Prima conferma
+      if (!confirm(
+        `⚠️ ELIMINAZIONE DEFINITIVA\n\n` +
+        `Stai per cancellare il record di ${name}${evt}.\n\n` +
+        `Verranno eliminati anche:\n` +
+        `• Storico timbrature (prova legale)\n` +
+        `• Firma digitale\n` +
+        `• Dati documento\n\n` +
+        `Per chiudere normalmente la visita usa "⏹ Concludi" che archivia mantenendo lo storico.\n\n` +
+        `Procedere con l'eliminazione definitiva?`
+      )) return;
+
+      // Seconda conferma con typing del nome
+      const expected = (row?.last_name || '').toUpperCase();
+      const typed = prompt(
+        `Per confermare digita il COGNOME del visitatore in maiuscolo:\n\n` +
+        `Atteso: ${expected}`
+      );
+      if (typed === null) return;
+      if (String(typed).trim().toUpperCase() !== expected) {
+        alert('Cognome non corrispondente. Operazione annullata.');
+        return;
+      }
+
+      // Audit log PRIMA dell'eliminazione (perché dopo il record non esiste più)
+      auditLog('hard_delete_visitor', 'visitor', detailsCurrentId, {
+        name: `${row?.first_name} ${row?.last_name}`,
+        badge: row?.badge_number,
+        event: row?.event_name,
+        had_signature: !!(row?.signature),
+      });
+
       try {
-        const res = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(id)}`, {
-          method: 'DELETE', headers: { 'Prefer': 'return=representation' }
+        const res = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(detailsCurrentId)}`, {
+          method: 'DELETE',
+          headers: { 'Prefer': 'return=representation' }
         });
         if (!res) return;
         const body = await res.json().catch(() => []);
         if (!res.ok) throw new Error(body?.message || body?.hint || `Errore ${res.status}`);
         if (!Array.isArray(body) || body.length === 0) throw new Error('Nessun record eliminato — verifica le policy RLS in Supabase.');
-        btn.closest('tr').remove();
-        currentData = currentData.filter(r => String(r.id) !== String(id));
-        updateStats();
+        currentData = currentData.filter(r => String(r.id) !== String(detailsCurrentId));
+        closeModal();
+        loadData();
+        alert(`Record di ${name} eliminato definitivamente.`);
       } catch (err) {
-        alert('Errore: ' + err.message);
-        btn.disabled = false;
-        btn.textContent = 'Elimina';
+        alert('Errore eliminazione: ' + err.message);
       }
+    }
+
+    // Mantenuta per backward compat con eventuali chiamate residue (non più nel render)
+    async function deleteRecord(btn) {
+      const id = btn?.dataset?.id;
+      if (id) detailsCurrentId = id;
+      return confirmHardDelete();
     }
 
     // ── CLOSE MODAL ───────────────────────────────────
