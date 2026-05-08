@@ -2382,7 +2382,7 @@
 
       const inUse = await checkBadgeInUse(badgeNum);
       if (inUse.busy) {
-        alert(`Il badge ${badgeNum} è già assegnato a ${inUse.by} (stato: ${inUse.status}).\nUsa un altro numero.`);
+        alert(buildBadgeBusyMessage(badgeNum, inUse));
         saveBtn.disabled = false;
         saveBtn.textContent = 'Associa e attiva';
         return;
@@ -3387,10 +3387,31 @@
       if (badges.length === 0) { alert('Inserisci un range valido o una lista di badge.'); return; }
       if (badges.length > 200 && !confirm(`Stai per aggiungere ${badges.length} badge al pool. Continuare?`)) return;
 
-      // Filtra duplicati già presenti
+      // Filtra duplicati già presenti nel pool corrente
       const existing = new Set(poolData.map(p => p.badge_number));
       const toAdd = badges.filter(b => !existing.has(b));
       if (toAdd.length === 0) { alert('Tutti questi badge sono già nel pool.'); return; }
+
+      // Check incrociato con visitors: se qualche badge è già pre-assegnato nominalmente, blocca
+      try {
+        const inList = toAdd.map(b => `"${b}"`).join(',');
+        const res = await api(
+          `${SUPABASE_URL}/rest/v1/visitors?select=badge_number,first_name,last_name,xatlas_status,assigned_by&badge_number=in.(${inList})&xatlas_status=in.(pending,active)`
+        );
+        if (res && res.ok) {
+          const conflicts = await res.json();
+          if (conflicts.length > 0) {
+            const lines = conflicts.map(c => `  • ${c.badge_number} → ${c.first_name} ${c.last_name} (${c.xatlas_status})${c.assigned_by ? ' assegnato da ' + c.assigned_by : ''}`);
+            alert(
+              `⚠️ ${conflicts.length} badge sono GIÀ pre-assegnati nominalmente a visitatori specifici:\n\n` +
+              lines.join('\n') +
+              `\n\nNon posso aggiungerli al pool: creerebbe conflitto sui tornelli.\n` +
+              `Rimuovili manualmente dai visitatori (Tab Visitatori) prima di aggiungerli al pool, oppure usa un range diverso.`
+            );
+            return;
+          }
+        }
+      } catch (_) { /* check best-effort, prosegui */ }
 
       const payload = toAdd.map(b => ({
         badge_number: b,
@@ -3783,23 +3804,73 @@
       }
     }
 
-    // ── CHECK BADGE DUPLICATO ─────────────────────────
-    // Restituisce { busy: bool, by: 'Nome Cognome' } se il badge è già attivo
+    // Costruisce un messaggio chiaro per "badge già usato" (sia visitor sia pool)
+    function buildBadgeBusyMessage(badgeNum, inUse) {
+      if (inUse.source === 'pool') {
+        return `⚠️ Il badge ${badgeNum} è già nel POOL dell'evento.\n\n` +
+               `Stato pool: ${inUse.status}.\n` +
+               (inUse.assigned_by ? `Aggiunto al pool da: ${inUse.assigned_by}\n` : '') +
+               `\nNon puoi pre-assegnarlo nominalmente: già pre-attivato come badge anonimo.\n` +
+               `Se vuoi assegnarlo a questo ospite specifico, prima rimuovilo dal pool (Eventi → Pool → Rimuovi).`;
+      }
+      // source = 'visitor' (default)
+      return `⚠️ Il badge ${badgeNum} è già assegnato a ${inUse.by} (stato: ${inUse.status}).\n` +
+             (inUse.assigned_by ? `Assegnato da: ${inUse.assigned_by}\n` : '') +
+             `\nUsa un altro numero.`;
+    }
+
+    // ── CHECK BADGE DUPLICATO (visitors + pool) ───────
+    // Verifica che il badge non sia già usato in nessuna delle 2 tabelle:
+    // - visitors con xatlas_status pending/active
+    // - badge_pool con status preparing/available/in_use
+    // Restituisce { busy, by, status, source: 'visitor'|'pool' }
     async function checkBadgeInUse(badgeNum) {
+      // 1) Check visitors
       try {
         const res = await api(
-          `${SUPABASE_URL}/rest/v1/visitors?select=id,first_name,last_name,xatlas_status&badge_number=eq.${encodeURIComponent(badgeNum)}&xatlas_status=in.(pending,active)`
+          `${SUPABASE_URL}/rest/v1/visitors?select=id,first_name,last_name,xatlas_status,assigned_by&badge_number=eq.${encodeURIComponent(badgeNum)}&xatlas_status=in.(pending,active)&limit=1`
         );
-        if (!res || !res.ok) return { busy: false };
-        const rows = await res.json();
-        if (rows.length > 0) {
-          const r = rows[0];
-          return { busy: true, by: `${r.first_name} ${r.last_name}`, status: r.xatlas_status };
+        if (res && res.ok) {
+          const rows = await res.json();
+          if (rows.length > 0) {
+            const r = rows[0];
+            return {
+              busy: true,
+              source: 'visitor',
+              by: `${r.first_name} ${r.last_name}`,
+              status: r.xatlas_status,
+              assigned_by: r.assigned_by || null
+            };
+          }
         }
-        return { busy: false };
-      } catch (_) {
-        return { busy: false };
-      }
+      } catch (_) { /* fall-through */ }
+
+      // 2) Check badge_pool
+      try {
+        const res = await api(
+          `${SUPABASE_URL}/rest/v1/badge_pool?select=id,status,event_id,visitor_id,assigned_by&badge_number=eq.${encodeURIComponent(badgeNum)}&status=in.(preparing,available,in_use)&limit=1`
+        );
+        if (res && res.ok) {
+          const rows = await res.json();
+          if (rows.length > 0) {
+            const p = rows[0];
+            const statusLabel = {
+              preparing:  'in preparazione (pool, agente attivazione in corso)',
+              available:  'disponibile nel pool (pronto per walk-in)',
+              in_use:     'in uso (pool, già consegnato a un visitatore)'
+            }[p.status] || p.status;
+            return {
+              busy: true,
+              source: 'pool',
+              by: 'pool dell\'evento',
+              status: statusLabel,
+              assigned_by: p.assigned_by || null
+            };
+          }
+        }
+      } catch (_) { /* fall-through */ }
+
+      return { busy: false };
     }
 
     // Trasforma l'errore PostgREST in messaggio leggibile, riconoscendo
@@ -3863,10 +3934,10 @@
       saveBtn.disabled = true;
       saveBtn.textContent = 'Verifica badge...';
 
-      // Check duplicato badge
+      // Check duplicato badge (visitors + pool)
       const inUse = await checkBadgeInUse(badgeNum);
       if (inUse.busy) {
-        alert(`Il badge ${badgeNum} è già assegnato a ${inUse.by} (stato: ${inUse.status}).\nUsa un altro numero.`);
+        alert(buildBadgeBusyMessage(badgeNum, inUse));
         saveBtn.disabled = false;
         saveBtn.textContent = 'Pre-attiva badge';
         return;
@@ -3955,7 +4026,7 @@
 
       const inUse = await checkBadgeInUse(badgeNum);
       if (inUse.busy) {
-        alert(`Badge ${badgeNum} già usato da ${inUse.by} (${inUse.status}). Inserisci un altro numero.`);
+        alert(buildBadgeBusyMessage(badgeNum, inUse));
         return;
       }
 
@@ -4129,7 +4200,8 @@
           if (!badge) continue;
           const inUse = await checkBadgeInUse(badge);
           if (inUse.busy) {
-            skipped.push(`${inserted[i].first_name} ${inserted[i].last_name} → badge ${badge} già usato da ${inUse.by}`);
+            const sourceLabel = inUse.source === 'pool' ? `pool dell'evento (${inUse.status})` : `${inUse.by} (${inUse.status})`;
+            skipped.push(`${inserted[i].first_name} ${inserted[i].last_name} → badge ${badge} già usato da ${sourceLabel}`);
             continue;
           }
           stubs.push({
