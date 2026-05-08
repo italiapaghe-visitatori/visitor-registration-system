@@ -89,7 +89,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.4.4-recreate-svc"
+AGENT_VERSION = "1.4.5-recreate-order"
 
 
 def update_heartbeat(notes: str | None = None):
@@ -700,7 +700,7 @@ def process_active_transactions():
     try:
         active = sb_get("visitors", params={
             "xatlas_status": "eq.active",
-            "select": "id,badge_number,xatlas_user_id,entry_time,exit_time,event_id",
+            "select": "id,badge_number,xatlas_user_id,entry_time,exit_time,event_id,xatlas_renamed",
         })
     except Exception as e:
         log.error(f"Errore lettura active da Supabase: {e}")
@@ -754,14 +754,24 @@ def process_active_transactions():
         else:
             # Uscita: comportamento dipende da evento attivo
             event_open = eid and is_event_open(eid)
+            # Walk-in dal pool ancora da rinominare: NON archiviare, NON cancellare
+            # l'utente XAtlas (lo userà process_pool_walkin_recreate per il delete+create).
+            # Anche se non c'è evento aperto, lasciamo lo stato active perché il visitor
+            # ha bisogno di essere ricreato col nome reale prima di chiudere.
+            pending_recreate = (v.get("xatlas_renamed") is False)
             try:
                 if event_open:
                     # In evento: solo aggiorna exit_time, NON archiviare, NON liberare badge.
                     # Il visitor potrebbe rientrare (pausa pranzo/sigaretta/auto).
                     sb_patch(f"visitors?id=eq.{vid}", {"exit_time": time_str})
                     log.info(f"Uscita evento (no archive): visitor={vid} badge={badge} ora={time_str}")
+                elif pending_recreate:
+                    # Walk-in pool non ancora rinominato: solo aggiorna exit_time, lascia active.
+                    # Il recreate lo gestirà al prossimo ciclo.
+                    sb_patch(f"visitors?id=eq.{vid}", {"exit_time": time_str})
+                    log.info(f"Uscita pre-recreate (no archive): visitor={vid} badge={badge} ora={time_str}")
                 else:
-                    # Giorno normale: comportamento attuale.
+                    # Giorno normale (no evento, no pool pending): comportamento attuale.
                     sb_patch(f"visitors?id=eq.{vid}", {
                         "exit_time":     time_str,
                         "xatlas_status": "checked_out",
@@ -782,11 +792,21 @@ def startup_catchup():
     All'avvio dell'agente, recupera eventuali transazioni mancate
     per i visitatori active mentre il servizio era fermo.
     Cerca fino a 24 ore indietro.
+
+    IMPORTANTE: prima di processare le transazioni, esegue process_pool_walkin_recreate
+    per assicurarsi che i walk-in pool pending abbiano l'utente XAtlas col nome reale.
+    Altrimenti un exit catchup potrebbe archiviare e cancellare il vecchio user pool
+    prima che il recreate abbia avuto modo di intervenire.
     """
+    try:
+        process_pool_walkin_recreate()
+    except Exception as e:
+        log.warning(f"Catchup: process_pool_walkin_recreate fallito: {e}")
+
     try:
         active = sb_get("visitors", params={
             "xatlas_status": "eq.active",
-            "select": "id,badge_number,xatlas_user_id,entry_time,exit_time,first_name,last_name",
+            "select": "id,badge_number,xatlas_user_id,entry_time,exit_time,first_name,last_name,xatlas_renamed,event_id",
         })
     except Exception as e:
         log.error(f"Catchup: errore lettura active: {e}")
@@ -839,6 +859,17 @@ def startup_catchup():
 
             elif not is_entry:
                 try:
+                    eid = v.get("event_id")
+                    event_open = eid and is_event_open(eid)
+                    pending_recreate = (v.get("xatlas_renamed") is False)
+                    if event_open or pending_recreate:
+                        # Evento aperto o walk-in pool non ancora ricreato:
+                        # NON archiviare, NON cancellare l'utente XAtlas.
+                        sb_patch(f"visitors?id=eq.{vid}", {"exit_time": time_str})
+                        reason = "evento aperto" if event_open else "pool pre-recreate"
+                        log.info(f"Catchup USCITA (no archive, {reason}): visitor={vid} ({v.get('first_name')} {v.get('last_name')}) badge={badge} ora={time_str}")
+                        break
+                    # Caso normale: archiviazione + libera badge
                     sb_patch(f"visitors?id=eq.{vid}", {
                         "exit_time":     time_str,
                         "xatlas_status": "checked_out",
@@ -1017,6 +1048,9 @@ def cleanup_archived_visitors():
         rows = sb_get("visitors", params={
             "xatlas_status": "eq.checked_out",
             "xatlas_user_id": "not.is.null",
+            # Skip visitor con xatlas_renamed=false: il recreate è in corso o è
+            # fallito al ciclo precedente. Non interferire, sennò si perde il dato.
+            "xatlas_renamed": "is.true",
             "select": "id,xatlas_user_id,badge_number",
             "limit": "20",  # max 20 per ciclo per non saturare XAtlas API
         })
@@ -1058,8 +1092,11 @@ def run_loop():
         try:
             process_pending_badges()
             process_pool_preparation()
-            process_active_transactions()
+            # IMPORTANTE: recreate prima delle transazioni e cleanup, altrimenti
+            # un exit + cleanup possono cancellare l'utente XAtlas pool prima che
+            # il recreate abbia potuto sostituirlo col nome reale.
             process_pool_walkin_recreate()
+            process_active_transactions()
             cleanup_archived_visitors()
             midnight_cleanup_stale_visitors()
             update_heartbeat()
@@ -1108,8 +1145,9 @@ try:
                 try:
                     process_pending_badges()
                     process_pool_preparation()
-                    process_active_transactions()
+                    # IMPORTANTE: recreate prima di transactions/cleanup
                     process_pool_walkin_recreate()
+                    process_active_transactions()
                     cleanup_archived_visitors()
                     midnight_cleanup_stale_visitors()
                     update_heartbeat()
