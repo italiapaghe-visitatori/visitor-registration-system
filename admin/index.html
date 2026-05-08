@@ -2269,15 +2269,15 @@
           <table>
             <thead>
               <tr>
-                <th class="th-sort" data-col="last_name"  onclick="sortBy('last_name')">Visitatore</th>
-                <th class="th-sort" data-col="company"    onclick="sortBy('company')">Azienda</th>
-                <th class="th-sort" data-col="document_id" onclick="sortBy('document_id')">📄 Documento</th>
-                <th class="th-sort" data-col="visit_date" onclick="sortBy('visit_date')">Data</th>
-                <th class="th-sort" data-col="entry_time" onclick="sortBy('entry_time')">Orari</th>
-                <th class="th-sort" data-col="visit_reason" onclick="sortBy('visit_reason')">Motivo / Persona</th>
-                <th class="th-sort" data-col="event_name" onclick="sortBy('event_name')">🎫 Evento</th>
-                <th class="th-sort" data-col="xatlas_status" onclick="sortBy('xatlas_status')">Tipo</th>
-                <th class="th-sort" data-col="badge_number" onclick="sortBy('badge_number')">Badge</th>
+                <th class="th-sort" data-col="last_name"  onclick="sortBy('last_name')" title="Clicca per ordinare per Cognome (1° click A-Z, 2° Z-A).">Visitatore</th>
+                <th class="th-sort" data-col="company"    onclick="sortBy('company')" title="Clicca per ordinare per Azienda (1° click A-Z, 2° Z-A).">Azienda</th>
+                <th class="th-sort" data-col="document_id" onclick="sortBy('document_id')" title="Clicca per ordinare per Numero Documento.">📄 Documento</th>
+                <th class="th-sort" data-col="visit_date" onclick="sortBy('visit_date')" title="Clicca per ordinare per Data Visita (più recenti / più vecchi).">Data</th>
+                <th class="th-sort" data-col="entry_time" onclick="sortBy('entry_time')" title="Clicca per ordinare per Ora Ingresso al tornello.">Orari</th>
+                <th class="th-sort" data-col="visit_reason" onclick="sortBy('visit_reason')" title="Clicca per ordinare per Motivo Visita (alfabetico).">Motivo / Persona</th>
+                <th class="th-sort" data-col="event_name" onclick="sortBy('event_name')" title="Clicca per ordinare per Nome Evento.">🎫 Evento</th>
+                <th class="th-sort" data-col="xatlas_status" onclick="sortBy('xatlas_status')" title="Clicca per ordinare per stato XAtlas (pending, active, checked_out).">Tipo</th>
+                <th class="th-sort" data-col="badge_number" onclick="sortBy('badge_number')" title="Clicca per ordinare per Numero Badge.">Badge</th>
                 <th class="no-sort">Azioni</th>
               </tr>
             </thead>
@@ -2351,13 +2351,13 @@
           <table>
             <thead>
               <tr>
-                <th class="th-sort" data-col="first_name"      onclick="sortGuestsBy('first_name')">Nome</th>
-                <th class="th-sort" data-col="last_name"       onclick="sortGuestsBy('last_name')">Cognome</th>
-                <th class="th-sort" data-col="email"           onclick="sortGuestsBy('email')">Email</th>
-                <th class="th-sort" data-col="company"         onclick="sortGuestsBy('company')">Azienda</th>
-                <th class="th-sort" data-col="expected_date"   onclick="sortGuestsBy('expected_date')">Data Prevista</th>
-                <th class="th-sort" data-col="person_to_visit" onclick="sortGuestsBy('person_to_visit')">Persona da Visitare</th>
-                <th class="th-sort" data-col="visit_reason"    onclick="sortGuestsBy('visit_reason')">Motivo</th>
+                <th class="th-sort" data-col="first_name"      onclick="sortGuestsBy('first_name')" title="Clicca per ordinare per Nome (alfabetico A-Z, ri-clicca per Z-A).">Nome</th>
+                <th class="th-sort" data-col="last_name"       onclick="sortGuestsBy('last_name')" title="Clicca per ordinare per Cognome (alfabetico A-Z, ri-clicca per Z-A).">Cognome</th>
+                <th class="th-sort" data-col="email"           onclick="sortGuestsBy('email')" title="Clicca per ordinare per Email.">Email</th>
+                <th class="th-sort" data-col="company"         onclick="sortGuestsBy('company')" title="Clicca per ordinare per Azienda.">Azienda</th>
+                <th class="th-sort" data-col="expected_date"   onclick="sortGuestsBy('expected_date')" title="Clicca per ordinare per Data Prevista di arrivo.">Data Prevista</th>
+                <th class="th-sort" data-col="person_to_visit" onclick="sortGuestsBy('person_to_visit')" title="Clicca per ordinare per Persona da Visitare.">Persona da Visitare</th>
+                <th class="th-sort" data-col="visit_reason"    onclick="sortGuestsBy('visit_reason')" title="Clicca per ordinare per Motivo Visita.">Motivo</th>
                 <th class="no-sort">📧 QR</th>
                 <th class="no-sort">Stato</th>
                 <th class="no-sort">Azioni</th>
@@ -2410,10 +2410,10 @@
           <table>
             <thead>
               <tr>
-                <th class="th-sort" data-col="name"             onclick="sortEventsBy('name')">Nome</th>
-                <th class="th-sort" data-col="event_start_date" onclick="sortEventsBy('event_start_date')">Periodo</th>
-                <th class="th-sort" data-col="qr_valid_from"    onclick="sortEventsBy('qr_valid_from')">QR attivo dal</th>
-                <th class="th-sort" data-col="is_active"        onclick="sortEventsBy('is_active')">Stato</th>
+                <th class="th-sort" data-col="name"             onclick="sortEventsBy('name')" title="Clicca per ordinare per Nome Evento (alfabetico).">Nome</th>
+                <th class="th-sort" data-col="event_start_date" onclick="sortEventsBy('event_start_date')" title="Clicca per ordinare per Data Inizio Evento (cronologico).">Periodo</th>
+                <th class="th-sort" data-col="qr_valid_from"    onclick="sortEventsBy('qr_valid_from')" title="Clicca per ordinare per Data Attivazione QR.">QR attivo dal</th>
+                <th class="th-sort" data-col="is_active"        onclick="sortEventsBy('is_active')" title="Clicca per ordinare per Stato (Attivo / Chiuso / Pronto / Passato).">Stato</th>
                 <th class="no-sort">Azioni</th>
               </tr>
             </thead>
