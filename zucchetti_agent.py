@@ -89,7 +89,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.4.3-recreate"
+AGENT_VERSION = "1.4.4-recreate-svc"
 
 
 def update_heartbeat(notes: str | None = None):
@@ -1109,6 +1109,7 @@ try:
                     process_pending_badges()
                     process_pool_preparation()
                     process_active_transactions()
+                    process_pool_walkin_recreate()
                     cleanup_archived_visitors()
                     midnight_cleanup_stale_visitors()
                     update_heartbeat()
