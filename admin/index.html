@@ -3080,8 +3080,14 @@
     }
 
     function openQrForEvent(eventId) {
-      const ev = eventsData.find(e => e.id === eventId);
-      if (!ev) return;
+      // Cerca prima in eventsData (popolato dalla tab Eventi); se vuoto (es. utente
+      // arrivato da tab Ospiti senza mai aprire Eventi), fallback su activeEvent.
+      let ev = eventsData.find(e => e.id === eventId);
+      if (!ev && activeEvent && activeEvent.id === eventId) ev = activeEvent;
+      if (!ev) {
+        alert('Evento non trovato. Vai in tab Eventi per creare/avviare un evento.');
+        return;
+      }
       const url = `${defaultFrontendBaseUrl()}?mode=qr&event=${encodeURIComponent(eventId)}`;
       const input = document.getElementById('qr-url-input');
       input.value = url;
@@ -4133,15 +4139,46 @@ Questo è un messaggio automatico. Per supporto contatta la reception.
 
     async function deleteGuest(btn) {
       const id = btn.dataset.id;
-      if (!confirm('Rimuovere questo ospite dalla lista?')) return;
+      const guest = guestData.find(g => String(g.id) === String(id));
+      const name = guest ? `${guest.first_name} ${guest.last_name}` : 'questo ospite';
+
+      // Se ha già firmato (matched_visitor_id) o stub pre-assegnato: protezione
+      const arrived   = arrivedSet.has(id);
+      const preAssign = preAssignedMap.get(id);
+
+      if (arrived) {
+        alert(`⚠️ ${name} ha GIÀ firmato la registrazione (presente come visitatore).\n\n` +
+              `Non rimuovere dalla lista invitati: si perderebbe il collegamento allo storico.\n\n` +
+              `Per concludere la sua visita usa "⏹ Concludi" sulla riga in tab Visitatori.`);
+        return;
+      }
+      if (preAssign) {
+        if (!confirm(`⚠️ ${name} ha un BADGE PRE-ASSEGNATO (n. ${preAssign.badge}).\n\n` +
+                     `Rimuovendolo dalla lista verrà eliminato anche lo stub di pre-attivazione e l'agente libererà il badge.\n\n` +
+                     `Procedere?`)) return;
+      } else {
+        if (!confirm(`Rimuovere ${name} dalla lista invitati?`)) return;
+      }
+
       btn.disabled = true;
       btn.textContent = '...';
       try {
+        // Se c'era uno stub badge: marcalo checked_out → l'agente al ciclo successivo libera il badge
+        if (preAssign) {
+          try {
+            await api(`${SUPABASE_URL}/rest/v1/visitors?guest_id=eq.${encodeURIComponent(id)}&xatlas_status=in.(pending,active)`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+              body: JSON.stringify({ xatlas_status: 'checked_out' })
+            });
+          } catch (_) { /* best-effort */ }
+        }
         const res = await api(`${SUPABASE_URL}/rest/v1/guest_list?id=eq.${encodeURIComponent(id)}`, {
           method: 'DELETE', headers: { 'Prefer': 'return=representation' }
         });
         if (!res) return;
         if (!res.ok) throw new Error(`Errore ${res.status}`);
+        auditLog('guest_delete', 'guest_list', id, { name, had_preassigned_badge: preAssign ? preAssign.badge : null });
         btn.closest('tr').remove();
         guestData = guestData.filter(g => String(g.id) !== String(id));
         document.getElementById('g-stat-total').textContent = guestData.length;
