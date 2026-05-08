@@ -89,7 +89,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.4.1-dedup"
+AGENT_VERSION = "1.4.2-rename-fix"
 
 
 def update_heartbeat(notes: str | None = None):
@@ -949,15 +949,29 @@ def rename_xatlas_user(xid: int, first_name: str, last_name: str) -> bool:
     except Exception as e:
         log.debug(f"rename_xatlas_user API: {e}")
 
-    # Approccio 2: UPDATE diretto su AXS_DB (fallback). NB: non triggera NET9x sync
-    # ma il nome viene comunque mostrato sui tornelli SuperTRAX al passaggio successivo
-    # (perché viene letto dal DB locale).
+    # Approccio 2: UPDATE diretto su AXS_DB.external_user (fallback).
+    # Schema reale (verificato 2026-05-07):
+    #   - external_user.name = nome
+    #   - external_user.surname = cognome
+    #   - external_user.short_name = display
+    #   - external_user.surname_or_plate / name_or_brand_model = denormalizzati
+    # NB: UPDATE diretto non triggera NET9x sync; il nome viene aggiornato sul DB
+    # locale e mostrato al prossimo passaggio del tornello.
     try:
         conn = psycopg2.connect(**AXS_DB)
         cur = conn.cursor()
         cur.execute(
-            "UPDATE external_user SET firstname=%s, lastname=%s, short_name=%s WHERE id=%s",
-            (first_name, last_name, short_name, xid),
+            """
+            UPDATE external_user
+            SET name = %s,
+                surname = %s,
+                short_name = %s,
+                surname_or_plate = %s,
+                name_or_brand_model = %s,
+                log_update = NOW()
+            WHERE id = %s
+            """,
+            (first_name, last_name, short_name, last_name, first_name, xid),
         )
         conn.commit()
         cur.close()
