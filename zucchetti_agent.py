@@ -89,7 +89,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.4.2-rename-fix"
+AGENT_VERSION = "1.4.3-recreate"
 
 
 def update_heartbeat(notes: str | None = None):
@@ -913,114 +913,99 @@ def midnight_cleanup_stale_visitors():
     _last_midnight_cleanup_date = today
 
 
-def rename_xatlas_user(xid: int, first_name: str, last_name: str) -> bool:
-    """Rinomina un utente esterno XAtlas. Usa update API o, in fallback, UPDATE
-    diretto su AXS_DB. Ritorna True se almeno una via riesce.
-    Necessario per il pool: l'utente XAtlas viene creato come "Pool BadgeXXX"
-    e quando l'admin assegna il badge a un walk-in vero, il tornello deve mostrare
-    il nome reale del visitatore invece di 'Badge238576 Pool'."""
-    short_name = f"{last_name} {first_name}".strip()
+def process_pool_walkin_recreate():
+    """Per i visitatori venuti dal pool (xatlas_user_id != NULL + xatlas_renamed=false),
+    SOSTITUISCE l'utente XAtlas pool ('Pool BadgeXXX') con uno nuovo dal nome reale.
 
-    # Approccio 1: chiamata API XAtlas /update (best-effort, può non esistere)
-    try:
-        r = xatlas_request(
-            "post",
-            "/users/data/ExternalUser/update",
-            json={
-                "id":        xid,
-                "firstname": first_name,
-                "lastname":  last_name,
-                "shortName": short_name,
-                "name":      first_name,
-                "surname":   last_name,
-            },
-            headers={"x-requested-with": "XMLHttpRequest", "accept": "*/*"},
-        )
-        if r.ok:
-            try:
-                data = r.json()
-                if data.get("success"):
-                    log.info(f"rename_xatlas_user via API: id={xid} -> '{short_name}' OK")
-                    return True
-            except Exception:
-                # body vuoto = success per altre API XAtlas
-                log.info(f"rename_xatlas_user via API: id={xid} -> '{short_name}' OK (body vuoto)")
-                return True
-    except Exception as e:
-        log.debug(f"rename_xatlas_user API: {e}")
+    Il display tornello SuperTRAX legge da una cache locale che si aggiorna SOLO via
+    NET9x sync — e il sync NET9x è triggerato SOLO da chiamate API XAtlas (create/assign),
+    NON da UPDATE SQL diretto. Per questo serve delete+recreate, non un semplice rename.
 
-    # Approccio 2: UPDATE diretto su AXS_DB.external_user (fallback).
-    # Schema reale (verificato 2026-05-07):
-    #   - external_user.name = nome
-    #   - external_user.surname = cognome
-    #   - external_user.short_name = display
-    #   - external_user.surname_or_plate / name_or_brand_model = denormalizzati
-    # NB: UPDATE diretto non triggera NET9x sync; il nome viene aggiornato sul DB
-    # locale e mostrato al prossimo passaggio del tornello.
-    try:
-        conn = psycopg2.connect(**AXS_DB)
-        cur = conn.cursor()
-        cur.execute(
-            """
-            UPDATE external_user
-            SET name = %s,
-                surname = %s,
-                short_name = %s,
-                surname_or_plate = %s,
-                name_or_brand_model = %s,
-                log_update = NOW()
-            WHERE id = %s
-            """,
-            (first_name, last_name, short_name, last_name, first_name, xid),
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-        log.info(f"rename_xatlas_user via SQL: id={xid} -> '{short_name}' OK (fallback)")
-        return True
-    except Exception as e:
-        log.warning(f"rename_xatlas_user SQL fallback fallito per id={xid}: {e}")
-        return False
+    Sequenza per ogni walk-in:
+      1) unassign card dal vecchio user pool
+      2) delete vecchio user pool (libera l'identifier VIS{badge})
+      3) create nuovo user con nome reale + assign card (single call)
+      4) PATCH visitor + badge_pool con nuovo xatlas_user_id
 
-
-def process_pool_renames():
-    """Per i visitatori venuti dal pool (xatlas_user_id valorizzato + xatlas_renamed=false),
-    rinomina l'utente XAtlas con il nome reale del visitatore.
-    Cosi al tornello l'ospite vede 'Rossi Mario' invece di 'Badge238576 Pool'."""
+    Limite 5 visitor per ciclo per non saturare le API XAtlas (operazione pesante)."""
     try:
         rows = sb_get("visitors", params={
             "xatlas_user_id": "not.is.null",
             "xatlas_renamed": "is.false",
             "xatlas_status":  "eq.active",
-            "select": "id,first_name,last_name,xatlas_user_id",
-            "limit": "20",
+            "select": "id,first_name,last_name,xatlas_user_id,badge_number",
+            "limit": "5",
         })
     except Exception as e:
-        log.warning(f"process_pool_renames: lettura fallita: {e}")
+        log.warning(f"process_pool_walkin_recreate: lettura fallita: {e}")
         return
 
     if not rows:
         return
 
-    log.info(f"process_pool_renames: {len(rows)} visitor da rinominare al tornello")
+    log.info(f"process_pool_walkin_recreate: {len(rows)} walk-in da ricreare per nome al tornello")
     for v in rows:
-        vid = v["id"]
-        xid = v.get("xatlas_user_id")
-        fn  = (v.get("first_name") or "").strip()
-        ln  = (v.get("last_name")  or "").strip()
-        if not (xid and fn and ln):
+        vid     = v["id"]
+        old_xid = v.get("xatlas_user_id")
+        fn      = (v.get("first_name") or "").strip()
+        ln      = (v.get("last_name")  or "").strip()
+        badge   = v.get("badge_number")
+
+        # Skip se manca qualcosa di essenziale (e marca come renamed per evitare loop)
+        if not (old_xid and fn and ln and badge):
+            try: sb_patch(f"visitors?id=eq.{vid}", {"xatlas_renamed": True})
+            except Exception: pass
             continue
-        # Salta se il visitor ha first_name='Pool' (è ancora un'entry pool grezza non assegnata)
+
+        # Skip se è ancora un placeholder pool (first_name='Pool')
         if fn.lower() == "pool":
+            try: sb_patch(f"visitors?id=eq.{vid}", {"xatlas_renamed": True})
+            except Exception: pass
             continue
+
         try:
-            ok = rename_xatlas_user(xid, fn, ln)
-            # Marca come rinominato (anche se fallisce) per evitare loop infiniti
-            sb_patch(f"visitors?id=eq.{vid}", {"xatlas_renamed": True})
-            if ok:
-                log.info(f"Rename pool: visitor={vid} {ln} {fn} (xid={xid})")
+            card_id = find_card_id_by_clear_code(badge)
+            if card_id is None:
+                log.warning(f"recreate vid={vid}: card {badge} non trovata, skip")
+                sb_patch(f"visitors?id=eq.{vid}", {"xatlas_renamed": True})
+                continue
+
+            # Step 1: unassign card dal vecchio user pool (libera la card)
+            try:
+                unassign_xatlas_card(old_xid, card_id)
+                log.debug(f"recreate vid={vid}: card {card_id} unassigned da old_xid={old_xid}")
+            except Exception as e:
+                log.warning(f"recreate vid={vid}: unassign old_xid={old_xid}: {e}")
+                # prosegui: magari era già unassigned
+
+            # Step 2: delete vecchio user pool (libera identifier VIS{badge})
+            try:
+                delete_xatlas_user(old_xid)
+                log.debug(f"recreate vid={vid}: old_xid={old_xid} deleted")
+            except Exception as e:
+                log.warning(f"recreate vid={vid}: delete old_xid={old_xid}: {e}")
+                # prosegui: il create sotto userà _find_external_user_by_identifier
+
+            # Step 3: create nuovo user con nome reale + assign card (single call)
+            new_xid, new_cid = create_xatlas_user(badge, fn, ln)
+
+            # Step 4: PATCH visitor + badge_pool con nuovo xatlas_user_id
+            sb_patch(f"visitors?id=eq.{vid}", {
+                "xatlas_user_id": new_xid,
+                "xatlas_renamed": True,
+            })
+            try:
+                sb_patch(f"badge_pool?xatlas_user_id=eq.{old_xid}", {
+                    "xatlas_user_id": new_xid
+                })
+            except Exception as e:
+                log.warning(f"recreate vid={vid}: PATCH badge_pool: {e}")
+
+            log.info(f"Walk-in pool RICREATO: vid={vid} {ln} {fn} badge={badge} old_xid={old_xid} -> new_xid={new_xid}")
+
         except Exception as e:
-            log.error(f"process_pool_renames visitor {vid}: {e}")
+            log.error(f"recreate vid={vid} {fn} {ln} badge={badge}: {e}")
+            # Non marca renamed=true, l'agente riproverà al prossimo ciclo
 
 
 def cleanup_archived_visitors():
@@ -1074,7 +1059,7 @@ def run_loop():
             process_pending_badges()
             process_pool_preparation()
             process_active_transactions()
-            process_pool_renames()
+            process_pool_walkin_recreate()
             cleanup_archived_visitors()
             midnight_cleanup_stale_visitors()
             update_heartbeat()
