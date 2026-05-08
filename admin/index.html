@@ -1027,27 +1027,30 @@
     thead th.th-sort {
       cursor: pointer;
       position: relative;
-      padding-right: 22px;
+      padding-right: 26px;
       transition: color 0.15s, background 0.15s;
     }
     thead th.th-sort::after {
-      content: '⇅';
+      content: '\2195'; /* ↕ a 1 carattere — niente overflow */
       position: absolute;
-      right: 8px;
+      right: 6px;
       top: 50%;
       transform: translateY(-50%);
-      font-size: 11px;
-      opacity: 0.35;
-      transition: opacity 0.15s;
+      font-size: 10px;
+      line-height: 1;
+      color: #a0aec0;
+      opacity: 0.7;
+      transition: opacity 0.15s, color 0.15s;
+      pointer-events: none;
     }
-    thead th.th-sort:hover { color: #4c51bf; }
-    thead th.th-sort:hover::after { opacity: 0.65; }
+    thead th.th-sort:hover { color: #4c51bf; background: #edf2f7; }
+    thead th.th-sort:hover::after { opacity: 1; color: #4c51bf; }
     thead th.th-sort-asc, thead th.th-sort-desc {
       color: #4c51bf;
       background: #ebf4ff;
     }
-    thead th.th-sort-asc::after  { content: '▲'; opacity: 1; }
-    thead th.th-sort-desc::after { content: '▼'; opacity: 1; }
+    thead th.th-sort-asc::after  { content: '\25B2'; opacity: 1; color: #4c51bf; } /* ▲ */
+    thead th.th-sort-desc::after { content: '\25BC'; opacity: 1; color: #4c51bf; } /* ▼ */
 
     tbody td { padding: 12px 14px; border-bottom: 1px solid #f0f2f5; font-size: 13px; color: #2d3748; vertical-align: middle; }
     tbody tr:hover { background: #fafbff; }
@@ -1088,6 +1091,76 @@
 
     .consent-yes { color: #38a169; font-weight: 700; }
     .consent-no  { color: #e53e3e; font-weight: 700; }
+
+    /* ── PRE-ASSEGNAZIONE BADGE: editor draft ── */
+    .dre-save-status {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+    .dre-save-status.saved   { background: #c6f6d5; color: #22543d; }
+    .dre-save-status.saving  { background: #feebc8; color: #7c2d12; }
+    .dre-save-status.error   { background: #fed7d7; color: #822727; }
+    .dre-save-status.dirty   { background: #fefcbf; color: #744210; }
+
+    #dre-table input.dre-cell {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: inherit;
+      background: transparent;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    #dre-table input.dre-cell:hover  { border-color: #e2e8f0; background: #fff; }
+    #dre-table input.dre-cell:focus  { border-color: #4c51bf; background: #fff; outline: none; box-shadow: 0 0 0 2px rgba(76,81,191,0.15); }
+    #dre-table input.dre-cell.dre-required-empty { border-color: #fc8181; background: #fff5f5; }
+    #dre-table input.dre-cell.dre-badge { font-weight: 600; color: #4c51bf; background: #fffaf0; }
+    #dre-table input.dre-cell.dre-badge:focus { background: #fff; }
+    #dre-table input.dre-cell.dre-duplicate { border-color: #e53e3e; background: #fff5f5; color: #c53030; }
+
+    #dre-table tbody tr.dre-invalid { background: #fff5f5; }
+    #dre-table tbody td { padding: 4px 6px; vertical-align: middle; }
+    #dre-table tbody td:first-child { color: #a0aec0; font-size: 12px; text-align: center; padding: 4px; }
+
+    .dre-row-delete {
+      background: transparent;
+      border: none;
+      color: #cbd5e0;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .dre-row-delete:hover { color: #e53e3e; background: #fed7d7; }
+
+    .dre-validation {
+      background: #fff5f5;
+      border: 1px solid #fc8181;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: #822727;
+    }
+    .dre-validation strong { color: #c53030; }
+
+    .dre-status-chip {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .dre-status-editing   { background: #fefcbf; color: #744210; }
+    .dre-status-finalized { background: #c6f6d5; color: #22543d; }
+    .dre-status-archived  { background: #e2e8f0; color: #4a5568; }
 
     /* ── ACTION BUTTONS ── */
     .btn-delete {
@@ -1966,6 +2039,7 @@
       <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')">Visitatori</button>
       <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')">Ospiti Attesi</button>
       <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')">🎫 Eventi</button>
+      <button type="button" class="btn btn-light" id="tab-drafts" onclick="switchView('drafts')">📝 Pre-assegnazione</button>
       <button type="button" class="btn btn-light" id="tab-audit" onclick="switchView('audit')">📋 Audit</button>
       <button type="button" class="btn btn-light" onclick="document.getElementById('users-modal').classList.add('active')">Utenti</button>
       <button type="button" class="btn btn-light" onclick="exportCSV()">Esporta CSV</button>
@@ -2302,6 +2376,10 @@
               <option value="fill_badges_bulk_create">Compila badge bulk</option>
               <option value="fill_badges_update">Compila badge update</option>
               <option value="email_qr_send">Invio email QR</option>
+              <option value="draft_create">Pre-assegna: nuovo draft</option>
+              <option value="draft_export">Pre-assegna: export CSV</option>
+              <option value="draft_finalize">Pre-assegna: finalizza</option>
+              <option value="draft_delete">Pre-assegna: elimina draft</option>
             </select>
           </div>
           <div class="filter-group filter-actions">
@@ -2335,6 +2413,129 @@
           <button type="button" class="btn btn-secondary" onclick="auditPrevPage()">← Precedente</button>
           <span id="audit-page-info">Pagina 1</span>
           <button type="button" class="btn btn-secondary" onclick="auditNextPage()">Successivo →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============== VIEW: PRE-ASSEGNAZIONE BADGE ============== -->
+    <div class="view" id="view-drafts">
+      <!-- Sotto-vista A: lista drafts -->
+      <div id="drafts-list-view">
+        <div class="stats-bar stats-3">
+          <div class="stat-card stat-card-primary">
+            <span class="stat-icon">&#128221;</span>
+            <h3>Drafts totali</h3>
+            <div class="value" id="dr-stat-total">—</div>
+            <div class="sub">tutti</div>
+          </div>
+          <div class="stat-card stat-card-warning">
+            <span class="stat-icon">&#9999;</span>
+            <h3>In editing</h3>
+            <div class="value" id="dr-stat-editing">—</div>
+            <div class="sub">in lavorazione</div>
+          </div>
+          <div class="stat-card stat-card-success">
+            <span class="stat-icon">&#9989;</span>
+            <h3>Finalizzati</h3>
+            <div class="value" id="dr-stat-finalized">—</div>
+            <div class="sub">pronti per import</div>
+          </div>
+        </div>
+
+        <div class="filters">
+          <div class="filters-secondary" style="justify-content:space-between">
+            <div style="display:flex;gap:8px;align-items:center">
+              <button type="button" class="btn btn-primary" onclick="newDraft()">＋ Nuovo draft</button>
+              <label style="font-size:13px;color:#4a5568;display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="dr-show-finalized" onchange="loadDrafts()"> Mostra finalizzati
+              </label>
+            </div>
+            <span class="info-badge" style="font-size:12px;color:#718096">
+              Importa un CSV partecipanti, compila i numeri badge nell'editor, esporta il CSV finale e usalo nell'import massivo della tab Ospiti Attesi.
+            </span>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <div id="drafts-table-status" class="table-status">Caricamento drafts...</div>
+          <div class="table-scroll table-hidden" id="drafts-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th class="no-sort">📝 Nome draft</th>
+                  <th class="no-sort">🎫 Evento</th>
+                  <th class="no-sort">👥 Righe</th>
+                  <th class="no-sort">⚙️ Stato</th>
+                  <th class="no-sort">⏱ Aggiornato</th>
+                  <th class="no-sort">👤 Da</th>
+                  <th class="no-sort">Azioni</th>
+                </tr>
+              </thead>
+              <tbody id="drafts-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sotto-vista B: editor draft -->
+      <div id="drafts-editor-view" style="display:none">
+        <div class="filters" style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button type="button" class="btn btn-secondary" onclick="closeDraftEditor()">← Torna ai drafts</button>
+            <input type="text" id="dre-name" placeholder="Nome draft" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;font-weight:600">
+            <select id="dre-event" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+              <option value="">— Nessun evento collegato —</option>
+            </select>
+            <span id="dre-save-status" class="dre-save-status saved">✓ Salvato</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input type="file" id="dre-file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="dreImportFile(this)">
+            <button type="button" class="btn btn-primary" onclick="document.getElementById('dre-file-input').click()">📥 Importa CSV/Excel</button>
+            <button type="button" class="btn btn-secondary" onclick="dreAddRow()">➕ Aggiungi riga</button>
+            <span style="font-size:12px;color:#718096">|</span>
+            <span style="font-size:12px;color:#4a5568">Auto-numera badge da:</span>
+            <input type="text" id="dre-autonum-start" placeholder="es. 241001" style="width:120px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+            <button type="button" class="btn btn-light" onclick="dreAutoNumber()">↻ Riempi vuoti</button>
+            <span style="font-size:12px;color:#718096">|</span>
+            <span id="dre-stats" style="font-size:12px;color:#4a5568;font-weight:600">0 righe • 0 con badge</span>
+          </div>
+        </div>
+
+        <div id="dre-validation" class="dre-validation" style="display:none"></div>
+
+        <div class="table-wrap">
+          <div id="dre-empty" class="table-status" style="display:none">
+            Nessun partecipante caricato. Importa un CSV o aggiungi righe manualmente.
+          </div>
+          <div class="table-scroll" id="dre-table-container">
+            <table id="dre-table">
+              <thead>
+                <tr>
+                  <th class="no-sort" style="width:40px">#</th>
+                  <th class="no-sort">Cognome <span class="req">*</span></th>
+                  <th class="no-sort">Nome <span class="req">*</span></th>
+                  <th class="no-sort">Email</th>
+                  <th class="no-sort">Azienda</th>
+                  <th class="no-sort">Persona da visitare</th>
+                  <th class="no-sort">Motivo visita</th>
+                  <th class="no-sort">Data prevista</th>
+                  <th class="no-sort" style="background:#fffaf0">🎟️ Numero Badge</th>
+                  <th class="no-sort" style="width:50px"></th>
+                </tr>
+              </thead>
+              <tbody id="dre-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="filters" style="margin-top:12px">
+          <div class="filters-secondary" style="justify-content:space-between">
+            <div style="display:flex;gap:8px">
+              <button type="button" class="btn btn-success" onclick="dreExportCsv()">📤 Esporta CSV finale</button>
+              <button type="button" class="btn btn-primary" onclick="dreFinalize()">✅ Finalizza draft</button>
+            </div>
+            <button type="button" class="btn btn-danger" onclick="dreDelete()">🗑 Elimina draft</button>
+          </div>
         </div>
       </div>
     </div>
@@ -2505,15 +2706,20 @@
       if (evView) evView.classList.toggle('active', v === 'events');
       const auView = document.getElementById('view-audit');
       if (auView) auView.classList.toggle('active', v === 'audit');
+      const drView = document.getElementById('view-drafts');
+      if (drView) drView.classList.toggle('active', v === 'drafts');
       document.getElementById('tab-visitors').classList.toggle('active-tab', v === 'visitors');
       document.getElementById('tab-guests').classList.toggle('active-tab', v === 'guests');
       const evTab = document.getElementById('tab-events');
       if (evTab) evTab.classList.toggle('active-tab', v === 'events');
       const auTab = document.getElementById('tab-audit');
       if (auTab) auTab.classList.toggle('active-tab', v === 'audit');
+      const drTab = document.getElementById('tab-drafts');
+      if (drTab) drTab.classList.toggle('active-tab', v === 'drafts');
       if (v === 'guests') loadGuestList();
       if (v === 'events') loadEvents();
       if (v === 'audit')  loadAuditLog();
+      if (v === 'drafts') loadDrafts();
     }
 
     // ── VISITORS DATA ─────────────────────────────────
@@ -2529,7 +2735,9 @@
     }
 
     function buildUrl() {
-      let url = `${SUPABASE_URL}/rest/v1/visitors?select=*&order=${sortCol}.${sortDir}`;
+      // nullslast: i record con valore NULL nella colonna di ordinamento finiscono in fondo
+      // (utile per visit_date/entry_time/event_name/badge_number che spesso sono NULL per gli "Attesi")
+      let url = `${SUPABASE_URL}/rest/v1/visitors?select=*&order=${sortCol}.${sortDir}.nullslast`;
       if (showArchived) {
         // Mostra SOLO archivio (xatlas_status='checked_out')
         url += `&xatlas_status=eq.checked_out`;
@@ -3329,6 +3537,10 @@
       fill_badges_bulk_create: { label: 'Compila Badge: insert', color: 'audit-color-purple' },
       fill_badges_update:      { label: 'Compila Badge: update', color: 'audit-color-purple' },
       email_qr_send:           { label: 'Invio Email QR',        color: 'audit-color-cyan'   },
+      draft_create:            { label: 'Pre-assegna: Nuovo',    color: 'audit-color-teal'   },
+      draft_export:            { label: 'Pre-assegna: Export',   color: 'audit-color-cyan'   },
+      draft_finalize:          { label: 'Pre-assegna: Finalizza',color: 'audit-color-green'  },
+      draft_delete:            { label: 'Pre-assegna: Elimina',  color: 'audit-color-red'    },
     };
 
     async function loadAuditLog() {
@@ -5234,6 +5446,615 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         loadGuestList();
       } catch (err) {
         alert('Errore importazione: ' + err.message);
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // ── PRE-ASSEGNAZIONE BADGE — DRAFT EDITOR ─────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────
+    // Flusso:
+    //   1) Lista drafts (tab "Pre-assegnazione")
+    //   2) Editor: importa CSV → tabella editabile con colonna Numero_Badge
+    //      → auto-save debounced su Supabase (tabella guest_drafts, JSONB rows)
+    //   3) Esporta CSV finale → import massivo nella tab Ospiti Attesi
+    //
+    // Persistenza: ogni modifica programma un PATCH dopo 1500ms di inattività.
+    // Se l'utente chiude il browser, riapre e ritrova esattamente lo stato.
+
+    const DRAFT_FIELDS = ['last_name','first_name','email','company','person_to_visit','visit_reason','expected_date','badge_number'];
+    let draftsList     = [];
+    let activeDraft    = null;        // { id, name, event_id, status, rows, updated_at, ... }
+    let activeRows     = [];          // working copy delle righe (mutata dagli input)
+    let draftSaveTimer = null;
+    let draftSaveSeq   = 0;           // contatore per ignorare risposte di save sorpassati
+
+    // ── LISTA DRAFTS ─────────────────────────────────────
+    async function loadDrafts() {
+      if (currentView !== 'drafts') return;
+      const showFinalized = document.getElementById('dr-show-finalized')?.checked;
+      const statuses = showFinalized ? "in.(editing,finalized)" : "eq.editing";
+      const status = document.getElementById('drafts-table-status');
+      const cont   = document.getElementById('drafts-table-container');
+      status.style.display = '';
+      status.textContent = 'Caricamento drafts...';
+      cont.classList.add('table-hidden');
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_drafts?select=id,name,event_id,status,row_count,created_by,updated_by,created_at,updated_at&status=${statuses}&order=updated_at.desc&limit=200`);
+        if (!res) return;
+        if (!res.ok) throw new Error(`Errore ${res.status}`);
+        draftsList = await res.json();
+        renderDraftsList();
+        updateDraftStats();
+      } catch (err) {
+        status.textContent = 'Errore caricamento: ' + err.message;
+      }
+    }
+
+    function updateDraftStats() {
+      const tot = draftsList.length;
+      const editing = draftsList.filter(d => d.status === 'editing').length;
+      const finalized = draftsList.filter(d => d.status === 'finalized').length;
+      document.getElementById('dr-stat-total').textContent     = tot;
+      document.getElementById('dr-stat-editing').textContent   = editing;
+      document.getElementById('dr-stat-finalized').textContent = finalized;
+    }
+
+    function renderDraftsList() {
+      const status = document.getElementById('drafts-table-status');
+      const cont   = document.getElementById('drafts-table-container');
+      const tbody  = document.getElementById('drafts-table-body');
+      if (draftsList.length === 0) {
+        status.textContent = 'Nessun draft. Crea il primo con "Nuovo draft".';
+        status.style.display = '';
+        cont.classList.add('table-hidden');
+        return;
+      }
+      status.style.display = 'none';
+      cont.classList.remove('table-hidden');
+      // Costruisci mappa eventi per lookup nome (riusa eventsData se disponibile)
+      const evMap = {};
+      (Array.isArray(eventsData) ? eventsData : []).forEach(e => evMap[e.id] = e);
+      tbody.innerHTML = '';
+      draftsList.forEach(d => {
+        const tr = document.createElement('tr');
+        const eventLabel = d.event_id && evMap[d.event_id]
+          ? `🎫 ${esc(evMap[d.event_id].name)}`
+          : (d.event_id ? '🎫 (evento)' : '<span class="empty-dash">—</span>');
+        const statusChip = `<span class="dre-status-chip dre-status-${d.status}">${d.status === 'editing' ? '✏️ In editing' : (d.status === 'finalized' ? '✅ Finalizzato' : '📦 Archiviato')}</span>`;
+        const updatedTxt = d.updated_at ? fmtRelativeTime(d.updated_at) : '—';
+        const canEdit = d.status === 'editing';
+        tr.innerHTML = `
+          <td><strong>${esc(d.name)}</strong></td>
+          <td>${eventLabel}</td>
+          <td><strong>${d.row_count || 0}</strong></td>
+          <td>${statusChip}</td>
+          <td title="${d.updated_at || ''}">${updatedTxt}</td>
+          <td>${esc(d.updated_by || d.created_by || '—')}</td>
+          <td>
+            <button type="button" class="btn btn-primary" style="padding:6px 12px;font-size:12px" onclick="openDraftEditor('${d.id}')">${canEdit ? '✏️ Apri' : '👁️ Visualizza'}</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function fmtRelativeTime(iso) {
+      try {
+        const d = new Date(iso);
+        const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
+        if (diffSec < 60)    return diffSec + ' sec fa';
+        if (diffSec < 3600)  return Math.floor(diffSec / 60) + ' min fa';
+        if (diffSec < 86400) return Math.floor(diffSec / 3600) + ' h fa';
+        if (diffSec < 604800) return Math.floor(diffSec / 86400) + ' giorni fa';
+        return d.toLocaleDateString('it-IT');
+      } catch (_) { return '—'; }
+    }
+
+    // ── NEW DRAFT ────────────────────────────────────────
+    async function newDraft() {
+      const name = prompt('Nome del draft (es. "Team Building 2026-05-10"):');
+      if (!name || !name.trim()) return;
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_drafts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify({
+            name: name.trim(),
+            rows: [],
+            created_by: CURRENT_USER_EMAIL || null,
+            updated_by: CURRENT_USER_EMAIL || null
+          })
+        });
+        if (!res || !res.ok) {
+          const b = res ? await res.json().catch(() => ({})) : {};
+          throw new Error(b.message || `Errore ${res?.status}`);
+        }
+        const created = await res.json();
+        const draft = Array.isArray(created) ? created[0] : created;
+        auditLog('draft_create', 'guest_drafts', draft.id, { name: draft.name });
+        await loadDrafts();
+        openDraftEditor(draft.id);
+      } catch (err) {
+        alert('Errore creazione draft: ' + err.message);
+      }
+    }
+
+    // ── OPEN / CLOSE EDITOR ──────────────────────────────
+    async function openDraftEditor(id) {
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_drafts?id=eq.${id}&select=*&limit=1`);
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        const arr = await res.json();
+        if (!arr.length) throw new Error('Draft non trovato');
+        activeDraft = arr[0];
+        activeRows  = Array.isArray(activeDraft.rows) ? JSON.parse(JSON.stringify(activeDraft.rows)) : [];
+        // Switch sotto-vista
+        document.getElementById('drafts-list-view').style.display   = 'none';
+        document.getElementById('drafts-editor-view').style.display = '';
+        document.getElementById('dre-name').value  = activeDraft.name || '';
+        document.getElementById('dre-name').disabled = activeDraft.status !== 'editing';
+        // Popola dropdown eventi
+        await populateDraftEventDropdown(activeDraft.event_id);
+        document.getElementById('dre-event').disabled = activeDraft.status !== 'editing';
+        // Disabilita controlli se finalizzato
+        const readOnly = activeDraft.status !== 'editing';
+        document.querySelectorAll('#drafts-editor-view button').forEach(b => {
+          // mantieni solo "torna ai drafts" e "elimina" attivi
+          if (b.textContent.includes('Torna') || b.textContent.includes('Elimina')) return;
+          b.disabled = readOnly;
+        });
+        markDraftSaved();
+        renderDreTable();
+      } catch (err) {
+        alert('Errore apertura draft: ' + err.message);
+      }
+    }
+
+    async function populateDraftEventDropdown(selectedId) {
+      const sel = document.getElementById('dre-event');
+      sel.innerHTML = '<option value="">— Nessun evento collegato —</option>';
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/events?select=id,name,event_start_date,event_end_date&order=event_start_date.desc&limit=100`);
+        if (!res || !res.ok) return;
+        const evs = await res.json();
+        evs.forEach(e => {
+          const opt = document.createElement('option');
+          opt.value = e.id;
+          opt.textContent = `${e.name} (${fmtItDate(e.event_start_date)})`;
+          if (e.id === selectedId) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      } catch (_) { /* silent */ }
+    }
+
+    function closeDraftEditor() {
+      // Forza save pendente prima di tornare alla lista
+      if (draftSaveTimer) {
+        clearTimeout(draftSaveTimer);
+        draftSaveTimer = null;
+        saveDraftNow();
+      }
+      activeDraft = null;
+      activeRows  = [];
+      document.getElementById('drafts-list-view').style.display   = '';
+      document.getElementById('drafts-editor-view').style.display = 'none';
+      loadDrafts();
+    }
+
+    // ── RENDER TABELLA EDITABILE ─────────────────────────
+    function renderDreTable() {
+      const empty = document.getElementById('dre-empty');
+      const cont  = document.getElementById('dre-table-container');
+      const tbody = document.getElementById('dre-table-body');
+      tbody.innerHTML = '';
+      if (activeRows.length === 0) {
+        empty.style.display = '';
+        cont.style.display  = 'none';
+      } else {
+        empty.style.display = 'none';
+        cont.style.display  = '';
+        activeRows.forEach((r, idx) => tbody.appendChild(buildDreRow(r, idx)));
+      }
+      updateDreStats();
+      validateDreRows();
+    }
+
+    function buildDreRow(r, idx) {
+      const tr = document.createElement('tr');
+      tr.dataset.idx = idx;
+      const readOnly = activeDraft && activeDraft.status !== 'editing';
+      const cell = (field, value, extraClass = '') => {
+        const td = document.createElement('td');
+        const inp = document.createElement('input');
+        inp.type = (field === 'expected_date') ? 'date' : 'text';
+        inp.className = 'dre-cell ' + extraClass;
+        inp.value = value || '';
+        inp.dataset.field = field;
+        inp.disabled = readOnly;
+        inp.addEventListener('input', onDreCellInput);
+        td.appendChild(inp);
+        return td;
+      };
+      const numTd = document.createElement('td');
+      numTd.textContent = idx + 1;
+      tr.appendChild(numTd);
+      tr.appendChild(cell('last_name',        r.last_name));
+      tr.appendChild(cell('first_name',       r.first_name));
+      tr.appendChild(cell('email',            r.email));
+      tr.appendChild(cell('company',          r.company));
+      tr.appendChild(cell('person_to_visit',  r.person_to_visit));
+      tr.appendChild(cell('visit_reason',     r.visit_reason));
+      tr.appendChild(cell('expected_date',    r.expected_date));
+      tr.appendChild(cell('badge_number',     r.badge_number, 'dre-badge'));
+      const delTd = document.createElement('td');
+      if (!readOnly) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dre-row-delete';
+        btn.title = 'Elimina riga';
+        btn.textContent = '×';
+        btn.onclick = () => dreDeleteRow(idx);
+        delTd.appendChild(btn);
+      }
+      tr.appendChild(delTd);
+      return tr;
+    }
+
+    function onDreCellInput(e) {
+      const tr = e.target.closest('tr');
+      const idx = parseInt(tr.dataset.idx, 10);
+      const field = e.target.dataset.field;
+      activeRows[idx][field] = e.target.value;
+      markDraftDirty();
+      validateDreRows();
+      updateDreStats();
+      scheduleDraftSave();
+    }
+
+    function dreAddRow() {
+      activeRows.push({ last_name: '', first_name: '', email: '', company: '', person_to_visit: '', visit_reason: '', expected_date: '', badge_number: '' });
+      renderDreTable();
+      markDraftDirty();
+      scheduleDraftSave();
+      // Focus sul cognome della nuova riga
+      setTimeout(() => {
+        const tbody = document.getElementById('dre-table-body');
+        const lastTr = tbody.lastElementChild;
+        if (lastTr) {
+          const firstInput = lastTr.querySelector('input.dre-cell');
+          if (firstInput) firstInput.focus();
+        }
+      }, 50);
+    }
+
+    function dreDeleteRow(idx) {
+      if (!confirm(`Eliminare la riga ${idx + 1}?`)) return;
+      activeRows.splice(idx, 1);
+      renderDreTable();
+      markDraftDirty();
+      scheduleDraftSave();
+    }
+
+    function dreAutoNumber() {
+      const startStr = document.getElementById('dre-autonum-start').value.trim();
+      if (!startStr) { alert('Inserisci il numero badge iniziale (es. 241001)'); return; }
+      // Estrai prefisso non numerico + parte numerica finale
+      const m = startStr.match(/^(.*?)(\d+)$/);
+      if (!m) { alert('Numero non valido. Usa formato es. 241001 o BADGE-100'); return; }
+      const prefix = m[1];
+      let n = parseInt(m[2], 10);
+      const pad = m[2].length;
+      // Raccogli badge già usati (per non duplicare)
+      const used = new Set(activeRows.map(r => (r.badge_number || '').trim()).filter(Boolean));
+      let filled = 0;
+      activeRows.forEach(r => {
+        if (r.badge_number && r.badge_number.trim()) return;
+        // trova il prossimo n libero
+        while (used.has(prefix + String(n).padStart(pad, '0'))) n++;
+        r.badge_number = prefix + String(n).padStart(pad, '0');
+        used.add(r.badge_number);
+        n++;
+        filled++;
+      });
+      if (filled === 0) { alert('Nessuna riga con badge vuoto da riempire.'); return; }
+      renderDreTable();
+      markDraftDirty();
+      scheduleDraftSave();
+      alert(`✓ ${filled} badge auto-numerati partendo da ${startStr}`);
+    }
+
+    // ── VALIDAZIONE LIVE (duplicati badge + required vuoti) ─
+    function validateDreRows() {
+      // Conta occorrenze badge
+      const counts = {};
+      activeRows.forEach(r => {
+        const b = (r.badge_number || '').trim();
+        if (!b) return;
+        counts[b] = (counts[b] || 0) + 1;
+      });
+      const duplicates = Object.entries(counts).filter(([_, c]) => c > 1).map(([b]) => b);
+      // Aggiorna stato visivo input
+      const tbody = document.getElementById('dre-table-body');
+      const trs = tbody.querySelectorAll('tr');
+      let invalidRows = 0;
+      trs.forEach((tr, idx) => {
+        const r = activeRows[idx];
+        if (!r) return;
+        let rowInvalid = false;
+        tr.querySelectorAll('input.dre-cell').forEach(inp => {
+          const f = inp.dataset.field;
+          inp.classList.remove('dre-required-empty', 'dre-duplicate');
+          if ((f === 'last_name' || f === 'first_name') && !inp.value.trim()) {
+            inp.classList.add('dre-required-empty');
+            rowInvalid = true;
+          }
+          if (f === 'badge_number' && inp.value.trim() && duplicates.includes(inp.value.trim())) {
+            inp.classList.add('dre-duplicate');
+            rowInvalid = true;
+          }
+        });
+        tr.classList.toggle('dre-invalid', rowInvalid);
+        if (rowInvalid) invalidRows++;
+      });
+      // Banner warnings
+      const banner = document.getElementById('dre-validation');
+      const issues = [];
+      const missingNames = activeRows.filter(r => !(r.last_name || '').trim() || !(r.first_name || '').trim()).length;
+      if (missingNames > 0)      issues.push(`<strong>${missingNames}</strong> righe con Nome/Cognome mancante`);
+      if (duplicates.length > 0) issues.push(`Badge duplicati: <strong>${duplicates.join(', ')}</strong>`);
+      if (issues.length === 0) {
+        banner.style.display = 'none';
+      } else {
+        banner.style.display = '';
+        banner.innerHTML = '⚠️ Attenzione: ' + issues.join(' • ');
+      }
+      return { invalidRows, duplicates, missingNames };
+    }
+
+    function updateDreStats() {
+      const total = activeRows.length;
+      const withBadge = activeRows.filter(r => (r.badge_number || '').trim()).length;
+      document.getElementById('dre-stats').textContent = `${total} righe • ${withBadge} con badge`;
+    }
+
+    // ── AUTO-SAVE DEBOUNCED ──────────────────────────────
+    function markDraftDirty() {
+      const el = document.getElementById('dre-save-status');
+      el.className = 'dre-save-status dirty';
+      el.textContent = '● Modifiche non salvate';
+    }
+    function markDraftSaving() {
+      const el = document.getElementById('dre-save-status');
+      el.className = 'dre-save-status saving';
+      el.textContent = '⏳ Salvataggio...';
+    }
+    function markDraftSaved() {
+      const el = document.getElementById('dre-save-status');
+      el.className = 'dre-save-status saved';
+      el.textContent = '✓ Salvato';
+    }
+    function markDraftError(msg) {
+      const el = document.getElementById('dre-save-status');
+      el.className = 'dre-save-status error';
+      el.textContent = '⚠️ Errore: ' + msg;
+    }
+
+    function scheduleDraftSave() {
+      if (!activeDraft || activeDraft.status !== 'editing') return;
+      if (draftSaveTimer) clearTimeout(draftSaveTimer);
+      draftSaveTimer = setTimeout(() => {
+        draftSaveTimer = null;
+        saveDraftNow();
+      }, 1500);
+    }
+
+    async function saveDraftNow() {
+      if (!activeDraft) return;
+      const seq = ++draftSaveSeq;
+      markDraftSaving();
+      const payload = {
+        name:       (document.getElementById('dre-name').value || '').trim() || activeDraft.name,
+        event_id:   document.getElementById('dre-event').value || null,
+        rows:       activeRows,
+        updated_by: CURRENT_USER_EMAIL || null
+      };
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_drafts?id=eq.${activeDraft.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify(payload)
+        });
+        if (seq !== draftSaveSeq) return; // un save più recente è in volo
+        if (!res || !res.ok) {
+          const b = res ? await res.json().catch(() => ({})) : {};
+          throw new Error(b.message || `${res?.status}`);
+        }
+        activeDraft.name     = payload.name;
+        activeDraft.event_id = payload.event_id;
+        activeDraft.rows     = JSON.parse(JSON.stringify(activeRows));
+        markDraftSaved();
+      } catch (err) {
+        markDraftError(err.message);
+      }
+    }
+
+    // Listener su nome + evento → trigger save
+    document.addEventListener('DOMContentLoaded', () => {
+      const nameInp = document.getElementById('dre-name');
+      const evSel   = document.getElementById('dre-event');
+      if (nameInp) nameInp.addEventListener('input', () => { markDraftDirty(); scheduleDraftSave(); });
+      if (evSel)   evSel.addEventListener('change',  () => { markDraftDirty(); scheduleDraftSave(); });
+    });
+
+    // Save al beforeunload se ci sono modifiche pendenti
+    window.addEventListener('beforeunload', e => {
+      if (draftSaveTimer && activeDraft) {
+        // Tentativo best-effort: navigator.sendBeacon non funziona con PATCH+auth.
+        // Cancelliamo timer e proviamo save sincrono (fetch keepalive).
+        clearTimeout(draftSaveTimer);
+        const payload = {
+          name:       (document.getElementById('dre-name').value || '').trim() || activeDraft.name,
+          event_id:   document.getElementById('dre-event').value || null,
+          rows:       activeRows,
+          updated_by: CURRENT_USER_EMAIL || null
+        };
+        try {
+          fetch(`${SUPABASE_URL}/rest/v1/guest_drafts?id=eq.${activeDraft.id}`, {
+            method: 'PATCH',
+            keepalive: true,
+            headers: {
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': 'Bearer ' + (accessToken || SUPABASE_ANON_KEY),
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(payload)
+          });
+        } catch (_) { /* best effort */ }
+        e.preventDefault();
+        e.returnValue = 'Salvataggio in corso...';
+      }
+    });
+
+    // ── IMPORT CSV/EXCEL NELL'EDITOR ─────────────────────
+    function dreImportFile(input) {
+      const file = input.files[0];
+      if (!file) return;
+      input.value = '';
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'csv') {
+        const reader = new FileReader();
+        reader.onload = e => dreParseCsv(e.target.result);
+        reader.readAsText(file, 'UTF-8');
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        const reader = new FileReader();
+        reader.onload = e => {
+          try {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            dreImportRows(rows);
+          } catch (err) {
+            alert('Errore lettura Excel: ' + err.message);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        alert('Formato non supportato. Usa .csv, .xlsx o .xls');
+      }
+    }
+
+    function dreParseCsv(text) {
+      const sep = text.includes(';') ? ';' : ',';
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      const rows = lines.map(l => l.split(sep).map(c => c.trim().replace(/^"|"$/g, '').replace(/""/g, '"')));
+      dreImportRows(rows);
+    }
+
+    function dreImportRows(rows) {
+      if (rows.length < 2) { alert('Il file non contiene dati.'); return; }
+      const colMap = {
+        'nome': 'first_name', 'cognome': 'last_name',
+        'email': 'email', 'azienda': 'company',
+        'persona_da_visitare': 'person_to_visit',
+        'motivo_visita': 'visit_reason',
+        'data_prevista': 'expected_date',
+        'numero_badge': 'badge_number'
+      };
+      const headers = rows[0].map(h => String(h || '').toLowerCase().trim().replace(/ /g, '_'));
+      const colIdx = {};
+      headers.forEach((h, i) => { if (colMap[h]) colIdx[colMap[h]] = i; });
+      if (colIdx.first_name === undefined || colIdx.last_name === undefined) {
+        alert('Colonne "Nome" e "Cognome" obbligatorie. Usa lo stesso template della tab Ospiti Attesi.');
+        return;
+      }
+      const newRows = [];
+      rows.slice(1).forEach(r => {
+        const rec = { last_name:'', first_name:'', email:'', company:'', person_to_visit:'', visit_reason:'', expected_date:'', badge_number:'' };
+        Object.entries(colIdx).forEach(([field, idx]) => {
+          const v = r[idx] != null ? String(r[idx]).trim() : '';
+          rec[field] = v;
+        });
+        if (rec.first_name || rec.last_name) newRows.push(rec);
+      });
+      if (newRows.length === 0) { alert('Nessuna riga valida trovata.'); return; }
+      const action = activeRows.length === 0 ? 'sostituisci'
+        : (confirm(`Ci sono già ${activeRows.length} righe nel draft.\n\nOK = AGGIUNGI le ${newRows.length} righe del file in coda\nAnnulla = SOSTITUISCI tutto con il file`) ? 'append' : 'replace');
+      if (action === 'replace' || action === 'sostituisci') {
+        activeRows = newRows;
+      } else {
+        activeRows = activeRows.concat(newRows);
+      }
+      renderDreTable();
+      markDraftDirty();
+      scheduleDraftSave();
+    }
+
+    // ── EXPORT CSV FINALE ────────────────────────────────
+    function dreExportCsv() {
+      if (activeRows.length === 0) { alert('Nessuna riga da esportare.'); return; }
+      const v = validateDreRows();
+      if (v.duplicates.length > 0) {
+        if (!confirm(`Ci sono ${v.duplicates.length} numeri badge duplicati nel draft.\nEsportare comunque? (l'import massivo li rifiuterà)`)) return;
+      }
+      const header = ['Nome','Cognome','Email','Azienda','Persona_da_Visitare','Motivo_Visita','Data_Prevista','Numero_Badge'];
+      const csvRows = activeRows.map(r => [
+        r.first_name || '', r.last_name || '', r.email || '', r.company || '',
+        r.person_to_visit || '', r.visit_reason || '', r.expected_date || '', r.badge_number || ''
+      ]);
+      const csv = [header, ...csvRows].map(row => row.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const safeName = (activeDraft.name || 'draft').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const a = Object.assign(document.createElement('a'), { href: url, download: `${safeName}_preassign.csv` });
+      a.click();
+      URL.revokeObjectURL(url);
+      auditLog('draft_export', 'guest_drafts', activeDraft.id, { rows: activeRows.length, with_badge: activeRows.filter(r=>r.badge_number).length });
+    }
+
+    // ── FINALIZE / DELETE ────────────────────────────────
+    async function dreFinalize() {
+      if (!activeDraft) return;
+      const v = validateDreRows();
+      if (v.missingNames > 0)    { alert(`Ci sono ${v.missingNames} righe senza Nome/Cognome. Completa prima di finalizzare.`); return; }
+      if (v.duplicates.length > 0) { alert(`Ci sono badge duplicati: ${v.duplicates.join(', ')}. Risolvi prima di finalizzare.`); return; }
+      if (!confirm(`Finalizzare il draft "${activeDraft.name}"?\n\nDopo la finalizzazione:\n• non sarà più modificabile (solo lettura)\n• potrai esportare il CSV e importarlo nella tab Ospiti Attesi\n• in quel momento i badge saranno pre-attivati nei tornelli`)) return;
+      // Forza save e poi cambia status
+      if (draftSaveTimer) { clearTimeout(draftSaveTimer); await saveDraftNow(); }
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_drafts?id=eq.${activeDraft.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ status: 'finalized', updated_by: CURRENT_USER_EMAIL || null })
+        });
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        auditLog('draft_finalize', 'guest_drafts', activeDraft.id, { name: activeDraft.name, rows: activeRows.length });
+        alert('✓ Draft finalizzato. Ora puoi esportare il CSV e importarlo nella tab Ospiti Attesi.');
+        closeDraftEditor();
+      } catch (err) {
+        alert('Errore finalizzazione: ' + err.message);
+      }
+    }
+
+    async function dreDelete() {
+      if (!activeDraft) return;
+      if (!confirm(`Eliminare definitivamente il draft "${activeDraft.name}" (${activeRows.length} righe)?\n\nL'operazione è irreversibile.`)) return;
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_drafts?id=eq.${activeDraft.id}`, {
+          method: 'DELETE',
+          headers: { 'Prefer': 'return=minimal' }
+        });
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        auditLog('draft_delete', 'guest_drafts', activeDraft.id, { name: activeDraft.name });
+        // Reset stato senza tentare save
+        activeDraft = null;
+        activeRows  = [];
+        if (draftSaveTimer) { clearTimeout(draftSaveTimer); draftSaveTimer = null; }
+        document.getElementById('drafts-list-view').style.display   = '';
+        document.getElementById('drafts-editor-view').style.display = 'none';
+        loadDrafts();
+      } catch (err) {
+        alert('Errore eliminazione: ' + err.message);
       }
     }
 

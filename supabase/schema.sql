@@ -373,3 +373,53 @@ CREATE POLICY "email_queue_auth_insert" ON email_queue FOR INSERT WITH CHECK (au
 CREATE POLICY "email_queue_auth_update" ON email_queue FOR UPDATE USING (auth.role() = 'authenticated');
 CREATE POLICY "email_queue_auth_delete" ON email_queue FOR DELETE USING (auth.role() = 'authenticated');
 -- L'agente Python usa service_role e bypassa RLS per fare update di status.
+
+-- =====================================================
+-- MIGRATION v8 — Pre-assegnazione Badge (draft persistente)
+-- =====================================================
+-- Permette alla segreteria di importare un CSV di partecipanti, compilare i numeri
+-- badge in un editor web e salvare il lavoro su DB così da poter chiudere il browser
+-- e riprendere in seguito (anche da un altro PC) senza perdere il progresso.
+-- Il draft è separato da guest_list: solo dopo la "finalizzazione" (export CSV +
+-- import massivo) i record passano in guest_list e i badge vengono pre-attivati.
+
+CREATE TABLE IF NOT EXISTS guest_drafts (
+  id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name         TEXT NOT NULL,                              -- nome draft (es. "Team Building 2026-05-10")
+  event_id     UUID REFERENCES events(id) ON DELETE SET NULL,
+  status       TEXT DEFAULT 'editing'
+                 CHECK (status IN ('editing','finalized','archived')),
+  rows         JSONB NOT NULL DEFAULT '[]'::jsonb,         -- array di partecipanti con badge
+  row_count    INT GENERATED ALWAYS AS (jsonb_array_length(rows)) STORED,
+  created_by   TEXT,
+  updated_by   TEXT,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS guest_drafts_status_updated ON guest_drafts(status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS guest_drafts_event ON guest_drafts(event_id);
+
+ALTER TABLE guest_drafts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "guest_drafts_auth_read"   ON guest_drafts;
+DROP POLICY IF EXISTS "guest_drafts_auth_insert" ON guest_drafts;
+DROP POLICY IF EXISTS "guest_drafts_auth_update" ON guest_drafts;
+DROP POLICY IF EXISTS "guest_drafts_auth_delete" ON guest_drafts;
+CREATE POLICY "guest_drafts_auth_read"   ON guest_drafts FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "guest_drafts_auth_insert" ON guest_drafts FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "guest_drafts_auth_update" ON guest_drafts FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "guest_drafts_auth_delete" ON guest_drafts FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Trigger updated_at automatico
+CREATE OR REPLACE FUNCTION guest_drafts_touch_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS guest_drafts_updated_at ON guest_drafts;
+CREATE TRIGGER guest_drafts_updated_at
+  BEFORE UPDATE ON guest_drafts
+  FOR EACH ROW EXECUTE FUNCTION guest_drafts_touch_updated_at();
