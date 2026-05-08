@@ -440,6 +440,82 @@
     .ag-event-checkbox input { width: 17px; height: 17px; cursor: pointer; }
     .ag-event-hint { display: block; margin-top: 4px; color: #718096; font-size: 12px; }
 
+    /* ── AUDIT LOG ── */
+    .audit-ts {
+      font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+      font-size: 12px;
+      color: #4a5568;
+      white-space: nowrap;
+    }
+    .audit-action {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .audit-color-orange { background: #feebc8; color: #7b341e; }
+    .audit-color-purple { background: #e9d8fd; color: #44337a; }
+    .audit-color-green  { background: #c6f6d5; color: #22543d; }
+    .audit-color-blue   { background: #bee3f8; color: #2a4365; }
+    .audit-color-yellow { background: #fefcbf; color: #744210; }
+    .audit-color-red    { background: #fed7d7; color: #742a2a; }
+    .audit-color-teal   { background: #b2f5ea; color: #234e52; }
+    .audit-color-cyan   { background: #c4f1f9; color: #086f83; }
+    .audit-color-grey   { background: #e2e8f0; color: #2d3748; }
+
+    .audit-entity {
+      font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+      font-size: 11px;
+      background: #f7fafc;
+      padding: 2px 7px;
+      border-radius: 5px;
+      color: #4a5568;
+      border: 1px solid #edf2f7;
+    }
+
+    .btn-audit-details {
+      background: none;
+      border: 1.5px solid #cbd5e0;
+      color: #4a5568;
+      padding: 4px 12px;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-audit-details:hover { background: #edf2f7; border-color: #94a3b8; }
+
+    .audit-details-cell { min-width: 140px; }
+    .audit-details-json {
+      margin-top: 8px;
+      background: #1a202c;
+      color: #e2e8f0;
+      padding: 10px 12px;
+      border-radius: 7px;
+      font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      max-width: 480px;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .audit-pagination {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      font-size: 13px;
+      color: #4a5568;
+    }
+    #audit-page-info { font-weight: 700; min-width: 90px; text-align: center; }
+
     /* Walk-in dal pool: info ospite atteso selezionato */
     .wi-guest-info {
       display: block;
@@ -1890,6 +1966,7 @@
       <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')">Visitatori</button>
       <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')">Ospiti Attesi</button>
       <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')">🎫 Eventi</button>
+      <button type="button" class="btn btn-light" id="tab-audit" onclick="switchView('audit')">📋 Audit</button>
       <button type="button" class="btn btn-light" onclick="document.getElementById('users-modal').classList.add('active')">Utenti</button>
       <button type="button" class="btn btn-light" onclick="exportCSV()">Esporta CSV</button>
       <button type="button" class="btn btn-light" onclick="refreshCurrentView()" title="Ricarica dati della tab attiva">🔄 Aggiorna</button>
@@ -2161,6 +2238,107 @@
       </div>
     </div>
 
+    <!-- ── VIEW: AUDIT LOG ── -->
+    <div class="view" id="view-audit">
+      <div class="stats-bar stats-4">
+        <div class="stat-card stat-card-primary">
+          <span class="stat-icon">&#128203;</span>
+          <h3>Totale azioni</h3>
+          <div class="value" id="au-stat-total">—</div>
+          <div class="sub">tutti i periodi</div>
+        </div>
+        <div class="stat-card stat-card-info">
+          <span class="stat-icon">&#128197;</span>
+          <h3>Oggi</h3>
+          <div class="value" id="au-stat-today">—</div>
+          <div class="sub">azioni odierne</div>
+        </div>
+        <div class="stat-card stat-card-success">
+          <span class="stat-icon">&#128101;</span>
+          <h3>Operatori attivi</h3>
+          <div class="value" id="au-stat-users">—</div>
+          <div class="sub">distinti negli ultimi 7 giorni</div>
+        </div>
+        <div class="stat-card stat-card-warning">
+          <span class="stat-icon">&#9201;</span>
+          <h3>Ultima azione</h3>
+          <div class="value" id="au-stat-last" style="font-size:18px">—</div>
+          <div class="sub" id="au-stat-last-by">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="filters">
+        <div class="filters-grid">
+          <div class="filter-group">
+            <label>Data inizio</label>
+            <input type="date" id="au-date-start">
+          </div>
+          <div class="filter-group">
+            <label>Data fine</label>
+            <input type="date" id="au-date-end">
+          </div>
+          <div class="filter-group">
+            <label>Operatore</label>
+            <select id="au-user">
+              <option value="">Tutti</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Tipo azione</label>
+            <select id="au-action">
+              <option value="">Tutte</option>
+              <option value="badge_assign">Associa badge</option>
+              <option value="preassign_badge">Pre-assegna badge</option>
+              <option value="preassign_badge_bulk">Pre-assegna bulk</option>
+              <option value="walkin_register">Walk-in registrazione</option>
+              <option value="conclude_visit">Concludi visita</option>
+              <option value="event_create">Crea evento</option>
+              <option value="event_start">Avvia evento</option>
+              <option value="event_close">Chiudi evento</option>
+              <option value="pool_add">Pool aggiunta badge</option>
+              <option value="guest_add">Aggiungi ospite</option>
+              <option value="guest_delete">Rimuovi ospite</option>
+              <option value="hard_delete_visitor">Eliminazione record</option>
+              <option value="fill_badges_bulk_create">Compila badge bulk</option>
+              <option value="fill_badges_update">Compila badge update</option>
+              <option value="email_qr_send">Invio email QR</option>
+            </select>
+          </div>
+          <div class="filter-group filter-actions">
+            <label>&nbsp;</label>
+            <button type="button" class="btn btn-primary" onclick="loadAuditLog()">🔍 Filtra</button>
+            <button type="button" class="btn btn-secondary" onclick="resetAuditFilters()">↺ Reset</button>
+          </div>
+        </div>
+        <div class="filters-secondary">
+          <button type="button" class="btn btn-secondary" onclick="exportAuditCsv()">📊 Esporta CSV</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div id="audit-table-status" class="table-status">Caricamento log...</div>
+        <div class="table-scroll table-hidden" id="audit-table-container">
+          <table>
+            <thead>
+              <tr>
+                <th class="no-sort">⏱ Quando</th>
+                <th class="no-sort">👤 Operatore</th>
+                <th class="no-sort">⚡ Azione</th>
+                <th class="no-sort">📦 Entità</th>
+                <th class="no-sort">📋 Dettagli</th>
+              </tr>
+            </thead>
+            <tbody id="audit-table-body"></tbody>
+          </table>
+        </div>
+        <div class="audit-pagination" id="audit-pagination" style="display:none">
+          <button type="button" class="btn btn-secondary" onclick="auditPrevPage()">← Precedente</button>
+          <span id="audit-page-info">Pagina 1</span>
+          <button type="button" class="btn btn-secondary" onclick="auditNextPage()">Successivo →</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <footer class="admin-footer">
@@ -2312,6 +2490,7 @@
       if (currentView === 'visitors')      loadData();
       else if (currentView === 'guests')   loadGuestList();
       else if (currentView === 'events')   loadEvents();
+      else if (currentView === 'audit')    loadAuditLog();
       refreshAgentStatus();
       refreshActiveEventBanner();
       populateEventFilter();
@@ -2324,12 +2503,17 @@
       document.getElementById('view-guests').classList.toggle('active', v === 'guests');
       const evView = document.getElementById('view-events');
       if (evView) evView.classList.toggle('active', v === 'events');
+      const auView = document.getElementById('view-audit');
+      if (auView) auView.classList.toggle('active', v === 'audit');
       document.getElementById('tab-visitors').classList.toggle('active-tab', v === 'visitors');
       document.getElementById('tab-guests').classList.toggle('active-tab', v === 'guests');
       const evTab = document.getElementById('tab-events');
       if (evTab) evTab.classList.toggle('active-tab', v === 'events');
+      const auTab = document.getElementById('tab-audit');
+      if (auTab) auTab.classList.toggle('active-tab', v === 'audit');
       if (v === 'guests') loadGuestList();
       if (v === 'events') loadEvents();
+      if (v === 'audit')  loadAuditLog();
     }
 
     // ── VISITORS DATA ─────────────────────────────────
@@ -3122,6 +3306,190 @@
     // ── EVENTI ───────────────────────────────────────
     let eventsData = [];
     let activeEvent = null;
+
+    // ── AUDIT LOG ────────────────────────────────────
+    let auditData = [];
+    let auditPage = 0;
+    const AUDIT_PAGE_SIZE = 50;
+
+    // Mappa label umane per i tipi di azione (in ordine di frequenza tipica)
+    const AUDIT_ACTION_LABELS = {
+      badge_assign:            { label: 'Associa Badge',         color: 'audit-color-orange' },
+      preassign_badge:         { label: 'Pre-assegna',           color: 'audit-color-purple' },
+      preassign_badge_bulk:    { label: 'Pre-assegna Bulk',      color: 'audit-color-purple' },
+      walkin_register:         { label: 'Walk-in Pool',          color: 'audit-color-green'  },
+      conclude_visit:          { label: 'Concludi Visita',       color: 'audit-color-blue'   },
+      event_create:            { label: 'Crea Evento',           color: 'audit-color-yellow' },
+      event_start:             { label: 'Avvia Evento',          color: 'audit-color-yellow' },
+      event_close:             { label: 'Chiudi Evento',         color: 'audit-color-red'    },
+      pool_add:                { label: 'Pool: aggiungi badge',  color: 'audit-color-teal'   },
+      guest_add:               { label: 'Aggiungi Ospite',       color: 'audit-color-cyan'   },
+      guest_delete:            { label: 'Rimuovi Ospite',        color: 'audit-color-red'    },
+      hard_delete_visitor:     { label: 'Elimina Visitor (HARD)',color: 'audit-color-red'    },
+      fill_badges_bulk_create: { label: 'Compila Badge: insert', color: 'audit-color-purple' },
+      fill_badges_update:      { label: 'Compila Badge: update', color: 'audit-color-purple' },
+      email_qr_send:           { label: 'Invio Email QR',        color: 'audit-color-cyan'   },
+    };
+
+    async function loadAuditLog() {
+      const status = document.getElementById('audit-table-status');
+      const wrap   = document.getElementById('audit-table-container');
+      const pag    = document.getElementById('audit-pagination');
+      status.textContent = 'Caricamento log...';
+      status.style.display = 'block';
+      wrap.classList.add('table-hidden');
+
+      // Costruisci URL con filtri
+      let url = `${SUPABASE_URL}/rest/v1/audit_log?select=*&order=created_at.desc&limit=${AUDIT_PAGE_SIZE}&offset=${auditPage * AUDIT_PAGE_SIZE}`;
+      const ds = document.getElementById('au-date-start')?.value;
+      const de = document.getElementById('au-date-end')?.value;
+      const u  = document.getElementById('au-user')?.value;
+      const a  = document.getElementById('au-action')?.value;
+      if (ds) url += `&created_at=gte.${encodeURIComponent(ds + 'T00:00:00')}`;
+      if (de) url += `&created_at=lte.${encodeURIComponent(de + 'T23:59:59')}`;
+      if (u)  url += `&user_email=eq.${encodeURIComponent(u)}`;
+      if (a)  url += `&action=eq.${encodeURIComponent(a)}`;
+
+      try {
+        const res = await api(url);
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        auditData = await res.json();
+        await loadAuditStats();
+        await populateAuditUserFilter();
+        renderAuditTable();
+        status.style.display = 'none';
+        wrap.classList.remove('table-hidden');
+        pag.style.display = 'flex';
+        document.getElementById('audit-page-info').textContent = `Pagina ${auditPage + 1}`;
+      } catch (err) {
+        status.textContent = 'Errore: ' + err.message;
+      }
+    }
+
+    async function loadAuditStats() {
+      try {
+        // Totale azioni (count exact via Prefer count)
+        const t = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=id`, { headers: { 'Prefer': 'count=exact' } });
+        const totalCount = parseInt(t.headers.get('content-range')?.split('/')[1] || '0', 10);
+        document.getElementById('au-stat-total').textContent = totalCount;
+
+        // Oggi
+        const todayIso = new Date().toISOString().split('T')[0];
+        const td = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=id&created_at=gte.${todayIso}T00:00:00`, { headers: { 'Prefer': 'count=exact' } });
+        const todayCount = parseInt(td.headers.get('content-range')?.split('/')[1] || '0', 10);
+        document.getElementById('au-stat-today').textContent = todayCount;
+
+        // Operatori distinti negli ultimi 7 giorni
+        const d7 = new Date(Date.now() - 7 * 86400000).toISOString();
+        const u7 = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=user_email&created_at=gte.${d7}`);
+        const distinct = new Set((await u7.json()).map(r => r.user_email));
+        document.getElementById('au-stat-users').textContent = distinct.size;
+
+        // Ultima azione
+        if (auditData.length > 0) {
+          const last = auditData[0];
+          const t = new Date(last.created_at);
+          document.getElementById('au-stat-last').textContent = t.toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+          document.getElementById('au-stat-last-by').textContent = last.user_email || '—';
+        } else {
+          document.getElementById('au-stat-last').textContent = '—';
+          document.getElementById('au-stat-last-by').textContent = ' ';
+        }
+      } catch (_) { /* silent */ }
+    }
+
+    async function populateAuditUserFilter() {
+      const sel = document.getElementById('au-user');
+      if (!sel) return;
+      const cur = sel.value;
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=user_email`);
+        const data = res?.ok ? await res.json() : [];
+        const users = [...new Set(data.map(r => r.user_email))].filter(Boolean).sort();
+        if (sel.options.length - 1 !== users.length) {
+          sel.innerHTML = '<option value="">Tutti</option>';
+          users.forEach(u => {
+            const o = document.createElement('option');
+            o.value = u; o.textContent = u;
+            sel.appendChild(o);
+          });
+          if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+        }
+      } catch (_) {}
+    }
+
+    function renderAuditTable() {
+      const tbody = document.getElementById('audit-table-body');
+      tbody.innerHTML = '';
+      if (auditData.length === 0) {
+        document.getElementById('audit-table-status').textContent = 'Nessuna azione corrispondente ai filtri.';
+        document.getElementById('audit-table-status').style.display = 'block';
+        document.getElementById('audit-table-container').classList.add('table-hidden');
+        return;
+      }
+      auditData.forEach(r => {
+        const ts = new Date(r.created_at);
+        const tsStr = ts.toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        const meta = AUDIT_ACTION_LABELS[r.action] || { label: r.action, color: 'audit-color-grey' };
+        const detailsJson = r.details ? JSON.stringify(r.details, null, 2) : '';
+        const detailsBtn = detailsJson
+          ? `<button type="button" class="btn-audit-details" onclick="toggleAuditDetails(this)">Vedi</button>`
+          : '<span class="empty-dash">—</span>';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="audit-ts">${tsStr}</td>
+          <td><strong>${esc(r.user_email)}</strong></td>
+          <td><span class="audit-action ${meta.color}">${meta.label}</span></td>
+          <td>${r.entity ? `<code class="audit-entity">${esc(r.entity)}${r.entity_id ? ' · ' + esc(r.entity_id).slice(0,8) : ''}</code>` : '—'}</td>
+          <td class="audit-details-cell">${detailsBtn}<pre class="audit-details-json" style="display:none">${esc(detailsJson)}</pre></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function toggleAuditDetails(btn) {
+      const pre = btn.parentElement.querySelector('.audit-details-json');
+      if (!pre) return;
+      const show = pre.style.display === 'none';
+      pre.style.display = show ? 'block' : 'none';
+      btn.textContent = show ? 'Nascondi' : 'Vedi';
+    }
+
+    function resetAuditFilters() {
+      ['au-date-start', 'au-date-end'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+      const u = document.getElementById('au-user');     if (u) u.value = '';
+      const a = document.getElementById('au-action');   if (a) a.value = '';
+      auditPage = 0;
+      loadAuditLog();
+    }
+
+    function auditNextPage() { auditPage++; loadAuditLog(); }
+    function auditPrevPage() { if (auditPage > 0) { auditPage--; loadAuditLog(); } }
+
+    function exportAuditCsv() {
+      if (auditData.length === 0) { alert('Nessun dato da esportare.'); return; }
+      const headers = ['Quando', 'Operatore', 'Azione', 'Entità', 'Entity ID', 'Dettagli (JSON)'];
+      const rows = auditData.map(r => {
+        const meta = AUDIT_ACTION_LABELS[r.action] || { label: r.action };
+        return [
+          new Date(r.created_at).toLocaleString('it-IT'),
+          r.user_email || '',
+          meta.label,
+          r.entity || '',
+          r.entity_id || '',
+          r.details ? JSON.stringify(r.details) : '',
+        ];
+      });
+      const csv = [headers, ...rows].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+      const url  = URL.createObjectURL(blob);
+      const today = new Date();
+      const fname = `audit_${String(today.getDate()).padStart(2,'0')}-${String(today.getMonth()+1).padStart(2,'0')}-${today.getFullYear()}.csv`;
+      const a = Object.assign(document.createElement('a'), { href: url, download: fname });
+      a.click();
+      URL.revokeObjectURL(url);
+    }
 
     async function refreshActiveEventBanner() {
       const banner = document.getElementById('active-event-banner');
