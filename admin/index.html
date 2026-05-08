@@ -1817,12 +1817,15 @@
         <div class="pool-stat pool-stat-inuse"><span class="pool-stat-label">In uso</span><span class="pool-stat-val" id="pool-stat-inuse">0</span></div>
       </div>
 
-      <div class="modal-info-box">
+      <div class="modal-info-box" id="pool-info-default">
         <strong>Come funziona:</strong> aggiungi qui i numeri dei badge fisici che vuoi pre-attivare per l'evento.
         L'agente li attiverà sui tornelli (preparing → available). Al desk, ogni walk-in prende il primo badge disponibile dalla pila — niente ricerca!
       </div>
+      <div class="modal-info-box" id="pool-info-readonly" style="display:none;background:#fffaf0;border-left:4px solid #ed8936;color:#7c2d12">
+        <strong>🔒 Evento chiuso — sola consultazione.</strong> Lo storico del pool resta visibile per audit, ma non è possibile aggiungere o rimuovere badge.
+      </div>
 
-      <div class="modal-fields">
+      <div class="modal-fields" id="pool-edit-actions">
         <div class="modal-row-2">
           <div class="modal-field">
             <label>Range badge (da - a)</label>
@@ -2868,10 +2871,22 @@
       } catch (_) { /* silent */ }
     }
 
-    async function loadData() {
+    // silent=true: chiamato da auto-refresh ogni 10s. Non mostra "Caricamento..." (che farebbe
+    // sparire la tabella e scattare un riflow), preserva scrollY della pagina e scrollTop
+    // del contenitore tabella così l'utente non vede saltare la pagina.
+    async function loadData(silent = false) {
       if (currentView !== 'visitors') return;
-      setTableStatus('Caricamento dati...');
+      if (!silent) setTableStatus('Caricamento dati...');
       hideError();
+      const sx = window.scrollX, sy = window.scrollY;
+      const tableScroll = document.querySelector('#view-visitors .table-scroll');
+      const tableScrollTop  = tableScroll ? tableScroll.scrollTop  : 0;
+      const tableScrollLeft = tableScroll ? tableScroll.scrollLeft : 0;
+      // Anche la posizione del focus va preservata se l'utente sta scrivendo in un input
+      const activeEl = document.activeElement;
+      const activeId = activeEl && activeEl.id ? activeEl.id : null;
+      const activeSelStart = activeEl && 'selectionStart' in activeEl ? activeEl.selectionStart : null;
+      const activeSelEnd   = activeEl && 'selectionEnd'   in activeEl ? activeEl.selectionEnd   : null;
       try {
         const res = await api(buildUrl());
         if (!res) return;
@@ -2879,9 +2894,31 @@
         currentData = await res.json();
         renderTable(currentData);
         updateStats();
+        if (silent) {
+          // Ripristina scroll DOPO il render (next tick per essere sicuri che il layout sia rigenerato)
+          requestAnimationFrame(() => {
+            window.scrollTo(sx, sy);
+            if (tableScroll) {
+              tableScroll.scrollTop  = tableScrollTop;
+              tableScroll.scrollLeft = tableScrollLeft;
+            }
+            // Ripristina focus su input se l'utente stava scrivendo
+            if (activeId) {
+              const el = document.getElementById(activeId);
+              if (el && el.focus) {
+                el.focus({ preventScroll: true });
+                if (activeSelStart != null && el.setSelectionRange) {
+                  try { el.setSelectionRange(activeSelStart, activeSelEnd); } catch (_) {}
+                }
+              }
+            }
+          });
+        }
       } catch (err) {
-        showError('Errore durante il caricamento: ' + err.message);
-        setTableStatus('Errore — impossibile caricare i dati.');
+        if (!silent) {
+          showError('Errore durante il caricamento: ' + err.message);
+          setTableStatus('Errore — impossibile caricare i dati.');
+        }
       }
     }
 
@@ -3475,10 +3512,18 @@
       renderGuestTable(guestData, arrivedSet);
     }
 
-    async function loadGuestList() {
-      document.getElementById('guest-table-container').classList.add('table-hidden');
-      document.getElementById('guest-table-status').textContent = 'Caricamento ospiti...';
-      document.getElementById('guest-table-status').style.display = 'block';
+    async function loadGuestList(silent = false) {
+      if (!silent) {
+        document.getElementById('guest-table-container').classList.add('table-hidden');
+        document.getElementById('guest-table-status').textContent = 'Caricamento ospiti...';
+        document.getElementById('guest-table-status').style.display = 'block';
+      }
+      const sx = window.scrollX, sy = window.scrollY;
+      const tableScroll = document.querySelector('#view-guests .table-scroll');
+      const tsTop = tableScroll ? tableScroll.scrollTop : 0;
+      const tsLeft = tableScroll ? tableScroll.scrollLeft : 0;
+      const activeEl = document.activeElement;
+      const activeId = activeEl && activeEl.id ? activeEl.id : null;
 
       try {
         const res = await api(`${SUPABASE_URL}/rest/v1/guest_list?select=*&order=expected_date.asc,last_name.asc`);
@@ -3528,20 +3573,35 @@
         document.getElementById('g-stat-waiting').textContent = attesa;
         document.getElementById('g-stat-inside').textContent  = dentro;
         document.getElementById('g-stat-out').textContent     = usciti;
+
+        if (silent) {
+          requestAnimationFrame(() => {
+            window.scrollTo(sx, sy);
+            if (tableScroll) { tableScroll.scrollTop = tsTop; tableScroll.scrollLeft = tsLeft; }
+            if (activeId) {
+              const el = document.getElementById(activeId);
+              if (el && el.focus) el.focus({ preventScroll: true });
+            }
+          });
+        }
       } catch (err) {
-        document.getElementById('guest-table-status').textContent = 'Errore caricamento: ' + err.message;
+        if (!silent) {
+          document.getElementById('guest-table-status').textContent = 'Errore caricamento: ' + err.message;
+        }
       }
     }
 
-    // Auto-refresh contatori quando si è sulla tab Ospiti
+    // Auto-refresh contatori quando si è sulla tab Ospiti (silent: niente flicker, niente scroll jump)
     setInterval(() => {
-      if (currentView === 'guests') loadGuestList();
+      if (currentView === 'guests' && document.visibilityState !== 'hidden') {
+        loadGuestList(true);
+      }
     }, 10000);
 
-    // Auto-refresh stats e tabella quando si è sulla tab Visitatori
+    // Auto-refresh stats e tabella quando si è sulla tab Visitatori (silent)
     setInterval(() => {
       if (currentView === 'visitors' && document.visibilityState !== 'hidden') {
-        loadData();
+        loadData(true);
       }
     }, 10000);
 
@@ -3925,7 +3985,23 @@
       }
     }
 
+    // Helper: ritorna l'oggetto evento se è già stato chiuso (closed_at NOT NULL), altrimenti null.
+    // Usato come check difensivo in tutte le azioni di modifica per impedire alterazioni
+    // su eventi storici (data immutabile per audit/legal).
+    function findClosedEvent(eventId) {
+      const ev = (eventsData || []).find(e => e.id === eventId);
+      if (ev && ev.closed_at) return ev;
+      return null;
+    }
+
     async function activateEvent(eventId) {
+      // Difesa: evento chiuso non si riapre. Il bottone "Avvia" non viene renderizzato per
+      // gli eventi con closed_at, ma se qualcuno costruisce a mano la chiamata bisogna bloccare.
+      const closed = findClosedEvent(eventId);
+      if (closed) {
+        alert(`L'evento "${closed.name}" è stato chiuso il ${new Date(closed.closed_at).toLocaleString('it-IT')} e non può essere riaperto.\n\nGli eventi chiusi sono in sola lettura per garantire l'integrità dello storico.\nCrea un nuovo evento se devi gestire un'altra giornata.`);
+        return;
+      }
       if (!confirm('Avviare questo evento? Disattiverà eventuali altri eventi attivi e tutti i visitatori registrati da ora in poi (kiosk/QR) verranno taggati con questo evento.')) return;
       try {
         // Disattiva eventuali altri attivi (constraint: 1 alla volta)
@@ -3981,6 +4057,11 @@
       if (!ev && activeEvent && activeEvent.id === eventId) ev = activeEvent;
       if (!ev) {
         alert('Evento non trovato. Vai in tab Eventi per creare/avviare un evento.');
+        return;
+      }
+      // Eventi chiusi: il QR non serve più (non si possono più registrare partecipanti)
+      if (ev.closed_at) {
+        alert(`L'evento "${ev.name}" è stato chiuso il ${new Date(ev.closed_at).toLocaleString('it-IT')}.\n\nNon si possono più generare/inviare QR di pre-registrazione per un evento chiuso.\nCrea un nuovo evento se devi distribuire QR per un'altra giornata.`);
         return;
       }
       const url = `${defaultFrontendBaseUrl()}?mode=qr&event=${encodeURIComponent(eventId)}`;
@@ -4541,12 +4622,18 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     async function openPoolModal(eventId) {
       currentPoolEventId = eventId;
       const ev = eventsData.find(e => e.id === eventId);
+      const isClosed = !!(ev && ev.closed_at);
       document.getElementById('pool-modal-event').textContent = ev
-        ? `${ev.name} — ${ev.event_start_date === ev.event_end_date ? fmtItDate(ev.event_start_date) : fmtItDate(ev.event_start_date) + ' → ' + fmtItDate(ev.event_end_date)}`
+        ? `${ev.name} — ${ev.event_start_date === ev.event_end_date ? fmtItDate(ev.event_start_date) : fmtItDate(ev.event_start_date) + ' → ' + fmtItDate(ev.event_end_date)}${isClosed ? ' 🔒 CHIUSO' : ''}`
         : '';
       document.getElementById('pool-range-from').value = '';
       document.getElementById('pool-range-to').value = '';
       document.getElementById('pool-list').value = '';
+      // Modalità read-only se evento chiuso: nascondi gli input/bottoni di modifica
+      document.getElementById('pool-info-default').style.display  = isClosed ? 'none' : '';
+      document.getElementById('pool-info-readonly').style.display = isClosed ? '' : 'none';
+      document.getElementById('pool-edit-actions').style.display  = isClosed ? 'none' : '';
+      document.getElementById('pool-modal').classList.toggle('readonly', isClosed);
       document.getElementById('pool-modal').classList.add('active');
       await loadPoolForEvent(eventId);
     }
@@ -4583,10 +4670,12 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     function renderPoolTable() {
       const tbody = document.getElementById('pool-table-body');
       tbody.innerHTML = '';
+      // Se evento chiuso: niente azione "Rimuovi" (sola consultazione storica)
+      const isClosed = document.getElementById('pool-modal').classList.contains('readonly');
       poolData.forEach(p => {
         const visitorLabel = p.visitor_id ? `→ visitor` : '—';
         const activated = p.activated_at ? new Date(p.activated_at).toLocaleString('it-IT', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' }) : '—';
-        const action = (p.status === 'preparing' || p.status === 'available')
+        const action = (!isClosed && (p.status === 'preparing' || p.status === 'available'))
           ? `<button class="btn-delete" onclick="removeFromPool(${p.id})">Rimuovi</button>`
           : '';
         const tr = document.createElement('tr');
@@ -4603,6 +4692,11 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
 
     async function addBadgesToPool() {
       if (!currentPoolEventId) return;
+      const closed = findClosedEvent(currentPoolEventId);
+      if (closed) {
+        alert(`L'evento "${closed.name}" è chiuso. Non si possono più aggiungere badge al pool.`);
+        return;
+      }
       const from = parseInt(document.getElementById('pool-range-from').value, 10);
       const to   = parseInt(document.getElementById('pool-range-to').value, 10);
       const list = document.getElementById('pool-list').value.trim();
@@ -4673,6 +4767,12 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     }
 
     async function removeFromPool(poolId) {
+      // Difesa: blocca rimozione anche se chiamata bypassa il render (es. console)
+      const closed = findClosedEvent(currentPoolEventId);
+      if (closed) {
+        alert(`L'evento "${closed.name}" è chiuso. Non si possono più rimuovere badge dal pool.`);
+        return;
+      }
       if (!confirm('Rimuovere questo badge dal pool?')) return;
       try {
         const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool?id=eq.${poolId}`, {
@@ -5716,13 +5816,23 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       const sel = document.getElementById('dre-event');
       sel.innerHTML = '<option value="">— Nessun evento collegato —</option>';
       try {
-        const res = await api(`${SUPABASE_URL}/rest/v1/events?select=id,name,event_start_date,event_end_date&order=event_start_date.desc&limit=100`);
+        // Includi closed_at così possiamo filtrare/etichettare gli eventi chiusi
+        const res = await api(`${SUPABASE_URL}/rest/v1/events?select=id,name,event_start_date,event_end_date,closed_at&order=event_start_date.desc&limit=100`);
         if (!res || !res.ok) return;
         const evs = await res.json();
         evs.forEach(e => {
           const opt = document.createElement('option');
           opt.value = e.id;
-          opt.textContent = `${e.name} (${fmtItDate(e.event_start_date)})`;
+          // Eventi chiusi: visibili nel dropdown SOLO se erano già selezionati su questo draft
+          // (per consultazione storica), ma disabilitati in modo che non si possa selezionarne
+          // di nuovi su un draft fresco.
+          if (e.closed_at) {
+            if (e.id !== selectedId) return; // non mostrare i chiusi nel dropdown
+            opt.textContent = `🔒 ${e.name} (${fmtItDate(e.event_start_date)}) — chiuso`;
+            opt.disabled = true;
+          } else {
+            opt.textContent = `${e.name} (${fmtItDate(e.event_start_date)})`;
+          }
           if (e.id === selectedId) opt.selected = true;
           sel.appendChild(opt);
         });
