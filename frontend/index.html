@@ -880,6 +880,26 @@
       font-weight: 700;
       font-size: 16px;
     }
+    /* Bottone "Non sei tu?" — discreto in basso, per non incoraggiare bypass abusivi
+       ma comunque trovabile da chi è bloccato per errore. */
+    #qr-success .qr-not-you-btn {
+      margin-top: 26px;
+      background: transparent;
+      color: rgba(255,255,255,0.85);
+      border: 1px solid rgba(255,255,255,0.4);
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    #qr-success .qr-not-you-btn:hover {
+      background: rgba(255,255,255,0.15);
+      border-color: rgba(255,255,255,0.7);
+      color: #fff;
+    }
     #qr-success .event-info-box,
     #qr-invalid .event-info-box {
       margin-top: 22px;
@@ -1614,10 +1634,47 @@
     // Livello 1: localStorage flag → device bloccato dopo registrazione
     // Livello 2: filtro guest_list già firmati (signature IS NOT NULL) → sparisce dalla lista
     // Livello 3: RLS policy "anon_update_pre_stub" → server rifiuta PATCH se signature già esiste
+    // Chiave del lockout localStorage:
+    // - QR personale (con guest_id): scope per (evento, ospite). Stesso device può
+    //   ospitare ospiti diversi senza che si blocchino a vicenda (PC condiviso,
+    //   tablet famiglia, ufficio, segretaria che ha testato il flusso).
+    // - QR event-only legacy (senza guest_id): scope per evento (anonimo, vecchio
+    //   flusso kiosk-style su singolo device).
+    function getLockoutKey() {
+      return QR_GUEST_ID
+        ? `vrs_qr_registered_${QR_EVENT_ID}_${QR_GUEST_ID}`
+        : `vrs_qr_registered_${QR_EVENT_ID}`;
+    }
+    // Chiave legacy (solo event_id) — la cancello a freddo se ne trovo una
+    // residua sul device, così gli ospiti vittime del bug pre-fix non restano
+    // bloccati al primo accesso col QR personale.
+    function legacyEventLockoutKey() {
+      return `vrs_qr_registered_${QR_EVENT_ID}`;
+    }
+
     function lockoutCheckLocalStorage() {
       if (!IS_QR_MODE || !QR_EVENT_ID) return false;
       try {
-        const flag = localStorage.getItem('vrs_qr_registered_' + QR_EVENT_ID);
+        // Bonifica retrocompatibile: se il device ha la VECCHIA chiave (per evento)
+        // ma stiamo aprendo un QR personale di un OSPITE diverso, la chiave vecchia
+        // è obsoleta — rimuovila. Era il bug che bloccava un ospite per via di
+        // un'altra registrazione precedente sullo stesso browser.
+        if (QR_GUEST_ID) {
+          const legacy = localStorage.getItem(legacyEventLockoutKey());
+          if (legacy) {
+            try {
+              const parsed = JSON.parse(legacy);
+              // Se la legacy NON contiene guest_id (chiave vecchia "globale" per device),
+              // la cancelliamo. Ogni ospite avrà la sua chiave specifica da ora.
+              if (!parsed.guest_id) {
+                localStorage.removeItem(legacyEventLockoutKey());
+              }
+            } catch (_) {
+              localStorage.removeItem(legacyEventLockoutKey());
+            }
+          }
+        }
+        const flag = localStorage.getItem(getLockoutKey());
         if (flag) {
           const data = JSON.parse(flag);
           showQrAlreadyRegistered(data);
@@ -1632,6 +1689,7 @@
       try {
         const payload = {
           visitor_id:  visitorId || null,
+          guest_id:    QR_GUEST_ID || null,
           signed_at:   new Date().toISOString(),
           event_id:    QR_EVENT_ID,
         };
@@ -1641,9 +1699,19 @@
           payload.event_start_date  = CURRENT_EVENT.event_start_date;
           payload.event_end_date    = CURRENT_EVENT.event_end_date;
         }
-        localStorage.setItem('vrs_qr_registered_' + QR_EVENT_ID, JSON.stringify(payload));
+        localStorage.setItem(getLockoutKey(), JSON.stringify(payload));
       } catch (_) { /* localStorage disabled / quota */ }
     }
+
+    // Esposta in window per essere chiamata dal bottone "Non sei tu?" nella
+    // schermata "Registrazione già effettuata". Cancella il flag e ricarica.
+    window.clearQrLockout = function() {
+      try {
+        localStorage.removeItem(getLockoutKey());
+        localStorage.removeItem(legacyEventLockoutKey());
+      } catch (_) {}
+      location.reload();
+    };
 
     async function loadEventForQr() {
       if (!IS_QR_MODE || !QR_EVENT_ID) return null;
@@ -1770,6 +1838,21 @@
         ? { name: data.event_name, event_start_date: data.event_start_date, event_end_date: data.event_end_date }
         : CURRENT_EVENT;
       injectEventInfo('#qr-success', evt, data && data.signed_at ? data.signed_at : null);
+      // Aggiungo (se non già presente) il bottone "Non sei tu?" — utile in caso di
+      // device condiviso (PC ufficio, tablet famiglia) o registrazione precedente
+      // di un altro ospite. Cancella il flag locale e ricarica.
+      if (!el.querySelector('.qr-not-you-btn')) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'qr-not-you-btn';
+        btn.textContent = 'Non sei tu? Sblocca questo dispositivo';
+        btn.onclick = () => {
+          if (confirm('Confermi di voler sbloccare la registrazione su questo dispositivo?\n\nLo farai se:\n• Hai testato il sistema in precedenza\n• Stai usando un PC/tablet condiviso\n• Hai cliccato per errore "Conferma" senza voler firmare\n\nDopo lo sblocco potrai compilare la tua registrazione.')) {
+            window.clearQrLockout();
+          }
+        };
+        el.appendChild(btn);
+      }
       el.classList.add('active');
       hideKioskUI();
       document.body.classList.add('qr-ready');
