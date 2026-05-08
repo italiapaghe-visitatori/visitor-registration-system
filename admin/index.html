@@ -3924,16 +3924,27 @@
           ? fmtItDate(e.event_start_date)
           : `${fmtItDate(e.event_start_date)} → ${fmtItDate(e.event_end_date)}`;
         const qrFrom = e.qr_valid_from ? fmtItDate(e.qr_valid_from) : '(default)';
+        // Un evento è "implicitamente concluso" se la sua data finale è passata, anche
+        // se manca closed_at. In questi casi non si può più Avviare/QR/modificare il pool:
+        // la finestra temporale è esaurita.
+        const isPastDate = !e.closed_at && !e.is_active && today > e.event_end_date;
         let statusCls, statusText;
         if (e.closed_at) { statusCls = 'event-status-closed'; statusText = 'Chiuso'; }
         else if (e.is_active) { statusCls = 'event-status-active'; statusText = 'Attivo'; }
         else if (today < e.event_start_date) { statusCls = 'event-status-future'; statusText = 'Futuro'; }
-        else if (today > e.event_end_date) { statusCls = 'event-status-past'; statusText = 'Passato'; }
+        else if (isPastDate) { statusCls = 'event-status-past'; statusText = 'Passato'; }
         else { statusCls = 'event-status-future'; statusText = 'Pronto'; }
 
         const actions = [];
-        if (!e.closed_at && !e.is_active) actions.push(`<button class="btn-badge-assign" onclick="activateEvent('${e.id}')">Avvia</button>`);
-        if (e.is_active)                  actions.push(`<button class="btn-badge-assign" onclick="closeActiveEvent()">Chiudi</button>`);
+        // Avvia: solo se non chiuso, non attivo E data non passata
+        if (!e.closed_at && !e.is_active && !isPastDate) {
+          actions.push(`<button class="btn-badge-assign" onclick="activateEvent('${e.id}')">Avvia</button>`);
+        }
+        if (e.is_active) actions.push(`<button class="btn-badge-assign" onclick="closeActiveEvent()">Chiudi</button>`);
+        // Auto-chiudi: rapido per archivare formalmente un evento "Passato" (set closed_at = ora)
+        if (isPastDate) {
+          actions.push(`<button class="btn-badge-assign" onclick="markEventClosed('${e.id}')" title="Archivia formalmente l'evento (set closed_at = ora). Dopo questa azione l'evento sarà solo consultabile.">🔒 Archivia</button>`);
+        }
         actions.push(`<button class="btn-details" onclick="viewEventParticipants('${e.id}')">👥 Partecipanti</button>`);
         actions.push(`<button class="btn-details" onclick="openPoolModal('${e.id}')">🎟️ Pool</button>`);
         actions.push(`<button class="btn-details" onclick="openQrForEvent('${e.id}')">📱 QR</button>`);
@@ -3985,21 +3996,53 @@
       }
     }
 
-    // Helper: ritorna l'oggetto evento se è già stato chiuso (closed_at NOT NULL), altrimenti null.
-    // Usato come check difensivo in tutte le azioni di modifica per impedire alterazioni
-    // su eventi storici (data immutabile per audit/legal).
+    // Helper: ritorna l'oggetto evento se è "concluso" (closed_at NOT NULL OPPURE
+    // data finale già passata), altrimenti null. Usato come check difensivo in tutte
+    // le azioni di modifica: i due casi sono trattati allo stesso modo perché
+    // un evento la cui data è passata non ha più senso essere modificato.
     function findClosedEvent(eventId) {
       const ev = (eventsData || []).find(e => e.id === eventId);
-      if (ev && ev.closed_at) return ev;
+      if (!ev) return null;
+      if (ev.closed_at) return { ...ev, _reason: 'chiuso' };
+      const today = new Date().toISOString().split('T')[0];
+      if (!ev.is_active && today > ev.event_end_date) return { ...ev, _reason: 'data passata' };
       return null;
     }
 
+    // Archivia formalmente un evento già "Passato" (set closed_at = ora). Permette
+    // di consolidare lo storico: il pill diventa "Chiuso" con stile rosso e gli
+    // operatori vedono subito che è in sola lettura.
+    async function markEventClosed(eventId) {
+      const ev = (eventsData || []).find(e => e.id === eventId);
+      if (!ev) return;
+      if (ev.closed_at) { alert('Evento già archiviato.'); return; }
+      if (ev.is_active) { alert('L\'evento è ancora attivo. Usa "Chiudi" per concluderlo prima.'); return; }
+      if (!confirm(`Archiviare l'evento "${ev.name}"?\n\nVerrà marcato come chiuso (closed_at = ora). Dopo l'archiviazione potrai solo consultarlo: niente più modifiche al pool, niente nuovi QR, niente riattivazioni.`)) return;
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ closed_at: new Date().toISOString() })
+        });
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        auditLog('event_close', 'event', eventId, { name: ev.name, reason: 'archive_past_event' });
+        await loadEvents();
+        refreshActiveEventBanner();
+      } catch (err) {
+        alert('Errore archiviazione: ' + err.message);
+      }
+    }
+
     async function activateEvent(eventId) {
-      // Difesa: evento chiuso non si riapre. Il bottone "Avvia" non viene renderizzato per
-      // gli eventi con closed_at, ma se qualcuno costruisce a mano la chiamata bisogna bloccare.
+      // Difesa: evento chiuso o con data finale già passata = non riavviabile.
+      // Il bottone "Avvia" non viene renderizzato in questi casi, ma se la chiamata
+      // arriva da un'altra strada (console, race condition con render vecchio) bisogna bloccare.
       const closed = findClosedEvent(eventId);
       if (closed) {
-        alert(`L'evento "${closed.name}" è stato chiuso il ${new Date(closed.closed_at).toLocaleString('it-IT')} e non può essere riaperto.\n\nGli eventi chiusi sono in sola lettura per garantire l'integrità dello storico.\nCrea un nuovo evento se devi gestire un'altra giornata.`);
+        const when = closed.closed_at
+          ? `chiuso il ${new Date(closed.closed_at).toLocaleString('it-IT')}`
+          : `concluso il ${fmtItDate(closed.event_end_date)} (data finale passata)`;
+        alert(`L'evento "${closed.name}" è ${when} e non può essere avviato.\n\nGli eventi conclusi sono in sola lettura per garantire l'integrità dello storico.\nCrea un nuovo evento se devi gestire un'altra giornata.`);
         return;
       }
       if (!confirm('Avviare questo evento? Disattiverà eventuali altri eventi attivi e tutti i visitatori registrati da ora in poi (kiosk/QR) verranno taggati con questo evento.')) return;
@@ -4059,9 +4102,14 @@
         alert('Evento non trovato. Vai in tab Eventi per creare/avviare un evento.');
         return;
       }
-      // Eventi chiusi: il QR non serve più (non si possono più registrare partecipanti)
-      if (ev.closed_at) {
-        alert(`L'evento "${ev.name}" è stato chiuso il ${new Date(ev.closed_at).toLocaleString('it-IT')}.\n\nNon si possono più generare/inviare QR di pre-registrazione per un evento chiuso.\nCrea un nuovo evento se devi distribuire QR per un'altra giornata.`);
+      // Eventi chiusi o con data finale passata: il QR non ha più senso (l'evento è concluso)
+      const today = new Date().toISOString().split('T')[0];
+      const isPastDate = !ev.is_active && !ev.closed_at && today > ev.event_end_date;
+      if (ev.closed_at || isPastDate) {
+        const when = ev.closed_at
+          ? `chiuso il ${new Date(ev.closed_at).toLocaleString('it-IT')}`
+          : `concluso il ${fmtItDate(ev.event_end_date)} (data finale passata)`;
+        alert(`L'evento "${ev.name}" è ${when}.\n\nNon si possono più generare/inviare QR di pre-registrazione per un evento concluso.\nCrea un nuovo evento se devi distribuire QR per un'altra giornata.`);
         return;
       }
       const url = `${defaultFrontendBaseUrl()}?mode=qr&event=${encodeURIComponent(eventId)}`;
@@ -4622,9 +4670,12 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     async function openPoolModal(eventId) {
       currentPoolEventId = eventId;
       const ev = eventsData.find(e => e.id === eventId);
-      const isClosed = !!(ev && ev.closed_at);
+      // Read-only sia per eventi chiusi formalmente che per quelli con data passata
+      const today = new Date().toISOString().split('T')[0];
+      const isClosed = !!(ev && (ev.closed_at || (!ev.is_active && today > ev.event_end_date)));
+      const closedLabel = ev && ev.closed_at ? ' 🔒 CHIUSO' : (isClosed ? ' 🔒 CONCLUSO (data passata)' : '');
       document.getElementById('pool-modal-event').textContent = ev
-        ? `${ev.name} — ${ev.event_start_date === ev.event_end_date ? fmtItDate(ev.event_start_date) : fmtItDate(ev.event_start_date) + ' → ' + fmtItDate(ev.event_end_date)}${isClosed ? ' 🔒 CHIUSO' : ''}`
+        ? `${ev.name} — ${ev.event_start_date === ev.event_end_date ? fmtItDate(ev.event_start_date) : fmtItDate(ev.event_start_date) + ' → ' + fmtItDate(ev.event_end_date)}${closedLabel}`
         : '';
       document.getElementById('pool-range-from').value = '';
       document.getElementById('pool-range-to').value = '';
