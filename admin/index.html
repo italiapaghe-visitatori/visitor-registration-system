@@ -2937,6 +2937,14 @@
       return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    // Ritorna la data di OGGI in formato YYYY-MM-DD nel fuso orario LOCALE dell'utente.
+    // NON usare todayLocalIso(): quello ritorna UTC, e di notte
+    // (00:00-02:00 italiane) UTC è ancora il giorno prima → confronti con DATE postgres
+    // (es. event_end_date) sbagliano e gli eventi appaiono ancora "Pronti" il giorno dopo.
+    function todayLocalIso() {
+      return new Date().toLocaleDateString('en-CA'); // 'en-CA' usa il formato YYYY-MM-DD
+    }
+
     function safeImgSrc(v) {
       if (!v) return null;
       if (/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=\n]+$/.test(v)) return v;
@@ -3080,7 +3088,7 @@
 
     // ── STATS ─────────────────────────────────────────
     async function updateStats() {
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayLocalIso();
       const fetchCount = async (extra = '') => {
         const res = await api(`${SUPABASE_URL}/rest/v1/visitors?select=id${extra}`, { headers: { 'Prefer': 'count=exact' } });
         if (!res) return '—';
@@ -3721,7 +3729,7 @@
         document.getElementById('au-stat-total').textContent = totalCount;
 
         // Oggi
-        const todayIso = new Date().toISOString().split('T')[0];
+        const todayIso = todayLocalIso();
         const td = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=id&created_at=gte.${todayIso}T00:00:00`, { headers: { 'Prefer': 'count=exact' } });
         const todayCount = parseInt(td.headers.get('content-range')?.split('/')[1] || '0', 10);
         document.getElementById('au-stat-today').textContent = todayCount;
@@ -3918,7 +3926,7 @@
         document.getElementById('event-table-container').classList.add('table-hidden');
         return;
       }
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayLocalIso();
       eventsData.forEach(e => {
         const range = e.event_start_date === e.event_end_date
           ? fmtItDate(e.event_start_date)
@@ -3964,7 +3972,7 @@
     function openEventModal() {
       document.getElementById('event-modal-title').textContent = '🎫 Nuovo Evento';
       document.getElementById('event-name-input').value = '';
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayLocalIso();
       document.getElementById('event-start-input').value = today;
       document.getElementById('event-end-input').value = today;
       document.getElementById('event-qrfrom-input').value = '';
@@ -4004,7 +4012,7 @@
       const ev = (eventsData || []).find(e => e.id === eventId);
       if (!ev) return null;
       if (ev.closed_at) return { ...ev, _reason: 'chiuso' };
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayLocalIso();
       if (!ev.is_active && today > ev.event_end_date) return { ...ev, _reason: 'data passata' };
       return null;
     }
@@ -4103,7 +4111,7 @@
         return;
       }
       // Eventi chiusi o con data finale passata: il QR non ha più senso (l'evento è concluso)
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayLocalIso();
       const isPastDate = !ev.is_active && !ev.closed_at && today > ev.event_end_date;
       if (ev.closed_at || isPastDate) {
         const when = ev.closed_at
@@ -4671,7 +4679,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       currentPoolEventId = eventId;
       const ev = eventsData.find(e => e.id === eventId);
       // Read-only sia per eventi chiusi formalmente che per quelli con data passata
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayLocalIso();
       const isClosed = !!(ev && (ev.closed_at || (!ev.is_active && today > ev.event_end_date)));
       const closedLabel = ev && ev.closed_at ? ' 🔒 CHIUSO' : (isClosed ? ' 🔒 CONCLUSO (data passata)' : '');
       document.getElementById('pool-modal-event').textContent = ev
@@ -4975,7 +4983,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       saveBtn.disabled = true;
       saveBtn.textContent = 'Salvataggio...';
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayLocalIso();
       const guestId = document.getElementById('wi-guest-select')?.value || null;
       const visitorPayload = {
         first_name:      fn,
@@ -5122,7 +5130,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       ['ag-first-name','ag-last-name','ag-email','ag-company','ag-person','ag-reason','ag-notes'].forEach(id => {
         document.getElementById(id).value = '';
       });
-      document.getElementById('ag-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('ag-date').value = todayLocalIso();
       // Configura checkbox "Associa a evento attivo" in base alla presenza di evento
       const cb     = document.getElementById('ag-attach-event');
       const label  = document.getElementById('ag-event-label');
@@ -5511,7 +5519,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     // ── TEMPLATE DOWNLOAD ─────────────────────────────
     function downloadTemplate() {
       const header = ['Nome','Cognome','Email','Azienda','Persona_da_Visitare','Motivo_Visita','Data_Prevista','Numero_Badge'];
-      const today  = new Date().toISOString().split('T')[0];
+      const today  = todayLocalIso();
       // 3 righe esempio: 2 con badge pre-attivato, 1 senza badge (pre-attivare poi manualmente)
       const examples = [
         ['Mario',  'Rossi',   'mario.rossi@esempio.it',   'Esempio Srl',  'Luca Verdi', 'Appuntamento di lavoro',     today, '241001'],
@@ -6767,7 +6775,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       const skipped = []; // {name, reason}
       const fromPool = []; // numeri badge presi dal pool
       const fromManual = []; // numeri badge attivazione manuale (agente)
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayLocalIso();
 
       for (let i = 0; i < inserted.length; i++) {
         const g = inserted[i];
