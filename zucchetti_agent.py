@@ -60,18 +60,40 @@ AUTH_GROUP_ID               = 249   # gruppo VISITATORI
 POLL_INTERVAL = 5    # secondi tra ogni ciclo (era 10, ridotto per latenza minima badge)
 MAX_RETRIES   = 3    # tentativi prima di loggare errore e passare oltre
 
-# ── Configurazione SMTP (per invio email QR personali) ──────────────────────
-# Sezione opzionale in agent_config.ini. Se assente, l'agente non processa email_queue.
-# Esempio config:
+# ── Configurazione INVIO EMAIL (SMTP basic OPPURE Microsoft Graph M365) ─────
+# Due strategie supportate, scelte in base alla sezione presente in agent_config.ini:
+#
+# A) SMTP classico (provider con password app — Aruba, Gmail con app password, etc.)
 # [smtp]
 # host = smtp.s2s.it
 # port = 465
-# use_ssl = true            ; true=SSL implicit (porta 465), false=STARTTLS (porta 587)
+# use_ssl = true             ; true=SSL implicit (465), false=STARTTLS (587)
 # username = noreply@s2s.it
 # password = ************
 # from_email = noreply@s2s.it
 # from_name  = Eventi Service to Service
-SMTP_ENABLED = "smtp" in cfg and cfg["smtp"].get("host")
+#
+# B) Microsoft 365 con OAuth 2.0 (Modern Auth, raccomandato per email @s2s.it su M365)
+# [m365_graph]
+# tenant_id     = <UUID tenant Azure AD, es. da Entra ID overview>
+# client_id     = <UUID app registration>
+# client_secret = <secret valore>
+# from_email    = noreply@s2s.it
+# from_name     = Eventi Service to Service
+#
+# La sezione B vince se entrambe presenti.
+EMAIL_STRATEGY = None
+
+M365_ENABLED = "m365_graph" in cfg and cfg["m365_graph"].get("tenant_id")
+if M365_ENABLED:
+    M365_TENANT_ID  = cfg["m365_graph"]["tenant_id"]
+    M365_CLIENT_ID  = cfg["m365_graph"]["client_id"]
+    M365_CLIENT_SEC = cfg["m365_graph"]["client_secret"]
+    M365_FROM_EMAIL = cfg["m365_graph"]["from_email"]
+    M365_FROM_NAME  = cfg["m365_graph"].get("from_name", "Service to Service")
+    EMAIL_STRATEGY  = "m365_graph"
+
+SMTP_ENABLED = (not EMAIL_STRATEGY) and "smtp" in cfg and cfg["smtp"].get("host")
 if SMTP_ENABLED:
     SMTP_HOST       = cfg["smtp"]["host"]
     SMTP_PORT       = int(cfg["smtp"].get("port", "465"))
@@ -80,6 +102,7 @@ if SMTP_ENABLED:
     SMTP_PASSWORD   = cfg["smtp"]["password"]
     SMTP_FROM_EMAIL = cfg["smtp"].get("from_email", SMTP_USERNAME)
     SMTP_FROM_NAME  = cfg["smtp"].get("from_name", "Service to Service")
+    EMAIL_STRATEGY  = "smtp"
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -115,7 +138,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.5.0-email-qr"
+AGENT_VERSION = "1.5.1-email-m365"
 
 
 def update_heartbeat(notes: str | None = None):
@@ -1065,6 +1088,63 @@ def process_pool_walkin_recreate():
             # Non marca renamed=true, l'agente riproverà al prossimo ciclo
 
 
+# ── M365 GRAPH (Modern Authentication via OAuth client_credentials) ──────────
+_m365_token_cache = {"token": None, "expires_at": 0}
+
+def _m365_get_token():
+    """Ottiene un access token M365 via client_credentials flow.
+    Cache in memoria (token validità ~1h, refresh 5 min prima della scadenza)."""
+    now = time.time()
+    if _m365_token_cache["token"] and _m365_token_cache["expires_at"] > now + 60:
+        return _m365_token_cache["token"]
+    r = requests.post(
+        f"https://login.microsoftonline.com/{M365_TENANT_ID}/oauth2/v2.0/token",
+        data={
+            "grant_type":    "client_credentials",
+            "client_id":     M365_CLIENT_ID,
+            "client_secret": M365_CLIENT_SEC,
+            "scope":         "https://graph.microsoft.com/.default",
+        },
+        timeout=15,
+    )
+    r.raise_for_status()
+    j = r.json()
+    _m365_token_cache["token"]      = j["access_token"]
+    _m365_token_cache["expires_at"] = now + int(j.get("expires_in", 3600)) - 300
+    return _m365_token_cache["token"]
+
+
+def _m365_graph_send(to_email, to_name, subject, body_html):
+    """Invia un'email via Microsoft Graph API (sendMail).
+    L'app deve avere permission 'Mail.Send' (Application) con admin consent.
+    Ritorna (ok, error)."""
+    try:
+        token = _m365_get_token()
+        recipients = [{"emailAddress": {"address": to_email}}]
+        if to_name:
+            recipients[0]["emailAddress"]["name"] = to_name
+        body = {
+            "message": {
+                "subject": subject,
+                "body":    {"contentType": "HTML", "content": body_html},
+                "toRecipients": recipients,
+                "from": {"emailAddress": {"address": M365_FROM_EMAIL, "name": M365_FROM_NAME}},
+            },
+            "saveToSentItems": "false",
+        }
+        r = requests.post(
+            f"https://graph.microsoft.com/v1.0/users/{M365_FROM_EMAIL}/sendMail",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json=body,
+            timeout=20,
+        )
+        if r.status_code in (200, 202):
+            return True, None
+        return False, f"Graph API HTTP {r.status_code}: {r.text[:300]}"
+    except Exception as e:
+        return False, str(e)[:500]
+
+
 def _smtp_send(to_email, to_name, subject, body_html):
     """Invia un'email via SMTP usando le credenziali configurate.
     Ritorna (ok: bool, error: str|None)."""
@@ -1091,11 +1171,21 @@ def _smtp_send(to_email, to_name, subject, body_html):
         return False, str(e)[:500]
 
 
+def _send_email(to_email, to_name, subject, body_html):
+    """Wrapper unico: usa la strategia configurata (m365_graph o smtp)."""
+    if EMAIL_STRATEGY == "m365_graph":
+        return _m365_graph_send(to_email, to_name, subject, body_html)
+    if EMAIL_STRATEGY == "smtp":
+        return _smtp_send(to_email, to_name, subject, body_html)
+    return False, "Nessuna strategia email configurata (manca [smtp] o [m365_graph] in agent_config.ini)"
+
+
 def process_email_queue():
-    """Processa email_queue: invio QR personali ai partecipanti via SMTP @s2s.it.
-    Limite 5 email per ciclo per non saturare il server SMTP."""
-    if not SMTP_ENABLED:
-        return  # nessuna config SMTP → silenzio (l'admin lo deve configurare a mano)
+    """Processa email_queue: invio QR personali ai partecipanti.
+    Strategia: M365 Graph API (Modern Auth) o SMTP basic, scelta da config.
+    Limite 5 email per ciclo per non saturare il provider."""
+    if not EMAIL_STRATEGY:
+        return  # nessuna config email → silenzio (l'admin lo deve configurare a mano)
     try:
         rows = sb_get("email_queue", params={
             "status": "eq.pending",
@@ -1119,7 +1209,7 @@ def process_email_queue():
         except Exception:
             pass
         attempts = int(r.get("attempts") or 0) + 1
-        ok, err = _smtp_send(r["to_email"], r.get("to_name"), r["subject"], r["body_html"])
+        ok, err = _send_email(r["to_email"], r.get("to_name"), r["subject"], r["body_html"])
         if ok:
             try:
                 sb_patch(f"email_queue?id=eq.{eid}", {
@@ -1191,7 +1281,8 @@ def cleanup_archived_visitors():
 
 
 def run_loop():
-    log.info("Zucchetti Bridge Agent avviato")
+    log.info(f"Zucchetti Bridge Agent avviato (v{AGENT_VERSION})")
+    log.info(f"Strategia email: {EMAIL_STRATEGY or 'NESSUNA (configurare [smtp] o [m365_graph] in agent_config.ini)'}")
     update_heartbeat(notes="started")
     startup_catchup()
     while True:
@@ -1242,7 +1333,8 @@ try:
                 servicemanager.PYS_SERVICE_STARTED,
                 (self._svc_name_, ""),
             )
-            log.info("Service SvcDoRun avviato")
+            log.info(f"Service SvcDoRun avviato (v{AGENT_VERSION})")
+            log.info(f"Strategia email: {EMAIL_STRATEGY or 'NESSUNA (configurare [smtp] o [m365_graph] in agent_config.ini)'}")
             update_heartbeat(notes="service started")
             try:
                 startup_catchup()
