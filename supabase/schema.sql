@@ -331,3 +331,45 @@ ALTER TABLE badge_pool
   ADD CONSTRAINT badge_pool_visitor_id_fkey
   FOREIGN KEY (visitor_id) REFERENCES visitors(id)
   ON DELETE SET NULL;
+
+-- ============================================================
+-- MIGRATION v7 — Coda email per invio QR personali ai partecipanti
+-- ============================================================
+-- L'admin clicca "Invia QR" su un ospite (o massivo) → INSERT in email_queue.
+-- L'agente Python su srvXatlas legge la coda ogni ciclo, invia via SMTP @s2s.it
+-- e marca status='sent' o 'failed' (con error).
+-- Il QR personale ha ?mode=qr&event=<eid>&guest=<gid>: il frontend precompila
+-- l'ospite specifico e blocca dopo registrazione (privacy: niente lista visibile).
+
+CREATE TABLE IF NOT EXISTS email_queue (
+  id           BIGSERIAL PRIMARY KEY,
+  guest_id     UUID REFERENCES guest_list(id) ON DELETE CASCADE,
+  event_id     UUID REFERENCES events(id),
+  to_email     TEXT NOT NULL,
+  to_name      TEXT,
+  subject      TEXT NOT NULL,
+  body_html    TEXT NOT NULL,
+  qr_url       TEXT,
+  status       TEXT DEFAULT 'pending' CHECK (status IN ('pending','sending','sent','failed')),
+  error        TEXT,
+  attempts     INT DEFAULT 0,
+  scheduled_at TIMESTAMPTZ DEFAULT NOW(),
+  sent_at      TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  created_by   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS email_queue_pending  ON email_queue(status, scheduled_at) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS email_queue_by_guest ON email_queue(guest_id);
+CREATE INDEX IF NOT EXISTS email_queue_recent   ON email_queue(created_at DESC);
+
+ALTER TABLE email_queue ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "email_queue_auth_read"   ON email_queue;
+DROP POLICY IF EXISTS "email_queue_auth_insert" ON email_queue;
+DROP POLICY IF EXISTS "email_queue_auth_update" ON email_queue;
+DROP POLICY IF EXISTS "email_queue_auth_delete" ON email_queue;
+CREATE POLICY "email_queue_auth_read"   ON email_queue FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "email_queue_auth_insert" ON email_queue FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "email_queue_auth_update" ON email_queue FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "email_queue_auth_delete" ON email_queue FOR DELETE USING (auth.role() = 'authenticated');
+-- L'agente Python usa service_role e bypassa RLS per fare update di status.

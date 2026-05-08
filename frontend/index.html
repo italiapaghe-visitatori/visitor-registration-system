@@ -758,6 +758,18 @@
     .qr-banner small { display: block; font-weight: 500; opacity: 0.9; font-size: 12px; margin-top: 3px; }
     html.qr-mode .qr-banner { display: block; }
 
+    /* QR personale: nasconde la lista ospiti (privacy) e mostra messaggio dedicato */
+    html.qr-personal #guest-lookup-wrap { display: none !important; }
+    html.qr-personal .qr-banner small { display: none; }
+    html.qr-personal .qr-banner::after {
+      content: '👋 Sei stato pre-registrato. Compila firma e consensi per completare.';
+      display: block;
+      font-weight: 500;
+      opacity: 0.95;
+      font-size: 12.5px;
+      margin-top: 4px;
+    }
+
     /* Schermata finale persistente "ritira badge alla reception" */
     #qr-success {
       display: none;
@@ -1482,10 +1494,14 @@
     const QS = new URLSearchParams(window.location.search);
     const IS_QR_MODE = QS.get('mode') === 'qr';
     const QR_EVENT_ID = QS.get('event') || null;
+    const QR_GUEST_ID = QS.get('guest') || null;  // QR personale per ospite specifico (privacy)
     if (IS_QR_MODE) document.documentElement.classList.add('qr-mode');
+    if (IS_QR_MODE && QR_GUEST_ID) document.documentElement.classList.add('qr-personal');
 
     // Stato evento (popolato da loadEventForQr in QR mode, oppure dall'evento attivo in kiosk)
     let CURRENT_EVENT = null;
+    // Ospite preselezionato (solo in QR personale)
+    let QR_PERSONAL_GUEST = null;
 
     // ── QR VALIDITY + LOCK-OUT (3 livelli) ───────────
     // Livello 1: localStorage flag → device bloccato dopo registrazione
@@ -1533,6 +1549,34 @@
         const rows = await res.json();
         return rows[0] || null;
       } catch (_) { return null; }
+    }
+
+    // Carica l'ospite specifico nel QR personale (privacy: nessuna lista visibile)
+    async function loadGuestForPersonalQr() {
+      if (!QR_GUEST_ID) return null;
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/guest_list?id=eq.${encodeURIComponent(QR_GUEST_ID)}&select=*`,
+          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+        );
+        if (!res.ok) return null;
+        const rows = await res.json();
+        return rows[0] || null;
+      } catch (_) { return null; }
+    }
+
+    // Verifica se un ospite ha già firmato (signature popolata in visitors)
+    async function isGuestAlreadySigned(guestId) {
+      if (!guestId) return false;
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/visitors?guest_id=eq.${encodeURIComponent(guestId)}&signature=not.is.null&select=id,first_name,last_name&limit=1`,
+          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+        );
+        if (!res.ok) return false;
+        const rows = await res.json();
+        return rows.length > 0;
+      } catch (_) { return false; }
     }
 
     function isoToday() {
@@ -1638,6 +1682,32 @@
       if (ss) ss.classList.remove('active');
     }
 
+    // QR personale: precompila form con dati ospite, salta la selezione dalla lista.
+    // Privacy: l'ospite non vede gli altri partecipanti.
+    function applyPersonalQrPrefill(guest) {
+      if (!guest) return;
+      // Salva guest_id per il submit (PATCH stub o INSERT con guest_id)
+      selectedGuestId = guest.id;
+      // Precompila campi
+      const set = (id, val) => { const e = document.getElementById(id); if (e && val) e.value = val; };
+      set('first_name',       guest.first_name);
+      set('last_name',        guest.last_name);
+      set('email',            guest.email);
+      set('company',          guest.company);
+      set('person_to_visit',  guest.person_to_visit);
+      // Motivo visita: se l'ospite ha un motivo precompilato che esiste tra le opzioni, selezionalo
+      const reasonSel = document.getElementById('visit_reason');
+      if (reasonSel && guest.visit_reason) {
+        if (![...reasonSel.options].some(o => o.value === guest.visit_reason)) {
+          const opt = document.createElement('option');
+          opt.value = guest.visit_reason; opt.textContent = guest.visit_reason;
+          reasonSel.appendChild(opt);
+        }
+        reasonSel.value = guest.visit_reason;
+      }
+      updateAgreementName?.();
+    }
+
     // ── GUEST LOOKUP ─────────────────────────────────
     let allGuests                 = [];
     let selectedGuestId           = null;
@@ -1725,7 +1795,28 @@
           showQrInvalidScreen(validity.reason, validity.message);
           return;
         }
-        // 5. Tutto OK → carica lista ospiti normalmente
+        // 5. QR personale: carica ospite, verifica se ha già firmato, precompila form
+        if (QR_GUEST_ID) {
+          QR_PERSONAL_GUEST = await loadGuestForPersonalQr();
+          if (!QR_PERSONAL_GUEST) {
+            showQrInvalidScreen('guest_not_found', 'Il link non è valido o l\'ospite non è più nella lista. Contatta la reception.');
+            return;
+          }
+          // Verifica server-side se questo ospite ha già firmato (lockout livello 2)
+          const alreadySigned = await isGuestAlreadySigned(QR_GUEST_ID);
+          if (alreadySigned) {
+            showQrAlreadyRegistered({
+              event_name:        CURRENT_EVENT?.name,
+              event_start_date:  CURRENT_EVENT?.event_start_date,
+              event_end_date:    CURRENT_EVENT?.event_end_date,
+              signed_at:         null,
+            });
+            return;
+          }
+          // Pre-compila il form e nasconde la lista (privacy)
+          applyPersonalQrPrefill(QR_PERSONAL_GUEST);
+        }
+        // 6. Tutto OK → carica lista ospiti (in QR personale è nascosta via CSS)
       } else {
         // KIOSK MODE: se c'è un evento attivo, lo usiamo per taggare le nuove registrazioni
         CURRENT_EVENT = await loadActiveEventForKiosk();

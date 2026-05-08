@@ -15,9 +15,14 @@ import configparser
 import json
 import logging
 import os
+import smtplib
+import ssl
 import sys
 import time
 from datetime import date, datetime, timedelta, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formataddr
 
 import psycopg2
 import requests
@@ -55,6 +60,27 @@ AUTH_GROUP_ID               = 249   # gruppo VISITATORI
 POLL_INTERVAL = 5    # secondi tra ogni ciclo (era 10, ridotto per latenza minima badge)
 MAX_RETRIES   = 3    # tentativi prima di loggare errore e passare oltre
 
+# ── Configurazione SMTP (per invio email QR personali) ──────────────────────
+# Sezione opzionale in agent_config.ini. Se assente, l'agente non processa email_queue.
+# Esempio config:
+# [smtp]
+# host = smtp.s2s.it
+# port = 465
+# use_ssl = true            ; true=SSL implicit (porta 465), false=STARTTLS (porta 587)
+# username = noreply@s2s.it
+# password = ************
+# from_email = noreply@s2s.it
+# from_name  = Eventi Service to Service
+SMTP_ENABLED = "smtp" in cfg and cfg["smtp"].get("host")
+if SMTP_ENABLED:
+    SMTP_HOST       = cfg["smtp"]["host"]
+    SMTP_PORT       = int(cfg["smtp"].get("port", "465"))
+    SMTP_USE_SSL    = cfg["smtp"].get("use_ssl", "true").strip().lower() in ("true","1","yes","on")
+    SMTP_USERNAME   = cfg["smtp"]["username"]
+    SMTP_PASSWORD   = cfg["smtp"]["password"]
+    SMTP_FROM_EMAIL = cfg["smtp"].get("from_email", SMTP_USERNAME)
+    SMTP_FROM_NAME  = cfg["smtp"].get("from_name", "Service to Service")
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 
 logging.basicConfig(
@@ -89,7 +115,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.4.5-recreate-order"
+AGENT_VERSION = "1.5.0-email-qr"
 
 
 def update_heartbeat(notes: str | None = None):
@@ -1039,6 +1065,86 @@ def process_pool_walkin_recreate():
             # Non marca renamed=true, l'agente riproverà al prossimo ciclo
 
 
+def _smtp_send(to_email, to_name, subject, body_html):
+    """Invia un'email via SMTP usando le credenziali configurate.
+    Ritorna (ok: bool, error: str|None)."""
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = formataddr((SMTP_FROM_NAME, SMTP_FROM_EMAIL))
+    msg["To"]      = formataddr((to_name or "", to_email))
+    msg.attach(MIMEText(body_html, "html", "utf-8"))
+    try:
+        if SMTP_USE_SSL:
+            ctx = ssl.create_default_context()
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=20) as srv:
+                srv.login(SMTP_USERNAME, SMTP_PASSWORD)
+                srv.sendmail(SMTP_FROM_EMAIL, [to_email], msg.as_string())
+        else:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as srv:
+                srv.ehlo()
+                srv.starttls(context=ssl.create_default_context())
+                srv.ehlo()
+                srv.login(SMTP_USERNAME, SMTP_PASSWORD)
+                srv.sendmail(SMTP_FROM_EMAIL, [to_email], msg.as_string())
+        return True, None
+    except Exception as e:
+        return False, str(e)[:500]
+
+
+def process_email_queue():
+    """Processa email_queue: invio QR personali ai partecipanti via SMTP @s2s.it.
+    Limite 5 email per ciclo per non saturare il server SMTP."""
+    if not SMTP_ENABLED:
+        return  # nessuna config SMTP → silenzio (l'admin lo deve configurare a mano)
+    try:
+        rows = sb_get("email_queue", params={
+            "status": "eq.pending",
+            "select": "id,guest_id,event_id,to_email,to_name,subject,body_html,attempts",
+            "order":  "scheduled_at.asc",
+            "limit":  "5",
+        })
+    except Exception as e:
+        log.warning(f"process_email_queue: lettura coda fallita: {e}")
+        return
+
+    if not rows:
+        return
+
+    log.info(f"process_email_queue: {len(rows)} email da inviare")
+    for r in rows:
+        eid = r["id"]
+        # Marca status='sending' per evitare doppio invio se due cicli si sovrappongono
+        try:
+            sb_patch(f"email_queue?id=eq.{eid}", {"status": "sending"})
+        except Exception:
+            pass
+        attempts = int(r.get("attempts") or 0) + 1
+        ok, err = _smtp_send(r["to_email"], r.get("to_name"), r["subject"], r["body_html"])
+        if ok:
+            try:
+                sb_patch(f"email_queue?id=eq.{eid}", {
+                    "status":   "sent",
+                    "sent_at":  datetime.now(timezone.utc).isoformat(),
+                    "attempts": attempts,
+                    "error":    None,
+                })
+                log.info(f"Email QR inviata: id={eid} to={r['to_email']}")
+            except Exception as e:
+                log.warning(f"PATCH email_queue {eid} dopo send OK: {e}")
+        else:
+            # Se < 3 tentativi, riporta a pending; altrimenti marca failed
+            new_status = "failed" if attempts >= 3 else "pending"
+            try:
+                sb_patch(f"email_queue?id=eq.{eid}", {
+                    "status":   new_status,
+                    "attempts": attempts,
+                    "error":    err,
+                })
+                log.warning(f"Email QR fallita ({attempts}/3): id={eid} to={r['to_email']} err={err[:120]}")
+            except Exception as e:
+                log.warning(f"PATCH email_queue {eid} dopo send FAIL: {e}")
+
+
 def cleanup_archived_visitors():
     """Libera badge per visitor archiviati (xatlas_status=checked_out) ma con
     xatlas_user_id ancora valorizzato. Tipicamente succede dopo chiusura evento
@@ -1099,6 +1205,7 @@ def run_loop():
             process_active_transactions()
             cleanup_archived_visitors()
             midnight_cleanup_stale_visitors()
+            process_email_queue()
             update_heartbeat()
         except Exception as e:
             log.error(f"Errore imprevisto nel ciclo principale: {e}")
@@ -1150,6 +1257,7 @@ try:
                     process_active_transactions()
                     cleanup_archived_visitors()
                     midnight_cleanup_stale_visitors()
+                    process_email_queue()
                     update_heartbeat()
                 except Exception as e:
                     log.error(f"Errore nel service loop: {e}")
