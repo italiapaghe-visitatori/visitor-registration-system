@@ -179,43 +179,65 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+      background: linear-gradient(135deg, #fbbf24 0%, #f6ad55 50%, #ed8936 100%);
       color: #fff;
-      padding: 12px 22px;
-      border-radius: 12px;
+      padding: 14px 24px;
+      border-radius: 14px;
       margin-bottom: 18px;
-      box-shadow: 0 3px 14px rgba(237,137,54,0.32);
+      box-shadow: 0 4px 18px rgba(237,137,54,0.32), inset 0 1px 0 rgba(255,255,255,0.25);
+      position: relative;
+      overflow: hidden;
     }
-    .aeb-info { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .aeb-info strong { font-size: 16px; font-weight: 800; }
-    .aeb-date { font-size: 13px; opacity: 0.92; }
+    .active-event-banner::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at top right, rgba(255,255,255,0.18), transparent 60%);
+      pointer-events: none;
+    }
+    .aeb-info { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; position: relative; }
+    .aeb-info strong { font-size: 17px; font-weight: 800; letter-spacing: 0.2px; }
+    .aeb-date {
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0.92;
+      background: rgba(255,255,255,0.18);
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.25);
+    }
     .aeb-pulse {
       display: inline-block;
-      width: 11px; height: 11px;
+      width: 12px; height: 12px;
       background: #fff;
       border-radius: 50%;
       box-shadow: 0 0 0 0 rgba(255,255,255,0.7);
       animation: aebPulse 1.6s infinite;
+      flex-shrink: 0;
     }
     @keyframes aebPulse {
       0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.7); }
-      70%  { box-shadow: 0 0 0 12px rgba(255,255,255,0); }
+      70%  { box-shadow: 0 0 0 14px rgba(255,255,255,0); }
       100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
     }
-    .aeb-actions { display: flex; gap: 8px; }
+    .aeb-actions { display: flex; gap: 10px; position: relative; }
     .btn-aeb-qr, .btn-aeb-close {
-      background: rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.2);
       color: #fff;
       border: 1.5px solid rgba(255,255,255,0.45);
-      padding: 8px 14px;
-      border-radius: 8px;
+      padding: 9px 18px;
+      border-radius: 10px;
       cursor: pointer;
       font-weight: 700;
       font-size: 13px;
-      transition: background 0.15s;
+      letter-spacing: 0.2px;
+      transition: all 0.18s;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
     }
-    .btn-aeb-qr:hover, .btn-aeb-close:hover { background: rgba(255,255,255,0.36); }
-    .btn-aeb-close { background: rgba(0,0,0,0.18); }
+    .btn-aeb-qr:hover { background: rgba(255,255,255,0.36); transform: translateY(-1px); }
+    .btn-aeb-close { background: rgba(0,0,0,0.22); border-color: rgba(0,0,0,0.3); }
+    .btn-aeb-close:hover { background: rgba(0,0,0,0.34); transform: translateY(-1px); }
 
     /* ── TABELLA EVENTI ── */
     .event-status-pill {
@@ -569,47 +591,114 @@
       white-space: nowrap;
     }
 
-    /* ── BUTTONS ── */
+    /* ── BUTTONS (sistema unificato) ── */
     .btn {
-      padding: 9px 18px;
-      border: none;
-      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 18px;
+      border: 1.5px solid transparent;
+      border-radius: 9px;
       cursor: pointer;
-      font-weight: 600;
+      font-weight: 700;
       font-size: 13px;
-      transition: all 0.2s;
+      letter-spacing: 0.2px;
+      transition: transform 0.15s, box-shadow 0.18s, background 0.18s, border-color 0.18s;
       white-space: nowrap;
+      line-height: 1;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    /* Variante header (bottoni nel banner gradient — bg semitrasparente) */
+    .btn-light { background: rgba(255,255,255,0.18); color: #fff; border-color: rgba(255,255,255,0.32); }
+    .btn-light:hover { background: rgba(255,255,255,0.28); }
+    .btn-light.active-tab { background: rgba(255,255,255,0.42); border-color: rgba(255,255,255,0.75); box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+
+    .btn-white { background: #fff; color: #2d3748; border-color: #e2e8f0; }
+    .btn-white:hover { background: #f7fafc; border-color: #cbd5e0; }
+
+    /* Bottoni colorati (toolbar bianca) */
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(102,126,234,0.32);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 18px rgba(102,126,234,0.5); }
+
+    .btn-success {
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(72,187,120,0.32);
+    }
+    .btn-success:hover { box-shadow: 0 6px 18px rgba(72,187,120,0.48); }
+
+    .btn-info {
+      background: linear-gradient(135deg, #38b2ac 0%, #319795 100%);
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(56,178,172,0.32);
+    }
+    .btn-info:hover { box-shadow: 0 6px 18px rgba(56,178,172,0.48); }
+
+    .btn-warning {
+      background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(237,137,54,0.32);
+    }
+    .btn-warning:hover { box-shadow: 0 6px 18px rgba(237,137,54,0.48); }
+
+    /* Bottone "ghost" (outlined, neutro) — per azioni secondarie/utility */
+    .btn-secondary {
+      background: #fff;
+      color: #4a5568;
+      border-color: #cbd5e0;
+    }
+    .btn-secondary:hover {
+      background: #f7fafc;
+      border-color: #94a3b8;
+      color: #2d3748;
     }
 
-    .btn-light { background: rgba(255,255,255,0.2); color: #fff; border: 1.5px solid rgba(255,255,255,0.35); }
-    .btn-light:hover { background: rgba(255,255,255,0.32); }
-    .btn-light.active-tab { background: rgba(255,255,255,0.4); border-color: rgba(255,255,255,0.7); }
-
-    .btn-white { background: #fff; color: #4a5568; }
-    .btn-white:hover { background: #f7fafc; }
+    .btn-archive.active-archive {
+      background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 3px 10px rgba(237,137,54,0.45);
+    }
 
     .btn-danger { background: #e53e3e; color: #fff; }
     .btn-danger:hover { background: #c53030; }
 
-    .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #fff;
-      box-shadow: 0 3px 10px rgba(102,126,234,0.4);
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn:disabled:hover { transform: none; box-shadow: 0 3px 10px rgba(102,126,234,0.32); }
+
+    /* Toolbar di azioni: separatori sottili tra gruppi di bottoni */
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 16px 20px;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+      border: 1px solid #edf0f5;
     }
-    .btn-primary:hover { box-shadow: 0 5px 16px rgba(102,126,234,0.55); }
-
-    .btn-secondary { background: #718096; color: #fff; }
-    .btn-secondary:hover { background: #4a5568; }
-
-    .btn-archive.active-archive {
-      background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
-      box-shadow: 0 3px 10px rgba(237,137,54,0.45);
+    .toolbar-actions .toolbar-divider {
+      width: 1px;
+      height: 26px;
+      background: #e2e8f0;
+      margin: 0 4px;
     }
-
-    .btn-success { background: #38a169; color: #fff; }
-    .btn-success:hover { background: #2f855a; }
-
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .toolbar-actions .toolbar-spacer { flex: 1; }
+    .toolbar-actions .toolbar-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      font-weight: 700;
+      color: #a0aec0;
+      margin-right: 4px;
+    }
 
     /* ── CONTAINER ── */
     .container { max-width: 1600px; margin: 0 auto; padding: 24px 28px; }
@@ -638,37 +727,71 @@
 
     .stat-card {
       background: #fff;
-      border-radius: 12px;
-      padding: 20px 22px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      border-top: 3px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 22px 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+      border-top: 4px solid #e2e8f0;
+      border-left: 1px solid #f0f3f8;
+      border-right: 1px solid #f0f3f8;
+      border-bottom: 1px solid #edf0f5;
       position: relative;
       overflow: hidden;
+      transition: transform 0.18s, box-shadow 0.18s;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
     }
 
     .stat-card::after {
       content: '';
       position: absolute;
-      bottom: -18px; right: -10px;
-      width: 70px; height: 70px;
+      bottom: -28px; right: -18px;
+      width: 90px; height: 90px;
       border-radius: 50%;
       background: currentColor;
-      opacity: 0.04;
+      opacity: 0.05;
       pointer-events: none;
+      transition: transform 0.3s;
     }
+    .stat-card:hover::after { transform: scale(1.15); }
 
-    .stat-card h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #a0aec0; font-weight: 700; margin-bottom: 6px; }
-    .stat-card .value { font-size: 38px; font-weight: 800; color: #2d3748; line-height: 1; }
-    .stat-card .sub { font-size: 12px; color: #a0aec0; margin-top: 5px; }
-    .stat-card .stat-icon { font-size: 22px; float: right; margin-top: -2px; opacity: 0.5; }
+    .stat-card h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      color: #718096;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .stat-card .value {
+      font-size: 42px;
+      font-weight: 800;
+      color: #2d3748;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-card .sub {
+      font-size: 12px;
+      color: #a0aec0;
+      margin-top: 6px;
+      font-weight: 500;
+    }
+    .stat-card .stat-icon {
+      font-size: 26px;
+      float: right;
+      margin-top: -4px;
+      opacity: 0.65;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.08));
+    }
 
     .stat-card-primary { border-top-color: #667eea; }
     .stat-card-primary .value { color: #4c51bf; }
     .stat-card-info    { border-top-color: #4fd1c5; }
     .stat-card-info    .value { color: #285e61; }
-    .stat-card-warning { border-top: 3px solid #f6ad55; }
+    .stat-card-warning { border-top-color: #f6ad55; }
     .stat-card-warning .value { color: #c05621; }
-    .stat-card-success { border-top: 3px solid #68d391; }
+    .stat-card-success { border-top-color: #68d391; }
     .stat-card-success .value { color: #276749; }
     .stat-card-orange  { border-top-color: #fc8181; }
     .stat-card-orange  .value { color: #c53030; }
@@ -731,10 +854,18 @@
     /* ── FILTERS ── */
     .filters {
       background: #fff;
-      border-radius: 12px;
+      border-radius: 14px;
       padding: 20px 22px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      margin-bottom: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+      border: 1px solid #edf0f5;
+    }
+    .filters-secondary {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      justify-content: flex-end;
     }
 
     .filters-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; align-items: end; }
@@ -1821,11 +1952,13 @@
           </div>
           <div class="filter-group filter-actions">
             <label>&nbsp;</label>
-            <button type="button" class="btn btn-primary" onclick="applyFilters()">Filtra</button>
-            <button type="button" class="btn btn-secondary" onclick="resetFilters()">Reset</button>
-            <button type="button" class="btn btn-success" onclick="openWalkInModal()" title="Registra al volo un visitatore walk-in usando un badge dal pool">👤 + Walk-in dal pool</button>
-            <button type="button" class="btn btn-secondary btn-archive" id="btn-toggle-archived" onclick="toggleArchived()" title="Commuta tra visitatori attivi e archiviati">Vai all'Archivio</button>
+            <button type="button" class="btn btn-primary" onclick="applyFilters()">🔍 Filtra</button>
+            <button type="button" class="btn btn-secondary" onclick="resetFilters()">↺ Reset</button>
           </div>
+        </div>
+        <div class="filters-secondary">
+          <button type="button" class="btn btn-success" onclick="openWalkInModal()" title="Registra al volo un visitatore walk-in usando un badge dal pool">👤 Walk-in dal pool</button>
+          <button type="button" class="btn btn-secondary btn-archive" id="btn-toggle-archived" onclick="toggleArchived()" title="Commuta tra visitatori attivi e archiviati">📦 Vai all'Archivio</button></div>
         </div>
       </div>
 
@@ -1886,24 +2019,29 @@
       </div>
 
       <!-- Azioni -->
-      <div class="guest-actions">
-        <div class="guest-actions-left">
-          <button type="button" class="btn btn-primary" onclick="openAddGuestModal()">+ Aggiungi Ospite</button>
-          <button type="button" class="btn btn-success" onclick="document.getElementById('file-import').click()">Importa CSV / Excel</button>
-          <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
-          <button type="button" class="btn btn-secondary" onclick="downloadTemplate()">Scarica Template</button>
-          <button type="button" class="btn btn-primary" onclick="openFillBadgesModal()" title="Griglia editabile per assegnare badge ai nominativi importati senza usare Excel">📝 Compila Badge</button>
-          <button type="button" class="btn btn-primary" onclick="startBulkPreAssign()" title="Pre-assegna badge a tutti gli ospiti senza badge">⚡ Pre-assegna Lista</button>
-          <button type="button" class="btn btn-secondary" onclick="openMiniLabelsModal()" title="Stampa miniature da incollare sui badge fisici dei pre-assegnati">🏷️ Stampa miniature</button>
-          <button type="button" class="btn btn-success" onclick="bulkSendQrEmail()" title="Invia QR personale via email a tutti gli ospiti dell'evento attivo">📧 Invia QR a tutti</button>
-          <button type="button" class="btn btn-qr-event" onclick="openQrModal()" title="Genera QR per registrazione self-service da mobile">
-            <span class="btn-qr-icon">📱</span>
-            <span class="btn-qr-label">Genera QR Evento</span>
-          </button>
-        </div>
-        <div>
-          <button type="button" class="btn btn-light" id="btn-toggle-arrived" onclick="toggleArrivedFilter()">Mostra arrivati</button>
-        </div>
+      <div class="toolbar-actions">
+        <span class="toolbar-label">Ospiti</span>
+        <button type="button" class="btn btn-primary" onclick="openAddGuestModal()">➕ Aggiungi</button>
+
+        <span class="toolbar-divider"></span>
+        <span class="toolbar-label">Import</span>
+        <button type="button" class="btn btn-success" onclick="document.getElementById('file-import').click()">📥 Importa CSV/Excel</button>
+        <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
+        <button type="button" class="btn btn-secondary" onclick="downloadTemplate()">📄 Template</button>
+
+        <span class="toolbar-divider"></span>
+        <span class="toolbar-label">Badge</span>
+        <button type="button" class="btn btn-primary" onclick="openFillBadgesModal()" title="Griglia editabile per assegnare badge ai nominativi importati senza usare Excel">📝 Compila</button>
+        <button type="button" class="btn btn-warning" onclick="startBulkPreAssign()" title="Wizard sequenziale: pre-assegna badge a tutti gli ospiti senza badge">⚡ Pre-assegna</button>
+        <button type="button" class="btn btn-secondary" onclick="openMiniLabelsModal()" title="Stampa miniature da incollare sui badge fisici dei pre-assegnati">🏷️ Miniature</button>
+
+        <span class="toolbar-divider"></span>
+        <span class="toolbar-label">QR</span>
+        <button type="button" class="btn btn-info" onclick="openQrModal()" title="Genera QR generico al desk per registrazione self-service">📱 Genera QR</button>
+        <button type="button" class="btn btn-info" onclick="bulkSendQrEmail()" title="Invia QR personale via email a tutti gli ospiti dell'evento attivo">📧 Invia QR a tutti</button>
+
+        <span class="toolbar-spacer"></span>
+        <button type="button" class="btn btn-secondary" id="btn-toggle-arrived" onclick="toggleArrivedFilter()">👁️ Mostra arrivati</button>
       </div>
 
       <div class="table-wrap">
