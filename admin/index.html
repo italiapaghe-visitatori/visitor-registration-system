@@ -293,6 +293,89 @@
       body.printing-minilabels .minilabel-badge { font-size: 13pt !important; }
     }
 
+    /* ── COMPILA BADGE GRID ── */
+    .fill-badges-toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      background: #f7fafc;
+      border-radius: 10px;
+    }
+    .fill-badges-toolbar input[type="text"] {
+      flex: 1;
+      min-width: 220px;
+      height: 36px;
+      padding: 0 12px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .fb-toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #4a5568; cursor: pointer; }
+    .fb-toggle input { width: 16px; height: 16px; cursor: pointer; }
+    .fb-stat {
+      margin-left: auto;
+      background: #ebf4ff;
+      color: #2c5282;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .fill-badges-grid-wrap {
+      max-height: 480px;
+      overflow-y: auto;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+    .fill-badges-grid { width: 100%; border-collapse: collapse; }
+    .fill-badges-grid th {
+      background: #edf2f7;
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #4a5568;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .fill-badges-grid td { padding: 8px 12px; border-bottom: 1px solid #f0f4f8; font-size: 13px; }
+    .fill-badges-grid tr:hover td { background: #fafbfd; }
+    .fill-badges-grid input.fb-input {
+      width: 110px;
+      height: 32px;
+      padding: 0 10px;
+      border: 1.5px solid #cbd5e0;
+      border-radius: 6px;
+      font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: #2d3748;
+    }
+    .fill-badges-grid input.fb-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
+    }
+
+    /* Aggiungi ospite: checkbox "associa a evento" */
+    .ag-event-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      color: #2d3748;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .ag-event-checkbox input { width: 17px; height: 17px; cursor: pointer; }
+    .ag-event-hint { display: block; margin-top: 4px; color: #718096; font-size: 12px; }
+
     /* Walk-in dal pool: info ospite atteso selezionato */
     .wi-guest-info {
       display: block;
@@ -1250,6 +1333,13 @@
           <label>Note</label>
           <textarea id="ag-notes" placeholder="Note aggiuntive..."></textarea>
         </div>
+        <div class="modal-field" id="ag-event-row">
+          <label class="ag-event-checkbox">
+            <input type="checkbox" id="ag-attach-event" checked>
+            🎫 <span id="ag-event-label">Associa a evento attivo</span>
+          </label>
+          <small id="ag-event-hint" class="ag-event-hint"></small>
+        </div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn-save" onclick="saveGuest()">Aggiungi ospite</button>
@@ -1391,6 +1481,49 @@
           <button type="button" class="btn-save" onclick="saveWalkIn()">Registra e consegna badge</button>
           <button type="button" class="btn-cancel" onclick="closeModal()">Annulla</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE COMPILA BADGE: griglia editabile per assegnare badge agli ospiti senza usare Excel -->
+  <div class="modal-overlay" id="fill-badges-modal">
+    <div class="modal modal-wide" id="fill-badges-modal-content">
+      <h2>📝 Compila Badge per Ospiti Importati</h2>
+      <p class="modal-sub">Assegna i numeri dei badge agli ospiti importati (anche solo a una parte di loro). Salva e poi pre-attiva tutti in una volta.</p>
+
+      <div class="modal-info-box">
+        <strong>Suggerimento:</strong> usa il tasto <kbd>Tab</kbd> per spostarti rapidamente tra i campi.
+        Premi <kbd>Enter</kbd> nel campo badge per saltare al prossimo ospite.
+      </div>
+
+      <div class="fill-badges-toolbar">
+        <input type="text" id="fb-search" placeholder="🔍 Filtra per nome/azienda..." oninput="renderFillBadgesGrid()">
+        <label class="fb-toggle">
+          <input type="checkbox" id="fb-only-empty" checked onchange="renderFillBadgesGrid()">
+          Mostra solo ospiti senza badge
+        </label>
+        <span class="fb-stat" id="fb-stat">—</span>
+      </div>
+
+      <div class="fill-badges-grid-wrap">
+        <table class="fill-badges-grid" id="fill-badges-grid">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Cognome</th>
+              <th>Nome</th>
+              <th>Azienda</th>
+              <th>N° Badge</th>
+              <th class="no-sort">Stato</th>
+            </tr>
+          </thead>
+          <tbody id="fill-badges-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-save" onclick="saveFillBadgesAndPreActivate()" title="Salva i numeri inseriti e crea gli stub pre-attivazione">💾 Salva tutti & ⚡ Pre-attiva</button>
+        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
       </div>
     </div>
   </div>
@@ -1661,6 +1794,7 @@
           <button type="button" class="btn btn-success" onclick="document.getElementById('file-import').click()">Importa CSV / Excel</button>
           <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
           <button type="button" class="btn btn-secondary" onclick="downloadTemplate()">Scarica Template</button>
+          <button type="button" class="btn btn-primary" onclick="openFillBadgesModal()" title="Griglia editabile per assegnare badge ai nominativi importati senza usare Excel">📝 Compila Badge</button>
           <button type="button" class="btn btn-primary" onclick="startBulkPreAssign()" title="Pre-assegna badge a tutti gli ospiti senza badge">⚡ Pre-assegna Lista</button>
           <button type="button" class="btn btn-secondary" onclick="openMiniLabelsModal()" title="Stampa miniature da incollare sui badge fisici dei pre-assegnati">🏷️ Stampa miniature</button>
           <button type="button" class="btn btn-qr-event" onclick="openQrModal()" title="Genera QR per registrazione self-service da mobile">
@@ -1799,6 +1933,7 @@
         if (!res.ok) throw new Error('token-expired');
         const user = await res.json();
         document.getElementById('user-email').textContent = user.email;
+        CURRENT_USER_EMAIL = user.email;
       } catch (_) {
         const refreshed = await tryRefreshToken();
         if (!refreshed) { logout(); return; }
@@ -1808,6 +1943,7 @@
           });
           const user = await res.json();
           document.getElementById('user-email').textContent = user.email;
+          CURRENT_USER_EMAIL = user.email;
         } catch (_) { logout(); return; }
       }
 
@@ -1816,6 +1952,42 @@
       refreshActiveEventBanner();
       populateEventFilter();
     });
+
+    // Email operatore corrente (popolato al login) — usato per audit_log e assigned_by
+    let CURRENT_USER_EMAIL = null;
+
+    // ── AUDIT LOG ────────────────────────────────────
+    // Best-effort: registra ogni azione admin critica. Errori silenziosi (non blocca il flusso).
+    async function auditLog(action, entity, entityId, details) {
+      if (!CURRENT_USER_EMAIL) return;
+      try {
+        await api(`${SUPABASE_URL}/rest/v1/audit_log`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            user_email: CURRENT_USER_EMAIL,
+            action: action,
+            entity: entity || null,
+            entity_id: entityId != null ? String(entityId) : null,
+            details: details || null
+          })
+        });
+      } catch (_) { /* best-effort */ }
+    }
+
+    // ── COLLISION DETAIL: chi ha già il badge? ─────────
+    // Quando il DB rifiuta un duplicato badge_number, query rapida per scoprire
+    // chi ha già assegnato quel badge (nome ospite + email operatore + ora).
+    async function findBadgeOwner(badgeNum) {
+      try {
+        const res = await api(
+          `${SUPABASE_URL}/rest/v1/visitors?select=id,first_name,last_name,assigned_by,assigned_at&badge_number=eq.${encodeURIComponent(badgeNum)}&xatlas_status=in.(pending,active)&limit=1`
+        );
+        if (!res || !res.ok) return null;
+        const rows = await res.json();
+        return rows[0] || null;
+      } catch (_) { return null; }
+    }
 
     // ── AUTH ─────────────────────────────────────────
     async function tryRefreshToken() {
@@ -2219,21 +2391,28 @@
       saveBtn.textContent = 'Salvataggio...';
 
       try {
+        const nowIso = new Date().toISOString();
         const res = await api(
           `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(badgeCurrentId)}`,
           {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-            body: JSON.stringify({ badge_number: badgeNum, xatlas_status: 'pending' })
+            body: JSON.stringify({
+              badge_number: badgeNum,
+              xatlas_status: 'pending',
+              assigned_by: CURRENT_USER_EMAIL,
+              assigned_at: nowIso
+            })
           }
         );
         if (!res) return;
         const body = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(parseBadgeError(body, res.status, badgeNum));
+        if (!res.ok) throw new Error(await parseBadgeErrorRich(body, res.status, badgeNum));
 
         const idx = currentData.findIndex(r => String(r.id) === String(badgeCurrentId));
         if (idx !== -1) { currentData[idx].badge_number = badgeNum; currentData[idx].xatlas_status = 'pending'; }
         renderTable(currentData);
+        auditLog('badge_assign', 'visitor', badgeCurrentId, { badge: badgeNum });
         closeModal();
       } catch (err) {
         alert('Errore: ' + err.message);
@@ -2690,6 +2869,7 @@
           body: JSON.stringify({ name, event_start_date: start, event_end_date: end, qr_valid_from: qrFrom, notes })
         });
         if (!res || !res.ok) { const b = await res?.json().catch(()=>({})); throw new Error(b.message || `Errore ${res?.status}`); }
+        auditLog('event_create', 'event', null, { name, start, end });
         closeModal();
         loadEvents();
         populateEventFilter();
@@ -2714,6 +2894,7 @@
           body: JSON.stringify({ is_active: true })
         });
         if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        auditLog('event_start', 'event', eventId, null);
         loadEvents();
         refreshActiveEventBanner();
       } catch (err) {
@@ -2737,6 +2918,7 @@
           headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
           body: JSON.stringify({ is_active: false, closed_at: new Date().toISOString() })
         });
+        auditLog('event_close', 'event', activeEvent.id, { name: activeEvent.name });
         alert('Evento chiuso. I badge verranno liberati nei prossimi minuti.');
         loadEvents();
         refreshActiveEventBanner();
@@ -2862,12 +3044,221 @@
             body: JSON.stringify({ status: 'released' })
           });
         }
-
+        auditLog('conclude_visit', 'visitor', id, { badge: row.badge_number, name: `${row.first_name} ${row.last_name}` });
         loadData();
       } catch (err) {
         alert('Errore: ' + err.message);
         btn.disabled = false;
         btn.textContent = '⏹ Concludi';
+      }
+    }
+
+    // ── COMPILA BADGE: griglia editabile post-import ──────
+    let fbData = []; // ospiti caricati nella griglia (snapshot)
+    let fbBadgeMap = new Map(); // guest.id -> badge_number digitato dall'operatore
+
+    async function openFillBadgesModal() {
+      try {
+        // Carico tutti i guest_list ordinati alfabetici
+        const gRes = await api(`${SUPABASE_URL}/rest/v1/guest_list?select=*&order=last_name.asc,first_name.asc`);
+        const guests = gRes && gRes.ok ? await gRes.json() : [];
+
+        // Carico visitor stub esistenti (signature null) con badge_number per riempire la mappa
+        const vRes = await api(`${SUPABASE_URL}/rest/v1/visitors?signature=is.null&badge_number=not.is.null&xatlas_status=in.(pending,active)&select=guest_id,badge_number,xatlas_status`);
+        const stubs = vRes && vRes.ok ? await vRes.json() : [];
+        const guestBadge = new Map();
+        const guestBadgeStatus = new Map();
+        stubs.forEach(s => {
+          if (s.guest_id) {
+            guestBadge.set(s.guest_id, s.badge_number);
+            guestBadgeStatus.set(s.guest_id, s.xatlas_status);
+          }
+        });
+
+        fbData = guests.map(g => ({
+          id: g.id,
+          first_name: g.first_name,
+          last_name: g.last_name,
+          company: g.company,
+          email: g.email,
+          person_to_visit: g.person_to_visit,
+          visit_reason: g.visit_reason,
+          existing_badge: guestBadge.get(g.id) || null,
+          existing_status: guestBadgeStatus.get(g.id) || null
+        }));
+
+        fbBadgeMap = new Map();
+        // Popola con badge esistenti
+        fbData.forEach(g => { if (g.existing_badge) fbBadgeMap.set(g.id, g.existing_badge); });
+
+        document.getElementById('fb-search').value = '';
+        document.getElementById('fb-only-empty').checked = true;
+        renderFillBadgesGrid();
+        document.getElementById('fill-badges-modal').classList.add('active');
+      } catch (err) {
+        alert('Errore caricamento ospiti: ' + err.message);
+      }
+    }
+
+    function renderFillBadgesGrid() {
+      const tbody = document.getElementById('fill-badges-tbody');
+      const search = (document.getElementById('fb-search')?.value || '').toLowerCase().trim();
+      const onlyEmpty = document.getElementById('fb-only-empty')?.checked;
+      const visible = fbData.filter(g => {
+        if (onlyEmpty && fbBadgeMap.get(g.id)) return false;
+        if (!search) return true;
+        const hay = `${g.last_name} ${g.first_name} ${g.company || ''} ${g.email || ''}`.toLowerCase();
+        return hay.includes(search);
+      });
+      tbody.innerHTML = '';
+      visible.forEach((g, idx) => {
+        const tr = document.createElement('tr');
+        const status = g.existing_status === 'active'   ? '<span class="pool-status-pill pool-status-available">Attivo</span>'
+                     : g.existing_status === 'pending'  ? '<span class="pool-status-pill pool-status-preparing">In attivazione</span>'
+                     : '<span class="empty-dash">—</span>';
+        const cur = fbBadgeMap.get(g.id) || '';
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td><strong>${esc(g.last_name)}</strong></td>
+          <td>${esc(g.first_name)}</td>
+          <td>${esc(g.company) || '<span class="empty-dash">—</span>'}</td>
+          <td><input type="text" class="fb-input" data-id="${esc(g.id)}" value="${esc(cur)}" placeholder="Es. 241001" inputmode="numeric" autocomplete="off"></td>
+          <td>${status}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      // Aggiorna stat
+      const total = fbData.length;
+      const filled = [...fbBadgeMap.values()].filter(Boolean).length;
+      document.getElementById('fb-stat').textContent = `${filled} / ${total} compilati`;
+
+      // Attach listener per aggiornare la mappa al cambio
+      tbody.querySelectorAll('.fb-input').forEach(inp => {
+        inp.addEventListener('input', e => {
+          const id = e.target.dataset.id;
+          const val = e.target.value.trim();
+          if (val) fbBadgeMap.set(id, val);
+          else     fbBadgeMap.delete(id);
+          // Aggiorna stat al volo
+          const f = [...fbBadgeMap.values()].filter(Boolean).length;
+          document.getElementById('fb-stat').textContent = `${f} / ${fbData.length} compilati`;
+        });
+        // Enter -> focus al prossimo input
+        inp.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const inputs = [...tbody.querySelectorAll('.fb-input')];
+            const idx = inputs.indexOf(e.target);
+            if (idx >= 0 && inputs[idx + 1]) inputs[idx + 1].focus();
+          }
+        });
+      });
+    }
+
+    async function saveFillBadgesAndPreActivate() {
+      // Trasforma la mappa in lista di stub da creare/aggiornare
+      const toCreate = [];
+      const toUpdate = []; // {visitor_id, badge_number} se badge cambiato su stub esistente
+
+      // Carica stub esistenti per fare diff
+      const vRes = await api(`${SUPABASE_URL}/rest/v1/visitors?signature=is.null&xatlas_status=in.(pending,active)&select=id,guest_id,badge_number`);
+      const stubs = vRes && vRes.ok ? await vRes.json() : [];
+      const stubByGuest = new Map(stubs.filter(s => s.guest_id).map(s => [s.guest_id, s]));
+
+      for (const g of fbData) {
+        const newBadge = (fbBadgeMap.get(g.id) || '').trim();
+        const existingStub = stubByGuest.get(g.id);
+        if (!newBadge) {
+          continue; // niente da fare per questo ospite
+        }
+        if (existingStub) {
+          if (existingStub.badge_number !== newBadge) {
+            toUpdate.push({ visitor_id: existingStub.id, badge_number: newBadge, guest: g });
+          }
+          // altrimenti badge invariato → skip
+        } else {
+          toCreate.push({
+            first_name:      g.first_name,
+            last_name:       g.last_name,
+            email:           g.email           || null,
+            company:         g.company         || null,
+            person_to_visit: g.person_to_visit || null,
+            visit_reason:    g.visit_reason    || 'Visita',
+            guest_id:        g.id,
+            badge_number:    newBadge,
+            xatlas_status:   'pending',
+            assigned_by:     CURRENT_USER_EMAIL,
+            assigned_at:     new Date().toISOString(),
+            data_consent:    false,
+            signature:       null,
+            // Tag evento se attivo
+            event_id:        activeEvent ? activeEvent.id : null,
+            event_name:      activeEvent ? activeEvent.name : null,
+            event_date:      activeEvent ? activeEvent.event_start_date : null,
+          });
+        }
+      }
+
+      if (toCreate.length === 0 && toUpdate.length === 0) {
+        alert('Nessuna modifica da salvare. Inserisci almeno un numero badge.');
+        return;
+      }
+
+      if (!confirm(`Procedere?\n\n${toCreate.length} nuovi stub da pre-attivare\n${toUpdate.length} stub esistenti da aggiornare\n\nL'agente attiverà i badge sui tornelli entro pochi minuti.`)) return;
+
+      const saveBtn = document.querySelector('#fill-badges-modal .btn-save');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Salvataggio...';
+
+      let errors = [];
+      try {
+        // Bulk INSERT per i nuovi stub
+        if (toCreate.length > 0) {
+          const res = await api(`${SUPABASE_URL}/rest/v1/visitors`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+            body: JSON.stringify(toCreate)
+          });
+          if (!res || !res.ok) {
+            const b = res ? await res.json().catch(()=>({})) : {};
+            const dupBadge = (b.code === '23505' || /visitors_badge_active_unique/i.test((b.message || '') + ' ' + (b.details || '')));
+            throw new Error(dupBadge
+              ? 'Almeno un badge è già assegnato a un altro visitatore (collisione). Verifica i numeri inseriti.'
+              : 'Errore creazione stub: ' + (b.message || res?.status));
+          }
+          auditLog('fill_badges_bulk_create', 'visitors', null, { count: toCreate.length });
+        }
+
+        // Update individuali per gli stub modificati
+        for (const u of toUpdate) {
+          try {
+            const res = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(u.visitor_id)}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+              body: JSON.stringify({ badge_number: u.badge_number })
+            });
+            if (!res || !res.ok) {
+              const b = res ? await res.json().catch(()=>({})) : {};
+              errors.push(`${u.guest.last_name} ${u.guest.first_name}: ${b.message || res?.status}`);
+            } else {
+              auditLog('fill_badges_update', 'visitor', u.visitor_id, { badge: u.badge_number });
+            }
+          } catch (e) {
+            errors.push(`${u.guest.last_name} ${u.guest.first_name}: ${e.message}`);
+          }
+        }
+
+        let summary = `✓ ${toCreate.length} nuovi badge pre-attivati`;
+        if (toUpdate.length > 0) summary += `\n✓ ${toUpdate.length} badge aggiornati`;
+        if (errors.length > 0)   summary += `\n\n⚠️ Errori (${errors.length}):\n` + errors.slice(0, 5).join('\n');
+        alert(summary);
+        closeModal();
+        loadGuestList();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Salva tutti & ⚡ Pre-attiva';
       }
     }
 
@@ -3020,6 +3411,7 @@
         document.getElementById('pool-range-to').value = '';
         document.getElementById('pool-list').value = '';
         await loadPoolForEvent(currentPoolEventId);
+        auditLog('pool_add', 'badge_pool', currentPoolEventId, { count: toAdd.length, badges: toAdd.slice(0, 10) });
         alert(`✓ ${toAdd.length} badge aggiunti al pool. L'agente li attiverà ai tornelli entro 1-2 minuti.`);
       } catch (err) {
         alert('Errore aggiunta pool: ' + err.message);
@@ -3196,6 +3588,9 @@
         event_name:      activeEvent.name,
         event_date:      activeEvent.event_start_date,
         guest_id:        guestId || null,
+        assigned_by:     CURRENT_USER_EMAIL,
+        assigned_at:     new Date().toISOString(),
+        xatlas_renamed:  false,                           // l'agente rinomina l'utente XAtlas al primo ciclo
         data_consent:    true,
         badge_agreement: true,
         signature:       null
@@ -3209,20 +3604,24 @@
         });
         if (!res || !res.ok) {
           const b = res ? await res.json().catch(()=>({})) : {};
-          throw new Error(parseBadgeError(b, res?.status, badgeData.badge));
+          throw new Error(await parseBadgeErrorRich(b, res?.status, badgeData.badge));
         }
         const created = await res.json();
         const visitorId = Array.isArray(created) ? created[0].id : created.id;
 
-        // Aggiorna pool entry: status=in_use, visitor_id, assigned_at
+        // Aggiorna pool entry: status=in_use, visitor_id, assigned_at, assigned_by
         await api(`${SUPABASE_URL}/rest/v1/badge_pool?id=eq.${badgeData.pool_id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
           body: JSON.stringify({
             status: 'in_use',
             visitor_id: visitorId,
-            assigned_at: new Date().toISOString()
+            assigned_at: new Date().toISOString(),
+            assigned_by: CURRENT_USER_EMAIL
           })
+        });
+        auditLog('walkin_register', 'visitor', visitorId, {
+          badge: badgeData.badge, name: `${fn} ${ln}`, event: activeEvent.name, from_guest: guestId || null
         });
 
         // Se è un ospite atteso, marca il match in guest_list
@@ -3303,6 +3702,21 @@
         document.getElementById(id).value = '';
       });
       document.getElementById('ag-date').value = new Date().toISOString().split('T')[0];
+      // Configura checkbox "Associa a evento attivo" in base alla presenza di evento
+      const cb     = document.getElementById('ag-attach-event');
+      const label  = document.getElementById('ag-event-label');
+      const hint   = document.getElementById('ag-event-hint');
+      const evRow  = document.getElementById('ag-event-row');
+      if (activeEvent) {
+        evRow.style.display = 'block';
+        label.textContent = `Associa a evento: ${activeEvent.name}`;
+        cb.checked = true;
+        cb.disabled = false;
+        hint.textContent = 'L\'ospite sarà parte di questo evento. Se walk-in, verrà taggato e visibile nei filtri evento.';
+      } else {
+        evRow.style.display = 'none';
+        cb.checked = false;
+      }
       document.getElementById('add-guest-modal').classList.add('active');
       setTimeout(() => document.getElementById('ag-first-name').focus(), 100);
     }
@@ -3316,6 +3730,7 @@
       saveBtn.disabled = true;
       saveBtn.textContent = 'Salvataggio...';
 
+      const attachToEvent = document.getElementById('ag-attach-event')?.checked;
       const payload = {
         first_name:      fn,
         last_name:       ln,
@@ -3325,6 +3740,7 @@
         person_to_visit: document.getElementById('ag-person').value.trim()  || null,
         visit_reason:    document.getElementById('ag-reason').value.trim()  || null,
         notes:           document.getElementById('ag-notes').value.trim()   || null,
+        event_id:        (attachToEvent && activeEvent) ? activeEvent.id : null,
       };
 
       try {
@@ -3335,6 +3751,7 @@
         });
         if (!res) return;
         if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.message || `Errore ${res.status}`); }
+        auditLog('guest_add', 'guest_list', null, { name: `${fn} ${ln}`, event_id: payload.event_id });
         closeModal();
         loadGuestList();
       } catch (err) {
@@ -3400,6 +3817,27 @@
       return msg || `Errore ${status}`;
     }
 
+    // Versione async: arricchisce il messaggio collision con info su CHI ha il badge
+    // (nome ospite + email operatore + ora). Da preferire dove possibile.
+    async function parseBadgeErrorRich(body, status, badgeNum) {
+      const base = parseBadgeError(body, status, badgeNum);
+      const code = body && body.code;
+      const isCollision = code === '23505' || /visitors_badge_active_unique|already exists/i.test((body?.message || '') + ' ' + (body?.details || ''));
+      if (!isCollision) return base;
+      const owner = await findBadgeOwner(badgeNum);
+      if (!owner) return base;
+      const name = `${owner.first_name || ''} ${owner.last_name || ''}`.trim() || '(senza nome)';
+      const operator = owner.assigned_by || 'sconosciuto';
+      let when = '';
+      if (owner.assigned_at) {
+        try { when = new Date(owner.assigned_at).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }); } catch (_) {}
+      }
+      return `⚠️ Badge ${badgeNum} è GIÀ ASSEGNATO.\n\n` +
+             `Visitatore: ${name}\n` +
+             `Assegnato da: ${operator}${when ? ' (' + when + ')' : ''}\n\n` +
+             `Verifica con il collega prima di procedere. Usa un altro numero se il collega ha assegnato per errore.`;
+    }
+
     // ── PRE-ASSEGNA BADGE (per ospiti attesi) ─────────
     let preAssignGuestId = null;
 
@@ -3446,6 +3884,8 @@
         guest_id:        guest.id,
         badge_number:    badgeNum,
         xatlas_status:   'pending',
+        assigned_by:     CURRENT_USER_EMAIL,
+        assigned_at:     new Date().toISOString(),
         data_consent:    false,
         signature:       null
       };
@@ -3459,8 +3899,9 @@
         if (!res) return;
         if (!res.ok) {
           const b = await res.json().catch(() => ({}));
-          throw new Error(parseBadgeError(b, res.status, badgeNum));
+          throw new Error(await parseBadgeErrorRich(b, res.status, badgeNum));
         }
+        auditLog('preassign_badge', 'guest_list', guest.id, { badge: badgeNum, name: `${guest.first_name} ${guest.last_name}` });
         closeModal();
         loadGuestList();
       } catch (err) {
@@ -3528,6 +3969,8 @@
         guest_id:        g.id,
         badge_number:    badgeNum,
         xatlas_status:   'pending',
+        assigned_by:     CURRENT_USER_EMAIL,
+        assigned_at:     new Date().toISOString(),
         data_consent:    false,
         signature:       null
       };
@@ -3540,8 +3983,9 @@
         });
         if (!res || !res.ok) {
           const b = res ? await res.json().catch(() => ({})) : {};
-          throw new Error(parseBadgeError(b, res?.status, badgeNum));
+          throw new Error(await parseBadgeErrorRich(b, res?.status, badgeNum));
         }
+        auditLog('preassign_badge_bulk', 'guest_list', g.id, { badge: badgeNum, name: `${g.first_name} ${g.last_name}` });
         bulkIndex++;
         showBulkCurrent();
       } catch (err) {

@@ -89,7 +89,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.3.0-pool"
+AGENT_VERSION = "1.4.0-multiuser"
 
 
 def update_heartbeat(notes: str | None = None):
@@ -909,6 +909,102 @@ def midnight_cleanup_stale_visitors():
     _last_midnight_cleanup_date = today
 
 
+def rename_xatlas_user(xid: int, first_name: str, last_name: str) -> bool:
+    """Rinomina un utente esterno XAtlas. Usa update API o, in fallback, UPDATE
+    diretto su AXS_DB. Ritorna True se almeno una via riesce.
+    Necessario per il pool: l'utente XAtlas viene creato come "Pool BadgeXXX"
+    e quando l'admin assegna il badge a un walk-in vero, il tornello deve mostrare
+    il nome reale del visitatore invece di 'Badge238576 Pool'."""
+    short_name = f"{last_name} {first_name}".strip()
+
+    # Approccio 1: chiamata API XAtlas /update (best-effort, può non esistere)
+    try:
+        r = xatlas_request(
+            "post",
+            "/users/data/ExternalUser/update",
+            json={
+                "id":        xid,
+                "firstname": first_name,
+                "lastname":  last_name,
+                "shortName": short_name,
+                "name":      first_name,
+                "surname":   last_name,
+            },
+            headers={"x-requested-with": "XMLHttpRequest", "accept": "*/*"},
+        )
+        if r.ok:
+            try:
+                data = r.json()
+                if data.get("success"):
+                    log.info(f"rename_xatlas_user via API: id={xid} -> '{short_name}' OK")
+                    return True
+            except Exception:
+                # body vuoto = success per altre API XAtlas
+                log.info(f"rename_xatlas_user via API: id={xid} -> '{short_name}' OK (body vuoto)")
+                return True
+    except Exception as e:
+        log.debug(f"rename_xatlas_user API: {e}")
+
+    # Approccio 2: UPDATE diretto su AXS_DB (fallback). NB: non triggera NET9x sync
+    # ma il nome viene comunque mostrato sui tornelli SuperTRAX al passaggio successivo
+    # (perché viene letto dal DB locale).
+    try:
+        conn = psycopg2.connect(**AXS_DB)
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE external_user SET firstname=%s, lastname=%s, short_name=%s WHERE id=%s",
+            (first_name, last_name, short_name, xid),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        log.info(f"rename_xatlas_user via SQL: id={xid} -> '{short_name}' OK (fallback)")
+        return True
+    except Exception as e:
+        log.warning(f"rename_xatlas_user SQL fallback fallito per id={xid}: {e}")
+        return False
+
+
+def process_pool_renames():
+    """Per i visitatori venuti dal pool (xatlas_user_id valorizzato + xatlas_renamed=false),
+    rinomina l'utente XAtlas con il nome reale del visitatore.
+    Cosi al tornello l'ospite vede 'Rossi Mario' invece di 'Badge238576 Pool'."""
+    try:
+        rows = sb_get("visitors", params={
+            "xatlas_user_id": "not.is.null",
+            "xatlas_renamed": "is.false",
+            "xatlas_status":  "eq.active",
+            "select": "id,first_name,last_name,xatlas_user_id",
+            "limit": "20",
+        })
+    except Exception as e:
+        log.warning(f"process_pool_renames: lettura fallita: {e}")
+        return
+
+    if not rows:
+        return
+
+    log.info(f"process_pool_renames: {len(rows)} visitor da rinominare al tornello")
+    for v in rows:
+        vid = v["id"]
+        xid = v.get("xatlas_user_id")
+        fn  = (v.get("first_name") or "").strip()
+        ln  = (v.get("last_name")  or "").strip()
+        if not (xid and fn and ln):
+            continue
+        # Salta se il visitor ha first_name='Pool' (è ancora un'entry pool grezza non assegnata)
+        if fn.lower() == "pool":
+            continue
+        try:
+            ok = rename_xatlas_user(xid, fn, ln)
+            # Marca come rinominato (anche se fallisce) per evitare loop infiniti
+            sb_patch(f"visitors?id=eq.{vid}", {"xatlas_renamed": True})
+            if ok:
+                log.info(f"Rename pool: visitor={vid} {ln} {fn} (xid={xid})")
+        except Exception as e:
+            log.error(f"process_pool_renames visitor {vid}: {e}")
+
+
 def cleanup_archived_visitors():
     """Libera badge per visitor archiviati (xatlas_status=checked_out) ma con
     xatlas_user_id ancora valorizzato. Tipicamente succede dopo chiusura evento
@@ -960,6 +1056,7 @@ def run_loop():
             process_pending_badges()
             process_pool_preparation()
             process_active_transactions()
+            process_pool_renames()
             cleanup_archived_visitors()
             midnight_cleanup_stale_visitors()
             update_heartbeat()
