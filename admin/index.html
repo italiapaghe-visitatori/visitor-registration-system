@@ -1173,6 +1173,14 @@
     .dre-source-chip.pool   { background: #c6f6d5; color: #22543d; }
     .dre-source-chip.manual { background: #e2e8f0; color: #4a5568; }
     .dre-source-chip.busy   { background: #fed7d7; color: #822727; }
+    .dre-source-chip.cross  { background: #feebc8; color: #7c2d12; }
+
+    /* Conflitto con un altro draft di un altro operatore (warning, non error bloccante) */
+    #dre-table input.dre-cell.dre-cross-draft {
+      border-color: #ed8936;
+      background: #fffaf0;
+      box-shadow: inset 3px 0 0 #ed8936;
+    }
 
     #dre-table tbody tr.dre-invalid { background: #fff5f5; }
     #dre-table tbody td { padding: 4px 6px; vertical-align: middle; }
@@ -5533,6 +5541,9 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     let draftSaveSeq   = 0;           // contatore per ignorare risposte di save sorpassati
     let dreAvailablePool = [];        // array di {id, badge_number, status, event_id}: badge pool 'available'
     let dreUnavailableSet = new Set();// numeri badge da segnare come non disponibili (pool in_use o visitor attivi) — popolato lazy on-blur
+    let dreLiveCheckTimer = null;     // debounce per il check live mentre l'utente digita
+    let dreOtherDraftsRows = [];      // cache righe da altri draft 'editing' (per cross-check multi-utente)
+    let dreOtherPollTimer  = null;    // polling che ricarica la cache ogni 25s mentre l'editor è aperto
 
     // ── LISTA DRAFTS ─────────────────────────────────────
     async function loadDrafts() {
@@ -5673,9 +5684,13 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         // Carica pool available per l'evento collegato (o globale se nessun evento) PRIMA del render,
         // così gli indicatori fonte sono corretti al primo passaggio.
         await loadPoolForDraft();
+        // Carica anche la cache degli altri draft 'editing' (per cross-check multi-utente)
+        await loadOtherDrafts();
         // Reset stato lazy unavailable: verrà ripopolato lazy on-blur quando serve
         dreUnavailableSet = new Set();
         renderDreTable();
+        // Avvia polling periodico (25s) per aggiornare la cache cross-draft mentre l'editor è aperto
+        startOtherDraftsPolling();
       } catch (err) {
         alert('Errore apertura draft: ' + err.message);
       }
@@ -5705,8 +5720,11 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         draftSaveTimer = null;
         saveDraftNow();
       }
+      stopOtherDraftsPolling();
+      if (dreLiveCheckTimer) { clearTimeout(dreLiveCheckTimer); dreLiveCheckTimer = null; }
       activeDraft = null;
       activeRows  = [];
+      dreOtherDraftsRows = [];
       document.getElementById('drafts-list-view').style.display   = '';
       document.getElementById('drafts-editor-view').style.display = 'none';
       loadDrafts();
@@ -5796,6 +5814,23 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         refreshPoolDatalist();
         refreshBadgeIndicators();
       }
+      // Live check debounced 600ms: parte dopo l'ultima keystroke,
+      // evita di martellare Supabase ad ogni tasto e dà il tempo all'utente di finire.
+      // Si applica a badge (check API + cross-draft) e a nome/cognome (cross-draft + name dup).
+      if (field === 'badge_number' || field === 'last_name' || field === 'first_name') {
+        if (dreLiveCheckTimer) clearTimeout(dreLiveCheckTimer);
+        const value = e.target.value;
+        const targetField = field;
+        dreLiveCheckTimer = setTimeout(async () => {
+          dreLiveCheckTimer = null;
+          if (targetField === 'badge_number') {
+            await dreCheckBadgeOnBlur(value);
+          }
+          // Re-render indicatori + ri-valida (cross-draft incluso)
+          refreshBadgeIndicators();
+          validateDreRows();
+        }, 600);
+      }
       scheduleDraftSave();
     }
 
@@ -5851,16 +5886,43 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       alert(`✓ ${filled} badge auto-numerati partendo da ${startStr}`);
     }
 
-    // ── VALIDAZIONE LIVE (duplicati badge + required vuoti) ─
+    // ── VALIDAZIONE LIVE ──────────────────────────────────
+    // Tipologie di problemi rilevati (in ordine di gravità):
+    //   1. RED   nome/cognome vuoti, duplicati badge nel draft, badge "busy" (pool in_use o visitor attivo)
+    //   2. RED   nominativo (cognome+nome) duplicato all'interno dello stesso draft
+    //   3. ORANGE collisione cross-draft con un altro operatore: stesso badge o stesso nominativo
+    //             in un draft con status='editing' (warning, non bloccante per il save ma blocca finalize)
     function validateDreRows() {
-      // Conta occorrenze badge
-      const counts = {};
+      // Conta duplicati badge nel draft corrente
+      const badgeCounts = {};
       activeRows.forEach(r => {
         const b = (r.badge_number || '').trim();
         if (!b) return;
-        counts[b] = (counts[b] || 0) + 1;
+        badgeCounts[b] = (badgeCounts[b] || 0) + 1;
       });
-      const duplicates = Object.entries(counts).filter(([_, c]) => c > 1).map(([b]) => b);
+      const duplicates = Object.entries(badgeCounts).filter(([_, c]) => c > 1).map(([b]) => b);
+
+      // Cross-draft: per ogni riga, vedi se badge o (cognome+nome) sono in un altro draft
+      const crossBadge = []; // {idx, num, other}
+      const crossName  = []; // {idx, name, other}
+      const dupNameInDraft = new Set(); // idx delle righe con nome duplicato dentro lo STESSO draft
+      activeRows.forEach((r, idx) => {
+        const num = (r.badge_number || '').trim();
+        if (num) {
+          const other = findBadgeInOtherDrafts(num);
+          if (other) crossBadge.push({ idx, num, other });
+        }
+        const ln = (r.last_name || '').trim();
+        const fn = (r.first_name || '').trim();
+        if (ln && fn) {
+          const otherN = findNameInOtherDrafts(ln, fn);
+          if (otherN) crossName.push({ idx, name: `${ln} ${fn}`, other: otherN });
+          if (findNameDuplicateInDraft(idx)) dupNameInDraft.add(idx);
+        }
+      });
+      const crossBadgeIdx = new Set(crossBadge.map(c => c.idx));
+      const crossNameIdx  = new Set(crossName.map(c => c.idx));
+
       // Aggiorna stato visivo input
       const tbody = document.getElementById('dre-table-body');
       const trs = tbody.querySelectorAll('tr');
@@ -5871,38 +5933,93 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         let rowInvalid = false;
         tr.querySelectorAll('input.dre-cell').forEach(inp => {
           const f = inp.dataset.field;
-          inp.classList.remove('dre-required-empty', 'dre-duplicate');
-          if ((f === 'last_name' || f === 'first_name') && !inp.value.trim()) {
-            inp.classList.add('dre-required-empty');
-            rowInvalid = true;
+          inp.classList.remove('dre-required-empty', 'dre-duplicate', 'dre-cross-draft');
+          if ((f === 'last_name' || f === 'first_name')) {
+            if (!inp.value.trim()) {
+              inp.classList.add('dre-required-empty');
+              rowInvalid = true;
+            } else if (dupNameInDraft.has(idx)) {
+              inp.classList.add('dre-duplicate');
+              rowInvalid = true;
+            } else if (crossNameIdx.has(idx)) {
+              inp.classList.add('dre-cross-draft');
+            }
           }
-          if (f === 'badge_number' && inp.value.trim() && duplicates.includes(inp.value.trim())) {
-            inp.classList.add('dre-duplicate');
-            rowInvalid = true;
+          if (f === 'badge_number' && inp.value.trim()) {
+            if (duplicates.includes(inp.value.trim())) {
+              inp.classList.add('dre-duplicate');
+              rowInvalid = true;
+            } else if (crossBadgeIdx.has(idx)) {
+              inp.classList.add('dre-cross-draft');
+            }
           }
         });
         tr.classList.toggle('dre-invalid', rowInvalid);
         if (rowInvalid) invalidRows++;
       });
-      // Banner warnings
+
+      // Banner warnings (rosso = bloccante / arancio = cross-draft warning)
       const banner = document.getElementById('dre-validation');
       const issues = [];
       const missingNames = activeRows.filter(r => !(r.last_name || '').trim() || !(r.first_name || '').trim()).length;
-      // Conflitti pool/visitor noti (popolati lazy on-blur via dreUnavailableSet)
       const busyBadges = activeRows
         .map(r => (r.badge_number || '').trim())
         .filter(b => b && dreUnavailableSet.has(b));
       const busyUnique = [...new Set(busyBadges)];
-      if (missingNames > 0)      issues.push(`<strong>${missingNames}</strong> righe con Nome/Cognome mancante`);
-      if (duplicates.length > 0) issues.push(`Badge duplicati nel draft: <strong>${duplicates.join(', ')}</strong>`);
-      if (busyUnique.length > 0) issues.push(`Badge già in uso (visitor attivo o pool occupato): <strong>${busyUnique.join(', ')}</strong>`);
-      if (issues.length === 0) {
+
+      if (missingNames > 0)        issues.push(`<strong>${missingNames}</strong> righe con Nome/Cognome mancante`);
+      if (duplicates.length > 0)   issues.push(`Badge duplicati nel draft: <strong>${duplicates.join(', ')}</strong>`);
+      if (dupNameInDraft.size > 0) issues.push(`Nominativi duplicati nel draft: <strong>${dupNameInDraft.size}</strong>`);
+      if (busyUnique.length > 0)   issues.push(`Badge già in uso (visitor attivo o pool occupato): <strong>${busyUnique.join(', ')}</strong>`);
+
+      // Cross-draft: dettaglio "chi sta facendo cosa"
+      const crossLines = [];
+      if (crossBadge.length > 0) {
+        const grouped = {};
+        crossBadge.forEach(c => {
+          const key = `${c.other.draft_name}||${c.other.draft_owner}`;
+          (grouped[key] = grouped[key] || []).push(c.num);
+        });
+        Object.entries(grouped).forEach(([key, nums]) => {
+          const [dn, dw] = key.split('||');
+          crossLines.push(`Badge <strong>${[...new Set(nums)].join(', ')}</strong> già nel draft "<em>${dn}</em>" di <strong>${dw}</strong>`);
+        });
+      }
+      if (crossName.length > 0) {
+        const grouped = {};
+        crossName.forEach(c => {
+          const key = `${c.other.draft_name}||${c.other.draft_owner}`;
+          (grouped[key] = grouped[key] || []).push(c.name);
+        });
+        Object.entries(grouped).forEach(([key, names]) => {
+          const [dn, dw] = key.split('||');
+          crossLines.push(`Nominativi <strong>${[...new Set(names)].join(', ')}</strong> già nel draft "<em>${dn}</em>" di <strong>${dw}</strong>`);
+        });
+      }
+
+      if (issues.length === 0 && crossLines.length === 0) {
         banner.style.display = 'none';
       } else {
         banner.style.display = '';
-        banner.innerHTML = '⚠️ Attenzione: ' + issues.join(' • ');
+        let html = '';
+        if (issues.length > 0) {
+          html += '⚠️ <strong>Da risolvere prima di finalizzare:</strong> ' + issues.join(' • ');
+        }
+        if (crossLines.length > 0) {
+          if (html) html += '<br><br>';
+          html += '🔄 <strong>Conflitti con altri operatori (sincronizzati ogni 25s):</strong><br>• ' + crossLines.join('<br>• ');
+        }
+        banner.innerHTML = html;
       }
-      return { invalidRows, duplicates, missingNames, busy: busyUnique };
+      return {
+        invalidRows,
+        duplicates,
+        missingNames,
+        busy: busyUnique,
+        dupNameInDraft: [...dupNameInDraft],
+        crossBadge,
+        crossName
+      };
     }
 
     function updateDreStats() {
@@ -6033,6 +6150,84 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           chip.remove();
         }
       });
+    }
+
+    // ── CROSS-DRAFT MULTI-UTENTE ───────────────────────
+    // Cache delle righe presenti negli altri draft con status='editing'. Usata per
+    // avvisare quando l'operatore corrente sta inserendo un badge o nominativo che
+    // un collega — magari in un altro ufficio — sta già lavorando in un suo draft.
+    // Evita doppio inserimento "alla cieca" senza dialogo verbale.
+    async function loadOtherDrafts() {
+      if (!activeDraft) { dreOtherDraftsRows = []; return; }
+      try {
+        const res = await api(
+          `${SUPABASE_URL}/rest/v1/guest_drafts?status=eq.editing&id=neq.${activeDraft.id}&select=id,name,updated_by,created_by,rows&limit=50`
+        );
+        if (!res || !res.ok) return;
+        const drafts = await res.json();
+        const flat = [];
+        drafts.forEach(d => {
+          const owner = d.updated_by || d.created_by || 'altro operatore';
+          (Array.isArray(d.rows) ? d.rows : []).forEach(r => {
+            const b  = String(r.badge_number || '').trim();
+            const ln = String(r.last_name    || '').trim().toLowerCase();
+            const fn = String(r.first_name   || '').trim().toLowerCase();
+            if (!b && !ln && !fn) return;
+            flat.push({
+              badge_number: b,
+              last_name:    ln,
+              first_name:   fn,
+              draft_id:     d.id,
+              draft_name:   d.name,
+              draft_owner:  owner
+            });
+          });
+        });
+        dreOtherDraftsRows = flat;
+      } catch (_) { /* silent */ }
+    }
+
+    function startOtherDraftsPolling() {
+      stopOtherDraftsPolling();
+      // 25s: balanced tra reattività e carico. Le segretarie tipicamente
+      // editano in finestre di minuti, quindi 25s è abbastanza fresco.
+      dreOtherPollTimer = setInterval(() => {
+        if (currentView === 'drafts' && activeDraft) {
+          loadOtherDrafts().then(() => validateDreRows());
+        }
+      }, 25000);
+    }
+    function stopOtherDraftsPolling() {
+      if (dreOtherPollTimer) {
+        clearInterval(dreOtherPollTimer);
+        dreOtherPollTimer = null;
+      }
+    }
+
+    function findBadgeInOtherDrafts(num) {
+      const n = String(num || '').trim();
+      if (!n) return null;
+      return dreOtherDraftsRows.find(e => e.badge_number === n) || null;
+    }
+    function findNameInOtherDrafts(last, first) {
+      const ln = String(last  || '').trim().toLowerCase();
+      const fn = String(first || '').trim().toLowerCase();
+      if (!ln && !fn) return null;
+      // Match esatto cognome+nome insieme (entrambi presenti)
+      if (!ln || !fn) return null;
+      return dreOtherDraftsRows.find(e => e.last_name === ln && e.first_name === fn) || null;
+    }
+    function findNameDuplicateInDraft(idx) {
+      const r = activeRows[idx];
+      if (!r) return false;
+      const ln = String(r.last_name || '').trim().toLowerCase();
+      const fn = String(r.first_name || '').trim().toLowerCase();
+      if (!ln || !fn) return false;
+      return activeRows.some((other, i) =>
+        i !== idx &&
+        String(other.last_name  || '').trim().toLowerCase() === ln &&
+        String(other.first_name || '').trim().toLowerCase() === fn
+      );
     }
 
     // Verifica online la disponibilità del singolo badge alla perdita focus.
@@ -6267,10 +6462,24 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     // ── FINALIZE / DELETE ────────────────────────────────
     async function dreFinalize() {
       if (!activeDraft) return;
+      // Prima del finalize ricarico la cache cross-draft per essere sicuro che lo stato sia fresco
+      // (un altro operatore potrebbe aver salvato proprio ora; il polling 25s potrebbe essere indietro)
+      await loadOtherDrafts();
       const v = validateDreRows();
       if (v.missingNames > 0)    { alert(`Ci sono ${v.missingNames} righe senza Nome/Cognome. Completa prima di finalizzare.`); return; }
       if (v.duplicates.length > 0) { alert(`Ci sono badge duplicati nel draft: ${v.duplicates.join(', ')}. Risolvi prima di finalizzare.`); return; }
+      if (v.dupNameInDraft && v.dupNameInDraft.length > 0) { alert(`Ci sono ${v.dupNameInDraft.length} righe con lo stesso nominativo (cognome+nome) dentro questo draft. Risolvi prima di finalizzare.`); return; }
       if (v.busy && v.busy.length > 0) { alert(`Alcuni badge sono già in uso (visitor attivo o pool occupato): ${v.busy.join(', ')}. Sostituiscili prima di finalizzare.`); return; }
+      if (v.crossBadge && v.crossBadge.length > 0) {
+        const samples = v.crossBadge.slice(0, 5).map(c => `• ${c.num} → draft "${c.other.draft_name}" di ${c.other.draft_owner}`).join('\n');
+        alert(`⚠️ Conflitto multi-utente: ${v.crossBadge.length} numeri badge sono presenti anche in draft di altri operatori.\n\nEsempi:\n${samples}\n\nSincronizzati con i colleghi (telefono/dialogo) e modificate le righe in conflitto prima di finalizzare.`);
+        return;
+      }
+      if (v.crossName && v.crossName.length > 0) {
+        const samples = v.crossName.slice(0, 5).map(c => `• ${c.name} → draft "${c.other.draft_name}" di ${c.other.draft_owner}`).join('\n');
+        alert(`⚠️ Conflitto multi-utente: ${v.crossName.length} nominativi (cognome+nome) sono già in draft di altri operatori.\n\nEsempi:\n${samples}\n\nVerificate con i colleghi prima di finalizzare.`);
+        return;
+      }
       if (!confirm(`Finalizzare il draft "${activeDraft.name}"?\n\nDopo la finalizzazione:\n• non sarà più modificabile (solo lettura)\n• potrai esportare il CSV e importarlo nella tab Ospiti Attesi\n• in quel momento i badge saranno pre-attivati nei tornelli`)) return;
       // Forza save e poi cambia status
       if (draftSaveTimer) { clearTimeout(draftSaveTimer); await saveDraftNow(); }
