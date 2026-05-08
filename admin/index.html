@@ -1147,6 +1147,32 @@
     #dre-table input.dre-cell.dre-badge { font-weight: 600; color: #4c51bf; background: #fffaf0; }
     #dre-table input.dre-cell.dre-badge:focus { background: #fff; }
     #dre-table input.dre-cell.dre-duplicate { border-color: #e53e3e; background: #fff5f5; color: #c53030; }
+    /* Match con pool available → highlight verde tenue + accento sul lato sinistro */
+    #dre-table input.dre-cell.dre-badge.dre-source-pool {
+      background: linear-gradient(90deg, #f0fff4 0%, #fffaf0 30%);
+      border-left: 3px solid #38a169;
+    }
+    /* Conflitto disponibilità (visitor attivo o pool già in_use) */
+    #dre-table input.dre-cell.dre-badge.dre-source-busy {
+      background: #fff5f5;
+      border-color: #e53e3e;
+      color: #c53030;
+    }
+
+    /* Chip indicatore fonte accanto all'input badge */
+    .dre-badge-cell { display: flex; align-items: center; gap: 4px; }
+    .dre-source-chip {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 8px;
+      white-space: nowrap;
+      letter-spacing: 0.3px;
+    }
+    .dre-source-chip.pool   { background: #c6f6d5; color: #22543d; }
+    .dre-source-chip.manual { background: #e2e8f0; color: #4a5568; }
+    .dre-source-chip.busy   { background: #fed7d7; color: #822727; }
 
     #dre-table tbody tr.dre-invalid { background: #fff5f5; }
     #dre-table tbody td { padding: 4px 6px; vertical-align: middle; }
@@ -2527,11 +2553,17 @@
             <span style="font-size:12px;color:#718096">|</span>
             <span style="font-size:12px;color:#4a5568">Auto-numera badge da:</span>
             <input type="text" id="dre-autonum-start" placeholder="es. 241001" style="width:120px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
-            <button type="button" class="btn btn-light" onclick="dreAutoNumber()">↻ Riempi vuoti</button>
+            <button type="button" class="btn btn-light" onclick="dreAutoNumber()" title="Riempi le righe con badge vuoto a partire dal numero indicato (manuale, libero)">↻ Riempi (manuale)</button>
+            <button type="button" class="btn btn-light" onclick="dreFillFromPool()" id="dre-pool-fill-btn" title="Riempi le righe con badge vuoto pescando dai badge pool 'available' (in ordine)">🎫 Riempi dal pool</button>
+            <button type="button" class="btn btn-light" onclick="dreReloadPool()" title="Ricarica lo stato del pool da Supabase">↻ Pool</button>
             <span style="font-size:12px;color:#718096">|</span>
             <span id="dre-stats" style="font-size:12px;color:#4a5568;font-weight:600">0 righe • 0 con badge</span>
+            <span id="dre-pool-stats" style="font-size:12px;color:#38a169;font-weight:600"></span>
           </div>
         </div>
+
+        <!-- Datalist HTML5: i suggerimenti pool compaiono digitando nel campo Numero Badge -->
+        <datalist id="dre-pool-datalist"></datalist>
 
         <div id="dre-validation" class="dre-validation" style="display:none"></div>
 
@@ -5499,6 +5531,8 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     let activeRows     = [];          // working copy delle righe (mutata dagli input)
     let draftSaveTimer = null;
     let draftSaveSeq   = 0;           // contatore per ignorare risposte di save sorpassati
+    let dreAvailablePool = [];        // array di {id, badge_number, status, event_id}: badge pool 'available'
+    let dreUnavailableSet = new Set();// numeri badge da segnare come non disponibili (pool in_use o visitor attivi) — popolato lazy on-blur
 
     // ── LISTA DRAFTS ─────────────────────────────────────
     async function loadDrafts() {
@@ -5636,6 +5670,11 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           b.disabled = readOnly;
         });
         markDraftSaved();
+        // Carica pool available per l'evento collegato (o globale se nessun evento) PRIMA del render,
+        // così gli indicatori fonte sono corretti al primo passaggio.
+        await loadPoolForDraft();
+        // Reset stato lazy unavailable: verrà ripopolato lazy on-blur quando serve
+        dreUnavailableSet = new Set();
         renderDreTable();
       } catch (err) {
         alert('Errore apertura draft: ' + err.message);
@@ -5689,6 +5728,10 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       }
       updateDreStats();
       validateDreRows();
+      // Indicatori fonte (pool/manuale/busy) richiedono di sapere chi è in pool:
+      // i dati arrivano da loadPoolForDraft async, ma se sono già in cache li usiamo subito.
+      refreshBadgeIndicators();
+      updatePoolStats();
     }
 
     function buildDreRow(r, idx) {
@@ -5704,6 +5747,13 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         inp.dataset.field = field;
         inp.disabled = readOnly;
         inp.addEventListener('input', onDreCellInput);
+        // Aggancio per il campo Numero Badge: datalist con i pool e check on-blur
+        if (field === 'badge_number') {
+          inp.setAttribute('list', 'dre-pool-datalist');
+          inp.placeholder = dreAvailablePool.length > 0 ? 'manuale o seleziona dal pool ↓' : '';
+          inp.addEventListener('blur', e => dreCheckBadgeOnBlur(e.target.value));
+          td.classList.add('dre-badge-cell');
+        }
         td.appendChild(inp);
         return td;
       };
@@ -5740,6 +5790,12 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       markDraftDirty();
       validateDreRows();
       updateDreStats();
+      if (field === 'badge_number') {
+        // Aggiorna stats pool (free/totali) e indicatori fonte (chip + colore input) live
+        updatePoolStats();
+        refreshPoolDatalist();
+        refreshBadgeIndicators();
+      }
       scheduleDraftSave();
     }
 
@@ -5832,21 +5888,176 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       const banner = document.getElementById('dre-validation');
       const issues = [];
       const missingNames = activeRows.filter(r => !(r.last_name || '').trim() || !(r.first_name || '').trim()).length;
+      // Conflitti pool/visitor noti (popolati lazy on-blur via dreUnavailableSet)
+      const busyBadges = activeRows
+        .map(r => (r.badge_number || '').trim())
+        .filter(b => b && dreUnavailableSet.has(b));
+      const busyUnique = [...new Set(busyBadges)];
       if (missingNames > 0)      issues.push(`<strong>${missingNames}</strong> righe con Nome/Cognome mancante`);
-      if (duplicates.length > 0) issues.push(`Badge duplicati: <strong>${duplicates.join(', ')}</strong>`);
+      if (duplicates.length > 0) issues.push(`Badge duplicati nel draft: <strong>${duplicates.join(', ')}</strong>`);
+      if (busyUnique.length > 0) issues.push(`Badge già in uso (visitor attivo o pool occupato): <strong>${busyUnique.join(', ')}</strong>`);
       if (issues.length === 0) {
         banner.style.display = 'none';
       } else {
         banner.style.display = '';
         banner.innerHTML = '⚠️ Attenzione: ' + issues.join(' • ');
       }
-      return { invalidRows, duplicates, missingNames };
+      return { invalidRows, duplicates, missingNames, busy: busyUnique };
     }
 
     function updateDreStats() {
       const total = activeRows.length;
       const withBadge = activeRows.filter(r => (r.badge_number || '').trim()).length;
       document.getElementById('dre-stats').textContent = `${total} righe • ${withBadge} con badge`;
+    }
+
+    // ── POOL BADGE INTEGRATION ───────────────────────────
+    // Carica i badge_pool 'available' filtrati sull'evento collegato (se presente)
+    // ed eventualmente i pool senza evento (utility globale). I badge 'preparing'
+    // (cioè in attivazione dall'agente) NON vengono inclusi: sarebbero pre-assegnabili
+    // ma rischierebbero di non essere pronti il giorno dell'evento.
+    async function loadPoolForDraft() {
+      dreAvailablePool = [];
+      const evId = activeDraft && activeDraft.event_id ? activeDraft.event_id : null;
+      // Filtro: se draft è agganciato a un evento → pool di quell'evento; altrimenti tutti i pool senza evento
+      const filter = evId
+        ? `event_id=eq.${evId}`
+        : 'event_id=is.null';
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool?select=id,badge_number,status,event_id&${filter}&status=eq.available&order=badge_number.asc&limit=500`);
+        if (res && res.ok) {
+          dreAvailablePool = await res.json();
+        }
+      } catch (_) { /* silent */ }
+      refreshPoolDatalist();
+      updatePoolStats();
+      // Re-render righe per aggiornare gli indicatori fonte (pool/manuale)
+      if (activeRows.length > 0) refreshBadgeIndicators();
+    }
+
+    function dreReloadPool() {
+      loadPoolForDraft();
+    }
+
+    function refreshPoolDatalist() {
+      const dl = document.getElementById('dre-pool-datalist');
+      if (!dl) return;
+      // Nei suggerimenti escludo i pool già usati nelle altre righe del draft
+      const usedInDraft = new Set(activeRows.map(r => (r.badge_number || '').trim()).filter(Boolean));
+      dl.innerHTML = dreAvailablePool
+        .filter(p => !usedInDraft.has(p.badge_number))
+        .map(p => `<option value="${esc(p.badge_number)}">🎫 Pool</option>`)
+        .join('');
+    }
+
+    function updatePoolStats() {
+      const el = document.getElementById('dre-pool-stats');
+      const btn = document.getElementById('dre-pool-fill-btn');
+      if (!el) return;
+      const total = dreAvailablePool.length;
+      const usedInDraft = new Set(activeRows.map(r => (r.badge_number || '').trim()).filter(Boolean));
+      const free = dreAvailablePool.filter(p => !usedInDraft.has(p.badge_number)).length;
+      if (total === 0) {
+        el.textContent = '🎫 Pool: 0 disponibili';
+        el.style.color = '#a0aec0';
+        if (btn) btn.disabled = true;
+      } else {
+        el.textContent = `🎫 Pool: ${free}/${total} liberi`;
+        el.style.color = free === 0 ? '#dd6b20' : '#38a169';
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    // Riempi le righe vuote pescando dal pool available in ordine numerico
+    function dreFillFromPool() {
+      if (dreAvailablePool.length === 0) {
+        alert('Nessun badge disponibile nel pool per questo draft.\n\nPer creare il pool: tab "🎫 Eventi" → seleziona evento → sezione Pool → pre-attiva i badge.');
+        return;
+      }
+      const usedInDraft = new Set(activeRows.map(r => (r.badge_number || '').trim()).filter(Boolean));
+      const queue = dreAvailablePool.filter(p => !usedInDraft.has(p.badge_number));
+      if (queue.length === 0) { alert('Tutti i pool disponibili sono già stati assegnati nelle righe del draft.'); return; }
+      let filled = 0;
+      for (const r of activeRows) {
+        if (r.badge_number && r.badge_number.trim()) continue;
+        const next = queue.shift();
+        if (!next) break;
+        r.badge_number = next.badge_number;
+        filled++;
+      }
+      if (filled === 0) { alert('Nessuna riga con badge vuoto.'); return; }
+      renderDreTable();
+      markDraftDirty();
+      scheduleDraftSave();
+      alert(`✓ ${filled} badge presi dal pool`);
+    }
+
+    // Determina la fonte del numero badge: pool / manuale / busy / ''
+    function dreSourceForBadge(num) {
+      if (!num) return '';
+      const n = String(num).trim();
+      if (!n) return '';
+      if (dreUnavailableSet.has(n)) return 'busy';
+      if (dreAvailablePool.some(p => p.badge_number === n)) return 'pool';
+      return 'manual';
+    }
+
+    // Aggiorna SOLO le classi dell'input badge + indicatore (senza re-render completo)
+    function refreshBadgeIndicators() {
+      const tbody = document.getElementById('dre-table-body');
+      if (!tbody) return;
+      const trs = tbody.querySelectorAll('tr');
+      trs.forEach((tr, idx) => {
+        const r = activeRows[idx];
+        if (!r) return;
+        const inp = tr.querySelector('input.dre-cell[data-field="badge_number"]');
+        if (!inp) return;
+        inp.classList.remove('dre-source-pool', 'dre-source-busy');
+        const src = dreSourceForBadge(r.badge_number);
+        if (src === 'pool') inp.classList.add('dre-source-pool');
+        if (src === 'busy') inp.classList.add('dre-source-busy');
+        // Aggiorna chip fonte
+        const cell = inp.closest('td');
+        let chip = cell.querySelector('.dre-source-chip');
+        if (src && r.badge_number && r.badge_number.trim()) {
+          if (!chip) {
+            chip = document.createElement('span');
+            chip.className = 'dre-source-chip';
+            cell.appendChild(chip);
+            cell.classList.add('dre-badge-cell');
+          }
+          chip.classList.remove('pool', 'manual', 'busy');
+          chip.classList.add(src);
+          chip.textContent = src === 'pool' ? '🎫 POOL' : (src === 'busy' ? '⚠️ OCCUPATO' : '✏️ MAN');
+        } else if (chip) {
+          chip.remove();
+        }
+      });
+    }
+
+    // Verifica online la disponibilità del singolo badge alla perdita focus.
+    // Marca come 'busy' i numeri usati da visitor attivi o pool in_use,
+    // così l'editor evidenzia il conflitto immediatamente (oltre alla validazione al finalize).
+    async function dreCheckBadgeOnBlur(num) {
+      const n = (num || '').trim();
+      if (!n) return;
+      // Skip se già nella nostra lista pool available (sicuro)
+      if (dreAvailablePool.some(p => p.badge_number === n)) return;
+      try {
+        const res = await checkBadgeInUse(n);
+        if (res && res.busy) {
+          dreUnavailableSet.add(n);
+          refreshBadgeIndicators();
+          validateDreRows();
+        } else {
+          // sicuro come "manuale" — rimuovi se era marcato busy
+          if (dreUnavailableSet.has(n)) {
+            dreUnavailableSet.delete(n);
+            refreshBadgeIndicators();
+            validateDreRows();
+          }
+        }
+      } catch (_) { /* best effort */ }
     }
 
     // ── AUTO-SAVE DEBOUNCED ──────────────────────────────
@@ -5910,12 +6121,21 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       }
     }
 
-    // Listener su nome + evento → trigger save
+    // Listener su nome + evento → trigger save (e ricarico pool se cambia evento)
     document.addEventListener('DOMContentLoaded', () => {
       const nameInp = document.getElementById('dre-name');
       const evSel   = document.getElementById('dre-event');
       if (nameInp) nameInp.addEventListener('input', () => { markDraftDirty(); scheduleDraftSave(); });
-      if (evSel)   evSel.addEventListener('change',  () => { markDraftDirty(); scheduleDraftSave(); });
+      if (evSel)   evSel.addEventListener('change',  async () => {
+        markDraftDirty();
+        scheduleDraftSave();
+        // L'evento cambia → aggiorno l'event_id sul draft attivo e ricarico il pool dell'evento
+        if (activeDraft) {
+          activeDraft.event_id = evSel.value || null;
+          dreUnavailableSet = new Set();
+          await loadPoolForDraft();
+        }
+      });
     });
 
     // Save al beforeunload se ci sono modifiche pendenti
@@ -6049,7 +6269,8 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       if (!activeDraft) return;
       const v = validateDreRows();
       if (v.missingNames > 0)    { alert(`Ci sono ${v.missingNames} righe senza Nome/Cognome. Completa prima di finalizzare.`); return; }
-      if (v.duplicates.length > 0) { alert(`Ci sono badge duplicati: ${v.duplicates.join(', ')}. Risolvi prima di finalizzare.`); return; }
+      if (v.duplicates.length > 0) { alert(`Ci sono badge duplicati nel draft: ${v.duplicates.join(', ')}. Risolvi prima di finalizzare.`); return; }
+      if (v.busy && v.busy.length > 0) { alert(`Alcuni badge sono già in uso (visitor attivo o pool occupato): ${v.busy.join(', ')}. Sostituiscili prima di finalizzare.`); return; }
       if (!confirm(`Finalizzare il draft "${activeDraft.name}"?\n\nDopo la finalizzazione:\n• non sarà più modificabile (solo lettura)\n• potrai esportare il CSV e importarlo nella tab Ospiti Attesi\n• in quel momento i badge saranno pre-attivati nei tornelli`)) return;
       // Forza save e poi cambia status
       if (draftSaveTimer) { clearTimeout(draftSaveTimer); await saveDraftNow(); }
