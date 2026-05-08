@@ -3617,7 +3617,13 @@
         const visitorRes  = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id,signature,badge_number,xatlas_status,entry_time,exit_time&guest_id=not.is.null`);
         const visitorData = visitorRes?.ok ? await visitorRes.json() : [];
         arrivedSet     = new Set(visitorData.filter(v => v.signature).map(v => v.guest_id));
-        preAssignedMap = new Map(visitorData.filter(v => !v.signature).map(v => [v.guest_id, { badge: v.badge_number, status: v.xatlas_status }]));
+        // Pre-assegnazione: solo visitor stub che sono ancora attivi (escludo checked_out:
+        // erano vecchie pre-assegnazioni archiviate, il loro badge è già stato riusato altrove)
+        preAssignedMap = new Map(
+          visitorData
+            .filter(v => !v.signature && v.xatlas_status !== 'checked_out')
+            .map(v => [v.guest_id, { badge: v.badge_number, status: v.xatlas_status }])
+        );
 
         // Stati per i 4 contatori:
         // - Da arrivare: in guest_list ma nessun visitor con quell'id O visitor stub senza firma
