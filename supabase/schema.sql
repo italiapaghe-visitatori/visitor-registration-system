@@ -318,3 +318,16 @@ WHERE vm1.id > vm2.id
 CREATE UNIQUE INDEX IF NOT EXISTS visitor_movements_raw_tx_unique
   ON visitor_movements (raw_transaction_id)
   WHERE raw_transaction_id IS NOT NULL;
+
+-- ============================================================
+-- MIGRATION v6 — FK badge_pool.visitor_id con ON DELETE SET NULL
+-- ============================================================
+-- Eliminare un visitor con badge dal pool dava errore FK constraint.
+-- Cambiamo la FK per accettare l'eliminazione, mantenendo l'entry pool intatta
+-- (visitor_id viene azzerato).
+
+ALTER TABLE badge_pool DROP CONSTRAINT IF EXISTS badge_pool_visitor_id_fkey;
+ALTER TABLE badge_pool
+  ADD CONSTRAINT badge_pool_visitor_id_fkey
+  FOREIGN KEY (visitor_id) REFERENCES visitors(id)
+  ON DELETE SET NULL;
