@@ -2445,6 +2445,7 @@
               <option value="draft_create">Pre-assegna: nuovo draft</option>
               <option value="draft_export">Pre-assegna: export CSV</option>
               <option value="draft_finalize">Pre-assegna: finalizza</option>
+              <option value="draft_import">Pre-assegna: import in Ospiti Attesi</option>
               <option value="draft_delete">Pre-assegna: elimina draft</option>
             </select>
           </div>
@@ -2513,7 +2514,7 @@
             <div style="display:flex;gap:8px;align-items:center">
               <button type="button" class="btn btn-primary" onclick="newDraft()">＋ Nuovo draft</button>
               <label style="font-size:13px;color:#4a5568;display:flex;align-items:center;gap:6px">
-                <input type="checkbox" id="dr-show-finalized" onchange="loadDrafts()"> Mostra finalizzati
+                <input type="checkbox" id="dr-show-finalized" onchange="loadDrafts()"> Mostra finalizzati e archiviati
               </label>
             </div>
             <span class="info-badge" style="font-size:12px;color:#718096">
@@ -2602,9 +2603,10 @@
 
         <div class="filters" style="margin-top:12px">
           <div class="filters-secondary" style="justify-content:space-between">
-            <div style="display:flex;gap:8px">
-              <button type="button" class="btn btn-success" onclick="dreExportCsv()">📤 Esporta CSV finale</button>
-              <button type="button" class="btn btn-primary" onclick="dreFinalize()">✅ Finalizza draft</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" class="btn btn-success" onclick="dreExportCsv()" title="Scarica un CSV con tutti i campi compilati">📤 Esporta CSV finale</button>
+              <button type="button" class="btn btn-primary" id="dre-finalize-btn" onclick="dreFinalize()">✅ Finalizza draft</button>
+              <button type="button" class="btn btn-success" id="dre-import-btn" onclick="importDraftToGuests(activeDraft && activeDraft.id)" style="display:none;background:linear-gradient(135deg,#48bb78 0%,#2f855a 100%)" title="Crea direttamente gli ospiti in Ospiti Attesi e pre-attiva i badge nei tornelli (no CSV intermedio)">🚀 Importa in Ospiti Attesi</button>
             </div>
             <button type="button" class="btn btn-danger" onclick="dreDelete()">🗑 Elimina draft</button>
           </div>
@@ -3612,6 +3614,7 @@
       draft_create:            { label: 'Pre-assegna: Nuovo',    color: 'audit-color-teal'   },
       draft_export:            { label: 'Pre-assegna: Export',   color: 'audit-color-cyan'   },
       draft_finalize:          { label: 'Pre-assegna: Finalizza',color: 'audit-color-green'  },
+      draft_import:            { label: 'Pre-assegna: Import',   color: 'audit-color-purple' },
       draft_delete:            { label: 'Pre-assegna: Elimina',  color: 'audit-color-red'    },
     };
 
@@ -5549,7 +5552,8 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     async function loadDrafts() {
       if (currentView !== 'drafts') return;
       const showFinalized = document.getElementById('dr-show-finalized')?.checked;
-      const statuses = showFinalized ? "in.(editing,finalized)" : "eq.editing";
+      // Quando "Mostra finalizzati" è attivo includo anche archiviati (post-import) per consultazione storica
+      const statuses = showFinalized ? "in.(editing,finalized,archived)" : "in.(editing,finalized)";
       const status = document.getElementById('drafts-table-status');
       const cont   = document.getElementById('drafts-table-container');
       status.style.display = '';
@@ -5571,9 +5575,11 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       const tot = draftsList.length;
       const editing = draftsList.filter(d => d.status === 'editing').length;
       const finalized = draftsList.filter(d => d.status === 'finalized').length;
+      const archived = draftsList.filter(d => d.status === 'archived').length;
       document.getElementById('dr-stat-total').textContent     = tot;
       document.getElementById('dr-stat-editing').textContent   = editing;
-      document.getElementById('dr-stat-finalized').textContent = finalized;
+      // Stat "Finalizzati" mostra finalizzati + archiviati (entrambi sono "completati")
+      document.getElementById('dr-stat-finalized').textContent = finalized + (archived > 0 ? ` (+${archived} importati)` : '');
     }
 
     function renderDraftsList() {
@@ -5597,7 +5603,11 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         const eventLabel = d.event_id && evMap[d.event_id]
           ? `🎫 ${esc(evMap[d.event_id].name)}`
           : (d.event_id ? '🎫 (evento)' : '<span class="empty-dash">—</span>');
-        const statusChip = `<span class="dre-status-chip dre-status-${d.status}">${d.status === 'editing' ? '✏️ In editing' : (d.status === 'finalized' ? '✅ Finalizzato' : '📦 Archiviato')}</span>`;
+        const statusLabel = d.status === 'editing'   ? '✏️ In editing'
+                          : d.status === 'finalized' ? '✅ Finalizzato'
+                          : d.status === 'archived'  ? '📦 Importato/archiviato'
+                          : d.status;
+        const statusChip = `<span class="dre-status-chip dre-status-${d.status}">${statusLabel}</span>`;
         const updatedTxt = d.updated_at ? fmtRelativeTime(d.updated_at) : '—';
         const canEdit = d.status === 'editing';
         tr.innerHTML = `
@@ -5607,8 +5617,9 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           <td>${statusChip}</td>
           <td title="${d.updated_at || ''}">${updatedTxt}</td>
           <td>${esc(d.updated_by || d.created_by || '—')}</td>
-          <td>
+          <td style="display:flex;gap:6px">
             <button type="button" class="btn btn-primary" style="padding:6px 12px;font-size:12px" onclick="openDraftEditor('${d.id}')">${canEdit ? '✏️ Apri' : '👁️ Visualizza'}</button>
+            ${d.status === 'finalized' ? `<button type="button" class="btn btn-success" style="padding:6px 12px;font-size:12px" onclick="event.stopPropagation();importDraftToGuests('${d.id}')" title="Crea ospiti in Ospiti Attesi e attiva i badge">🚀 Importa</button>` : ''}
           </td>
         `;
         tbody.appendChild(tr);
@@ -5673,13 +5684,18 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         // Popola dropdown eventi
         await populateDraftEventDropdown(activeDraft.event_id);
         document.getElementById('dre-event').disabled = activeDraft.status !== 'editing';
-        // Disabilita controlli se finalizzato
+        // Disabilita controlli se finalizzato (tranne export CSV e import che restano usabili)
         const readOnly = activeDraft.status !== 'editing';
         document.querySelectorAll('#drafts-editor-view button').forEach(b => {
-          // mantieni solo "torna ai drafts" e "elimina" attivi
           if (b.textContent.includes('Torna') || b.textContent.includes('Elimina')) return;
+          if (b.textContent.includes('Esporta') || b.textContent.includes('Importa in Ospiti')) return;
           b.disabled = readOnly;
         });
+        // Bottoni Finalizza vs Importa: visibilità inversa
+        const finBtn = document.getElementById('dre-finalize-btn');
+        const impBtn = document.getElementById('dre-import-btn');
+        if (finBtn) finBtn.style.display = (activeDraft.status === 'editing') ? '' : 'none';
+        if (impBtn) impBtn.style.display = (activeDraft.status === 'finalized') ? '' : 'none';
         markDraftSaved();
         // Carica pool available per l'evento collegato (o globale se nessun evento) PRIMA del render,
         // così gli indicatori fonte sono corretti al primo passaggio.
@@ -6496,6 +6512,250 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       } catch (err) {
         alert('Errore finalizzazione: ' + err.message);
       }
+    }
+
+    // ── IMPORT DIRETTO IN OSPITI ATTESI ──────────────────
+    // Da DB a DB: legge le righe del draft, crea guest_list + visitor stubs,
+    // gestendo correttamente badge dal pool (xatlas_status='active' + pool→in_use)
+    // vs badge manuali (xatlas_status='pending', l'agente li attiverà al ciclo dopo).
+    // Il draft viene archiviato a fine import. Niente roundtrip CSV.
+    async function importDraftToGuests(draftId) {
+      if (!draftId) { alert('Nessun draft selezionato'); return; }
+      // Carica draft fresh (anche se è già aperto, prendiamo lo stato canonico dal DB)
+      let draft;
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_drafts?id=eq.${draftId}&select=*&limit=1`);
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        const arr = await res.json();
+        if (!arr.length) throw new Error('Draft non trovato');
+        draft = arr[0];
+      } catch (err) {
+        alert('Errore caricamento draft: ' + err.message); return;
+      }
+      if (draft.status === 'archived') { alert('Draft già archiviato (importato in passato).'); return; }
+      if (draft.status !== 'finalized') {
+        if (!confirm(`Il draft "${draft.name}" non è ancora finalizzato.\n\nL'import esegue la stessa validazione del finalize (no duplicati, no badge occupati, no conflitti tra operatori).\n\nProcedere comunque?`)) return;
+      }
+      const rows = (Array.isArray(draft.rows) ? draft.rows : []).filter(r => (r.last_name || '').trim() && (r.first_name || '').trim());
+      if (rows.length === 0) { alert('Nessuna riga valida (Nome+Cognome obbligatori).'); return; }
+      const withBadge    = rows.filter(r => (r.badge_number || '').trim()).length;
+      const withoutBadge = rows.length - withBadge;
+
+      const evId = draft.event_id || null;
+      let eventInfo = null;
+      if (evId) {
+        try {
+          const evRes = await api(`${SUPABASE_URL}/rest/v1/events?id=eq.${evId}&select=id,name,event_start_date&limit=1`);
+          if (evRes && evRes.ok) {
+            const arr = await evRes.json();
+            if (arr.length > 0) eventInfo = arr[0];
+          }
+        } catch (_) { /* silent */ }
+      }
+
+      const evLabel = eventInfo ? ` (evento: ${eventInfo.name})` : ' (nessun evento collegato)';
+      if (!confirm(
+        `Importare in Ospiti Attesi le ${rows.length} righe del draft "${draft.name}"?${evLabel}\n\n` +
+        `• ${withBadge} ospiti con badge pre-assegnato (verranno attivati nei tornelli)\n` +
+        `• ${withoutBadge} ospiti senza badge (assegnabili al desk)\n\n` +
+        `A fine operazione il draft verrà archiviato (resta consultabile in lista con filtro "Mostra archiviati").`
+      )) return;
+
+      // 1) Pre-fetch pool 'available' (e 'in_use'): serve per identificare i badge dal pool
+      // e gestirli correttamente (visitor active vs pending).
+      let poolMap = new Map(); // badge_number -> {id, xatlas_user_id, status, event_id}
+      try {
+        const filter = evId ? `event_id=eq.${evId}` : '';
+        const url = `${SUPABASE_URL}/rest/v1/badge_pool?select=id,badge_number,xatlas_user_id,status,event_id${filter ? '&' + filter : ''}&status=in.(available,in_use)&limit=1000`;
+        const res = await api(url);
+        if (res && res.ok) {
+          const arr = await res.json();
+          arr.forEach(p => poolMap.set(p.badge_number, p));
+        }
+      } catch (_) { /* silent */ }
+
+      // 2) Insert guest_list (batch) — collega l'event_id se draft lo ha
+      const guestPayloads = rows.map(r => ({
+        first_name:      (r.first_name || '').trim(),
+        last_name:       (r.last_name  || '').trim(),
+        email:           (r.email      || '').trim() || null,
+        company:         (r.company    || '').trim() || null,
+        person_to_visit: (r.person_to_visit || '').trim() || null,
+        visit_reason:    (r.visit_reason    || '').trim() || null,
+        expected_date:   (r.expected_date   || '').trim() || null,
+        event_id:        evId,
+      }));
+      let inserted = [];
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_list`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify(guestPayloads)
+        });
+        if (!res || !res.ok) {
+          const b = res ? await res.json().catch(()=>({})) : {};
+          throw new Error(b.message || `Errore ${res?.status}`);
+        }
+        inserted = await res.json();
+      } catch (err) {
+        alert('Errore creazione ospiti in guest_list: ' + err.message);
+        return;
+      }
+
+      // 3) Per ogni ospite con badge: gestisci pool vs manuale
+      const skipped = []; // {name, reason}
+      const fromPool = []; // numeri badge presi dal pool
+      const fromManual = []; // numeri badge attivazione manuale (agente)
+      const today = new Date().toISOString().split('T')[0];
+
+      for (let i = 0; i < inserted.length; i++) {
+        const g = inserted[i];
+        const badge = (rows[i].badge_number || '').trim();
+        if (!badge) continue;
+
+        // Re-check disponibilità in tempo reale (potrebbe essere cambiato dall'apertura)
+        let busy = null;
+        try { busy = await checkBadgeInUse(badge); } catch (_) { /* fall-through */ }
+        if (busy && busy.busy && busy.source === 'visitor') {
+          skipped.push({ name: `${g.first_name} ${g.last_name}`, reason: `badge ${badge} già su visitor "${busy.by}"` });
+          continue;
+        }
+
+        const poolEntry = poolMap.get(badge);
+        const isPoolAvailable = poolEntry && poolEntry.status === 'available';
+        const isPoolInUse     = poolEntry && poolEntry.status === 'in_use';
+        if (isPoolInUse) {
+          skipped.push({ name: `${g.first_name} ${g.last_name}`, reason: `badge ${badge} pool già in_use (consegnato ad altro visitatore)` });
+          continue;
+        }
+
+        if (isPoolAvailable) {
+          // POOL: visitor 'active' (badge già attivo nei tornelli), poi pool→in_use, agente rinomina
+          const visitorPayload = {
+            first_name:      g.first_name,
+            last_name:       g.last_name,
+            email:           g.email           || null,
+            company:         g.company         || null,
+            person_to_visit: g.person_to_visit || null,
+            visit_reason:    g.visit_reason    || 'Visita',
+            visit_date:      today,
+            badge_number:    badge,
+            xatlas_user_id:  poolEntry.xatlas_user_id,
+            xatlas_status:   'active',
+            xatlas_renamed:  false,
+            event_id:        evId,
+            event_name:      eventInfo ? eventInfo.name : null,
+            event_date:      eventInfo ? eventInfo.event_start_date : null,
+            guest_id:        g.id,
+            assigned_by:     CURRENT_USER_EMAIL || null,
+            assigned_at:     new Date().toISOString(),
+            data_consent:    false,
+            signature:       null
+          };
+          try {
+            const vRes = await api(`${SUPABASE_URL}/rest/v1/visitors`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+              body: JSON.stringify(visitorPayload)
+            });
+            if (!vRes || !vRes.ok) {
+              const b = vRes ? await vRes.json().catch(()=>({})) : {};
+              throw new Error(b.message || `${vRes?.status}`);
+            }
+            const created = await vRes.json();
+            const vid = Array.isArray(created) ? created[0].id : created.id;
+            // Aggiorna pool entry
+            await api(`${SUPABASE_URL}/rest/v1/badge_pool?id=eq.${poolEntry.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+              body: JSON.stringify({
+                status: 'in_use',
+                visitor_id: vid,
+                assigned_at: new Date().toISOString(),
+                assigned_by: CURRENT_USER_EMAIL || null
+              })
+            });
+            fromPool.push(badge);
+          } catch (err) {
+            skipped.push({ name: `${g.first_name} ${g.last_name}`, reason: `errore pool ${badge}: ${err.message}` });
+          }
+        } else {
+          // MANUALE: visitor 'pending', l'agente Python attiverà al prossimo ciclo
+          const visitorPayload = {
+            first_name:      g.first_name,
+            last_name:       g.last_name,
+            email:           g.email           || null,
+            company:         g.company         || null,
+            person_to_visit: g.person_to_visit || null,
+            visit_reason:    g.visit_reason    || 'Visita',
+            badge_number:    badge,
+            xatlas_status:   'pending',
+            event_id:        evId,
+            event_name:      eventInfo ? eventInfo.name : null,
+            event_date:      eventInfo ? eventInfo.event_start_date : null,
+            guest_id:        g.id,
+            assigned_by:     CURRENT_USER_EMAIL || null,
+            assigned_at:     new Date().toISOString(),
+            data_consent:    false,
+            signature:       null
+          };
+          try {
+            const vRes = await api(`${SUPABASE_URL}/rest/v1/visitors`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+              body: JSON.stringify(visitorPayload)
+            });
+            if (!vRes || !vRes.ok) {
+              const b = vRes ? await vRes.json().catch(()=>({})) : {};
+              throw new Error(b.message || `${vRes?.status}`);
+            }
+            fromManual.push(badge);
+          } catch (err) {
+            const msg = /23505|badge_active_unique/i.test(err.message) ? 'badge duplicato' : err.message;
+            skipped.push({ name: `${g.first_name} ${g.last_name}`, reason: `errore manuale ${badge}: ${msg}` });
+          }
+        }
+      }
+
+      // 4) Archivia draft (status='archived')
+      try {
+        await api(`${SUPABASE_URL}/rest/v1/guest_drafts?id=eq.${draftId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ status: 'archived', updated_by: CURRENT_USER_EMAIL || null })
+        });
+      } catch (_) { /* l'import è già avvenuto, archive failure non è critico */ }
+
+      auditLog('draft_import', 'guest_drafts', draftId, {
+        name: draft.name,
+        guests_inserted: inserted.length,
+        from_pool: fromPool.length,
+        from_manual: fromManual.length,
+        skipped: skipped.length
+      });
+
+      // 5) Riepilogo + redirect
+      let summary = `✅ Import completato per draft "${draft.name}"\n\n`;
+      summary += `• ${inserted.length} ospiti creati in Ospiti Attesi\n`;
+      summary += `• ${fromPool.length} badge dal pool (già attivi nei tornelli)\n`;
+      summary += `• ${fromManual.length} badge manuali in coda di attivazione (l'agente li attiverà entro 1-2 cicli)\n`;
+      summary += `• ${withoutBadge} ospiti senza badge (assegnabili al desk)\n`;
+      if (skipped.length > 0) {
+        summary += `\n⚠️ ${skipped.length} righe SCARTATE:\n - ` + skipped.slice(0, 10).map(s => `${s.name}: ${s.reason}`).join('\n - ');
+        if (skipped.length > 10) summary += `\n - … e altri ${skipped.length - 10}`;
+      }
+      summary += `\n\nIl draft è stato archiviato.`;
+      alert(summary);
+      // Chiudi editor (se aperto) e vai a Ospiti Attesi
+      if (activeDraft && activeDraft.id === draftId) {
+        if (draftSaveTimer) { clearTimeout(draftSaveTimer); draftSaveTimer = null; }
+        stopOtherDraftsPolling();
+        activeDraft = null;
+        activeRows  = [];
+        document.getElementById('drafts-list-view').style.display   = '';
+        document.getElementById('drafts-editor-view').style.display = 'none';
+      }
+      switchView('guests');
     }
 
     async function dreDelete() {
