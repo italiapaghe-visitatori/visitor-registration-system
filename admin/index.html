@@ -2849,7 +2849,8 @@
 
     async function populateEventFilter() {
       try {
-        const res = await api(`${SUPABASE_URL}/rest/v1/events?select=id,name,event_start_date,event_end_date,is_active&order=event_start_date.desc&limit=50`);
+        // Includo closed_at per marcare gli eventi storici nel dropdown
+        const res = await api(`${SUPABASE_URL}/rest/v1/events?select=id,name,event_start_date,event_end_date,is_active,closed_at&order=event_start_date.desc&limit=50`);
         if (!res || !res.ok) return;
         const list = await res.json();
         const sel = document.getElementById('f-event');
@@ -2858,13 +2859,19 @@
         const cur = sel.value;
         // Pulisci e ripopola
         sel.innerHTML = '<option value="">Tutti</option><option value="__none__">Senza evento</option>';
+        const today = todayLocalIso();
         list.forEach(ev => {
           const opt = document.createElement('option');
           opt.value = ev.id;
           const date = ev.event_start_date === ev.event_end_date
             ? fmtItDate(ev.event_start_date)
             : `${fmtItDate(ev.event_start_date)} → ${fmtItDate(ev.event_end_date)}`;
-          opt.textContent = `${ev.is_active ? '🔴 ' : ''}${ev.name} (${date})`;
+          // Prefisso visivo: 🔴 attivo, 🔒 chiuso/archiviato (consultabile come storico), 🕐 passato non archiviato
+          let prefix = '';
+          if (ev.is_active) prefix = '🔴 ';
+          else if (ev.closed_at) prefix = '🔒 ';
+          else if (today > ev.event_end_date) prefix = '🕐 ';
+          opt.textContent = `${prefix}${ev.name} (${date})${ev.closed_at ? ' — storico' : ''}`;
           sel.appendChild(opt);
         });
         if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
