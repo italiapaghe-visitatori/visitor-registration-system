@@ -59,6 +59,16 @@ const CONFIG = {
     { value: 'Altro', label: 'Altro' }
   ],
   
+  // ===== KIOSK PIN (autorizzazione tablet al desk) =====
+  // Il tablet kiosk al desk DEVE essere autorizzato una volta inserendo nel browser:
+  //   .../frontend/?kiosk_authorize=<PIN>
+  // Se il PIN matcha, viene salvato un flag in localStorage e il tablet ricorda
+  // l'autorizzazione per sempre. Senza autorizzazione (e senza ?mode=qr&event=...)
+  // l'accesso al frontend viene bloccato → impedisce ai visitatori che conoscono
+  // l'URL pubblico GitHub Pages di registrarsi al posto di altri.
+  // CAMBIA QUESTO PIN ⇩ con uno tuo prima del go-live.
+  kioskPIN: 'S2S-2026',
+
   // ===== SUPABASE =====
   supabase: {
     url: 'https://sebhatzxsxuafsmbdtsx.supabase.co',

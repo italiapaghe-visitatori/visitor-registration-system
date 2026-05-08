@@ -736,6 +736,59 @@
       body { padding: 36px 20px 52px; }
     }
 
+    /* ── ANTI-FLASH: hide body fino a fine check accesso/auth ── */
+    body.preauth-hidden { visibility: hidden; }
+    /* In QR mode: body nascosto finché bootstrap non finisce (lockout/QR scaduto/loading guest) */
+    html.qr-mode body { visibility: hidden; }
+    html.qr-mode body.qr-ready { visibility: visible; }
+    /* Eccezioni: gli overlay (success/invalid) devono restare sempre visibili appena attivati */
+    html.qr-mode body #qr-success.active,
+    html.qr-mode body #qr-invalid.active { visibility: visible !important; }
+
+    /* ── SCHERMATA ACCESSO BLOCCATO (URL pubblico senza autorizzazione) ── */
+    html.access-blocked body { visibility: visible !important; }
+    .block-screen {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 32px 24px;
+      background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+      color: #fff;
+    }
+    .block-screen .block-icon {
+      font-size: 80px;
+      margin-bottom: 24px;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+    }
+    .block-screen h1 {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      max-width: 480px;
+      line-height: 1.25;
+    }
+    .block-screen p {
+      font-size: 15px;
+      max-width: 480px;
+      line-height: 1.55;
+      opacity: 0.85;
+      margin-bottom: 12px;
+    }
+    .block-screen p strong { color: #f6ad55; }
+    .block-screen .block-cta {
+      margin-top: 32px;
+      background: rgba(255,255,255,0.1);
+      border: 1.5px solid rgba(255,255,255,0.2);
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 14px;
+      opacity: 1;
+    }
+
     /* ── MODALITÀ QR (mobile self-service) ── */
     /* In modalità QR nascondiamo lo screensaver: il device è personale, non condiviso */
     html.qr-mode #screensaver { display: none !important; }
@@ -1495,8 +1548,62 @@
     const IS_QR_MODE = QS.get('mode') === 'qr';
     const QR_EVENT_ID = QS.get('event') || null;
     const QR_GUEST_ID = QS.get('guest') || null;  // QR personale per ospite specifico (privacy)
+    const KIOSK_AUTHORIZE = QS.get('kiosk_authorize') || null;
     if (IS_QR_MODE) document.documentElement.classList.add('qr-mode');
     if (IS_QR_MODE && QR_GUEST_ID) document.documentElement.classList.add('qr-personal');
+
+    // ── PROTEZIONE ACCESSO PUBBLICO (anti-abuso URL GitHub Pages) ──────────
+    // Se qualcuno digita l'URL del frontend senza ?mode=qr&event=... (es.
+    // visitatore curioso che ricostruisce l'URL pubblico), blocchiamo l'accesso
+    // mostrando schermata "non autorizzato". Eccezione: tablet kiosk al desk
+    // che l'admin ha autorizzato una volta tramite ?kiosk_authorize=<PIN>.
+    // Il PIN e in CONFIG.kioskPIN. L'autorizzazione viene salvata in
+    // localStorage e ricordata per sempre sul device.
+    function isKioskAuthorized() {
+      try { return localStorage.getItem('vrs_kiosk_authorized') === '1'; }
+      catch (_) { return false; }
+    }
+    function setKioskAuthorized() {
+      try { localStorage.setItem('vrs_kiosk_authorized', '1'); }
+      catch (_) {}
+    }
+
+    // Se richiesta esplicita di autorizzazione kiosk (con PIN nel querystring)
+    if (KIOSK_AUTHORIZE) {
+      if (CONFIG.kioskPIN && KIOSK_AUTHORIZE === CONFIG.kioskPIN) {
+        setKioskAuthorized();
+        // Pulisci URL e ricarica senza il parametro (per evitare di lasciare il PIN in cronologia)
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, cleanUrl);
+      } else {
+        // PIN errato — blocco con messaggio
+        document.documentElement.classList.add('access-blocked');
+        window.addEventListener('DOMContentLoaded', () => {
+          document.body.innerHTML = '<div class="block-screen"><div class="block-icon">⛔</div>' +
+            '<h1>PIN errato</h1><p>Il PIN inserito non è valido.</p>' +
+            '<p class="block-cta">Per assistenza contatta la reception.</p></div>';
+          document.body.classList.remove('preauth-hidden');
+        });
+      }
+    }
+
+    // Determina se l'accesso deve essere bloccato:
+    // - QR mode con event_id valido: OK
+    // - Kiosk autorizzato: OK
+    // - Tutto il resto: BLOCCATO
+    const ACCESS_BLOCKED = !IS_QR_MODE && !isKioskAuthorized();
+    if (ACCESS_BLOCKED) {
+      document.documentElement.classList.add('access-blocked');
+      window.addEventListener('DOMContentLoaded', () => {
+        document.body.innerHTML = '<div class="block-screen"><div class="block-icon">🔒</div>' +
+          '<h1>Accesso non autorizzato</h1>' +
+          '<p>Questa pagina è dedicata alla registrazione visitatori in azienda.</p>' +
+          '<p>Se sei un partecipante, usa il <strong>QR code personale</strong> che hai ricevuto via email.</p>' +
+          '<p>Se sei al desk con un tablet aziendale, contatta l\'amministratore per l\'autorizzazione del dispositivo.</p>' +
+          '<p class="block-cta">📍 Service to Service Srl</p></div>';
+        document.body.classList.remove('preauth-hidden');
+      });
+    }
 
     // Stato evento (popolato da loadEventForQr in QR mode, oppure dall'evento attivo in kiosk)
     let CURRENT_EVENT = null;
@@ -1665,6 +1772,7 @@
       injectEventInfo('#qr-success', evt, data && data.signed_at ? data.signed_at : null);
       el.classList.add('active');
       hideKioskUI();
+      document.body.classList.add('qr-ready');
     }
 
     function showQrInvalidScreen(reason, message) {
@@ -1673,6 +1781,7 @@
       el.querySelector('.qr-invalid-msg').textContent = message;
       el.classList.add('active');
       hideKioskUI();
+      document.body.classList.add('qr-ready');
     }
 
     function hideKioskUI() {
@@ -1779,6 +1888,7 @@
     }
 
     (async function bootstrap() {
+      if (ACCESS_BLOCKED) return; // schermata di blocco già renderizzata
       if (IS_QR_MODE) {
         // 1. Se manca event_id nel querystring → QR non valido
         if (!QR_EVENT_ID) {
@@ -1823,6 +1933,9 @@
       }
       loadGuestList();
       setInterval(loadGuestList, IS_QR_MODE ? 8000 : 60000);
+      // Bootstrap finito → mostra il body (anti-flash). Anche se non in QR mode
+      // la classe è no-op (kiosk non ha qr-mode su <html>).
+      document.body.classList.add('qr-ready');
     })();
     // Refresh periodico evento attivo in modalità kiosk (ogni 60s):
     // se l'admin avvia/chiude un evento, il kiosk lo nota.
