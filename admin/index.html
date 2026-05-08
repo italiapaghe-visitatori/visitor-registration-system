@@ -2699,8 +2699,19 @@
     })();
 
     window.addEventListener('load', async () => {
+      // SAFETY NET: se entro 10 secondi qualcosa va male e l'auth check non
+      // si conclude (rete lenta, errore JS, fetch in pending), forza la
+      // visibilità del body così l'utente non resta bloccato in pagina bianca.
+      // Mostra anche un banner errore per capire cosa sta succedendo.
+      const safetyTimer = setTimeout(() => {
+        if (document.body.classList.contains('auth-pending')) {
+          document.body.classList.remove('auth-pending');
+          showError('⚠️ Caricamento iniziale lento o interrotto. Prova a cliccare 🔄 Aggiorna; se persiste, fai logout e rilogin.');
+        }
+      }, 10000);
+
       accessToken = localStorage.getItem('sb-access-token');
-      if (!accessToken) { window.location.href = 'login.html'; return; }
+      if (!accessToken) { clearTimeout(safetyTimer); window.location.href = 'login.html'; return; }
 
       try {
         const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
@@ -2712,7 +2723,7 @@
         CURRENT_USER_EMAIL = user.email;
       } catch (_) {
         const refreshed = await tryRefreshToken();
-        if (!refreshed) { logout(); return; }
+        if (!refreshed) { clearTimeout(safetyTimer); logout(); return; }
         try {
           const res  = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
             headers: { 'Authorization': `Bearer ${accessToken}`, 'apikey': SUPABASE_ANON_KEY }
@@ -2720,16 +2731,29 @@
           const user = await res.json();
           document.getElementById('user-email').textContent = user.email;
           CURRENT_USER_EMAIL = user.email;
-        } catch (_) { logout(); return; }
+        } catch (_) { clearTimeout(safetyTimer); logout(); return; }
       }
 
-      // Auth ok → mostra body (rimuove anti-flash)
+      // Auth ok → mostra body (rimuove anti-flash) e disarma il safety timer
+      clearTimeout(safetyTimer);
       document.body.classList.remove('auth-pending');
 
       loadData();
       refreshAgentStatus();
       refreshActiveEventBanner();
       populateEventFilter();
+    });
+
+    // Errore JS non catchato durante il caricamento iniziale → mostra il body
+    // comunque con messaggio, invece di lasciare la pagina bianca.
+    window.addEventListener('error', e => {
+      if (document.body.classList.contains('auth-pending')) {
+        document.body.classList.remove('auth-pending');
+        try {
+          showError('⚠️ Errore JavaScript al caricamento: ' + (e.message || 'sconosciuto') + '. Prova hard refresh (Ctrl+Shift+R).');
+        } catch (_) { /* showError potrebbe non essere ancora pronto */ }
+        console.error('[admin] Uncaught error during load:', e.error || e.message);
+      }
     });
 
     // Email operatore corrente (popolato al login) — usato per audit_log e assigned_by
