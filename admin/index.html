@@ -453,6 +453,48 @@
     }
     .btn-email-send:hover { box-shadow: 0 3px 10px rgba(49,151,149,0.45); transform: translateY(-1px); }
 
+    /* Cella email status: stato + bottone re-invio inline */
+    .email-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    /* Bottone "Reinvia/Riprova" — più piccolo del primo invio per non distrarre */
+    .btn-email-resend {
+      background: #fff;
+      color: #4c51bf;
+      border: 1px solid #c3dafe;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-email-resend:hover { background: #ebf4ff; border-color: #4c51bf; }
+
+    /* Cella email value: testo + matita per modifica inline */
+    .email-value-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .email-value-cell .email-value { word-break: break-all; }
+    .btn-email-edit {
+      background: transparent;
+      color: #a0aec0;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-email-edit:hover { color: #4c51bf; background: #ebf4ff; }
+
     /* Aggiungi ospite: checkbox "associa a evento" */
     .ag-event-checkbox {
       display: flex;
@@ -2445,6 +2487,7 @@
               <option value="fill_badges_bulk_create">Compila badge bulk</option>
               <option value="fill_badges_update">Compila badge update</option>
               <option value="email_qr_send">Invio email QR</option>
+              <option value="guest_email_edit">Modifica email ospite</option>
               <option value="draft_create">Pre-assegna: nuovo draft</option>
               <option value="draft_export">Pre-assegna: export CSV</option>
               <option value="draft_finalize">Pre-assegna: finalizza</option>
@@ -3572,13 +3615,22 @@
         const attesa  = totale - dentro - usciti;
 
         // Carica stato email_queue per ogni guest (best-effort, non blocca)
+        // emailStatusByGuest: Map<guest_id, { status, sent_at, created_at, error, attempts }>
         try {
-          const eqRes = await api(`${SUPABASE_URL}/rest/v1/email_queue?select=guest_id,status&guest_id=not.is.null&order=created_at.desc`);
+          const eqRes = await api(`${SUPABASE_URL}/rest/v1/email_queue?select=guest_id,status,sent_at,created_at,error,attempts&guest_id=not.is.null&order=created_at.desc`);
           const eqData = eqRes?.ok ? await eqRes.json() : [];
-          // Per ogni guest, prendiamo lo stato dell'ultima email (la prima nell'array sorted desc)
+          // Per ogni guest, prendiamo l'ultima email (la prima nell'array sorted desc)
           emailStatusByGuest = new Map();
           eqData.forEach(e => {
-            if (!emailStatusByGuest.has(e.guest_id)) emailStatusByGuest.set(e.guest_id, e.status);
+            if (!emailStatusByGuest.has(e.guest_id)) {
+              emailStatusByGuest.set(e.guest_id, {
+                status:     e.status,
+                sent_at:    e.sent_at,
+                created_at: e.created_at,
+                error:      e.error,
+                attempts:   e.attempts
+              });
+            }
           });
         } catch (_) { emailStatusByGuest = new Map(); }
 
@@ -3686,6 +3738,7 @@
       fill_badges_bulk_create: { label: 'Compila Badge: insert', color: 'audit-color-purple' },
       fill_badges_update:      { label: 'Compila Badge: update', color: 'audit-color-purple' },
       email_qr_send:           { label: 'Invio Email QR',        color: 'audit-color-cyan'   },
+      guest_email_edit:        { label: 'Modifica email',        color: 'audit-color-yellow' },
       draft_create:            { label: 'Pre-assegna: Nuovo',    color: 'audit-color-teal'   },
       draft_export:            { label: 'Pre-assegna: Export',   color: 'audit-color-cyan'   },
       draft_finalize:          { label: 'Pre-assegna: Finalizza',color: 'audit-color-green'  },
@@ -4271,6 +4324,12 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         openMissingEmailModal(guest);
         return;
       }
+      // Conferma esplicita per re-invio: previene click accidentale di "Reinvia" su email già consegnata
+      const cur = emailStatusByGuest.get(guest.id);
+      if (cur && cur.status === 'sent') {
+        if (!confirm(`Reinviare il QR a ${guest.email}?\n\nL'email era già stata inviata con successo. L'ospite riceverà una nuova copia (es. se ha smarrito la prima).`)) return;
+      }
+      const originalText = btn.textContent;
       btn.disabled = true;
       btn.textContent = '...';
       try {
@@ -4279,30 +4338,110 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       } catch (err) {
         alert('Errore invio: ' + err.message);
         btn.disabled = false;
-        btn.textContent = '📧 Invia';
+        btn.textContent = originalText;
+      }
+    }
+
+    // Correzione email manuale: prompt → PATCH guest_list. Usato quando l'email è
+    // sbagliata per errore di battitura (es. "mario.rosi@..." invece di "mario.rossi@...")
+    // e bisogna correggerla prima di reinviare il QR.
+    async function editGuestEmail(btn) {
+      const guestId = btn?.dataset?.id;
+      if (!guestId) return;
+      const guest = guestData.find(g => g.id === guestId);
+      if (!guest) return;
+      const currentEmail = guest.email || '';
+      const newEmail = prompt(
+        `Modifica email per ${guest.first_name} ${guest.last_name}\n\n` +
+        `Email corrente: ${currentEmail || '(nessuna)'}\n\n` +
+        `Inserisci la nuova email (vuoto per rimuovere):`,
+        currentEmail
+      );
+      if (newEmail === null) return; // Annulla
+      const trimmed = newEmail.trim();
+      // Validazione semplice: o stringa vuota oppure formato email plausibile
+      if (trimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        alert('Formato email non valido. Esempio: nome.cognome@dominio.it');
+        return;
+      }
+      if (trimmed.toLowerCase() === currentEmail.toLowerCase()) return; // nessun cambio
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/guest_list?id=eq.${guestId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ email: trimmed || null })
+        });
+        if (!res || !res.ok) {
+          const b = res ? await res.json().catch(()=>({})) : {};
+          throw new Error(b.message || `Errore ${res?.status}`);
+        }
+        auditLog('guest_email_edit', 'guest_list', guestId, {
+          name:  `${guest.first_name} ${guest.last_name}`,
+          old:   currentEmail || null,
+          new:   trimmed || null
+        });
+        // Reload + offri di reinviare il QR se l'email è ora valorizzata
+        await loadGuestList();
+        if (trimmed && activeEvent && !arrivedSet.has(guestId)) {
+          if (confirm(`Email aggiornata a ${trimmed}.\n\nVuoi inviare/reinviare subito il QR a questa nuova email?`)) {
+            const updated = guestData.find(g => g.id === guestId);
+            if (updated) {
+              try {
+                await enqueueQrEmail(updated, activeEvent);
+                alert('✓ QR accodato per il nuovo indirizzo.');
+                loadGuestList();
+              } catch (e) {
+                alert('Errore invio: ' + e.message);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        alert('Errore aggiornamento email: ' + err.message);
       }
     }
 
     // Invio massivo: tutti gli ospiti dell'evento attivo (non ancora arrivati, con email)
+    // Default: skip chi ha già ricevuto. Se l'operatore conferma "anche già inviate"
+    // (secondo prompt), include anche quelle email già spedite per fare un re-invio massivo.
     async function bulkSendQrEmail() {
       if (!activeEvent) {
         alert('Nessun evento attivo. Avvia un evento prima di inviare i QR.');
         return;
       }
+      const getStatus = g => {
+        const e = emailStatusByGuest.get(g.id);
+        return e ? e.status : null;
+      };
       // Filtra ospiti rilevanti
       const candidates = guestData.filter(g => !arrivedSet.has(g.id));
       const withEmail    = candidates.filter(g => g.email && g.email.trim());
       const withoutEmail = candidates.filter(g => !g.email || !g.email.trim());
-      const alreadySent  = withEmail.filter(g => emailStatusByGuest.get(g.id) === 'sent');
-      const toSend       = withEmail.filter(g => emailStatusByGuest.get(g.id) !== 'sent');
+      const alreadySent  = withEmail.filter(g => getStatus(g) === 'sent');
+      const failed       = withEmail.filter(g => getStatus(g) === 'failed');
+      const neverSent    = withEmail.filter(g => !getStatus(g));
 
       const summary = `Invio massivo QR personali per evento "${activeEvent.name}":\n\n` +
-                      `• Ospiti totali: ${candidates.length}\n` +
-                      `• Da inviare: ${toSend.length}\n` +
-                      `• Già inviate (skip): ${alreadySent.length}\n` +
+                      `• Ospiti totali (non arrivati): ${candidates.length}\n` +
+                      `• Mai inviata: ${neverSent.length}\n` +
+                      `• Inviate ma fallite: ${failed.length}\n` +
+                      `• Già inviate con successo: ${alreadySent.length}\n` +
                       `• Senza email (skip): ${withoutEmail.length}\n\n` +
-                      `Procedere con l'invio di ${toSend.length} email?`;
+                      `OK = invia alle ${neverSent.length + failed.length} non ancora consegnate (mai inviate + fallite).\n` +
+                      `Annulla = non fare nulla.`;
       if (!confirm(summary)) return;
+
+      let toSend = [...neverSent, ...failed];
+      // Secondo prompt: re-invio massivo a chi ha GIÀ ricevuto (utile se cambia l'evento o se molti ospiti dicono di non averla vista)
+      if (alreadySent.length > 0) {
+        if (confirm(`Re-inviare il QR anche alle ${alreadySent.length} email già consegnate con successo?\n\n• OK = aggiungi anche queste alla coda di invio\n• Annulla = manda solo alle ${toSend.length} non ancora consegnate`)) {
+          toSend = [...toSend, ...alreadySent];
+        }
+      }
+      if (toSend.length === 0) {
+        alert('Nessuna email da inviare con i criteri scelti.');
+        return;
+      }
 
       let ok = 0, fail = 0;
       for (const g of toSend) {
@@ -4312,8 +4451,8 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         } catch (e) { fail++; }
       }
       let final = `✓ ${ok} email accodate per invio.`;
-      if (fail > 0)              final += `\n⚠️ ${fail} fallite (vedi tab Eventi → audit log).`;
-      if (withoutEmail.length>0) final += `\n📧 ${withoutEmail.length} ospiti senza email — clicca "📧 Invia" sulla riga per inserirla.`;
+      if (fail > 0)              final += `\n⚠️ ${fail} fallite all'accodamento (vedi audit log).`;
+      if (withoutEmail.length>0) final += `\n📧 ${withoutEmail.length} ospiti senza email — clicca "📧 Invia" sulla riga per inserirla manualmente.`;
       alert(final);
       loadGuestList();
     }
@@ -5094,26 +5233,60 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
 
         const dateFormatted = g.expected_date ? g.expected_date.split('-').reverse().join('/') : '—';
 
-        // Stato email
-        const emailStatus = emailStatusByGuest.get(g.id);
+        // Stato email (oggetto: {status, sent_at, created_at, error, attempts})
+        const emailEntry = emailStatusByGuest.get(g.id);
+        const emailStatus = emailEntry ? emailEntry.status : null;
+        // Tooltip ricco con timestamp e ultimo errore (se presente)
+        const fmtRelTime = iso => {
+          if (!iso) return '—';
+          try {
+            const d = new Date(iso);
+            const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
+            if (diffSec < 60)    return diffSec + ' sec fa';
+            if (diffSec < 3600)  return Math.floor(diffSec / 60) + ' min fa';
+            if (diffSec < 86400) return Math.floor(diffSec / 3600) + ' h fa';
+            if (diffSec < 604800) return Math.floor(diffSec / 86400) + ' giorni fa';
+            return d.toLocaleDateString('it-IT');
+          } catch (_) { return '—'; }
+        };
         let emailHtml;
         if (arrived) {
-          emailHtml = '<span class="email-status email-status-done" title="Già firmato">—</span>';
+          emailHtml = '<span class="email-status email-status-done" title="Già firmato (QR usato)">—</span>';
         } else if (emailStatus === 'sent') {
-          emailHtml = '<span class="email-status email-status-sent" title="Email QR personale inviata">✓ Inviata</span>';
+          // Inviata con successo: mostra info + bottone "Reinvia" cliccabile (per casi "non l'ho ricevuta")
+          const tip = `Inviata ${fmtRelTime(emailEntry.sent_at)} (${new Date(emailEntry.sent_at).toLocaleString('it-IT')})`;
+          emailHtml = `
+            <div class="email-cell">
+              <span class="email-status email-status-sent" title="${esc(tip)}">✓ Inviata ${fmtRelTime(emailEntry.sent_at)}</span>
+              <button type="button" class="btn-email-resend" data-id="${esc(g.id)}" onclick="sendQrEmailSingle(this)" title="Reinvia (es. ospite dice di non averla ricevuta)">🔁 Reinvia</button>
+            </div>`;
         } else if (emailStatus === 'pending' || emailStatus === 'sending') {
-          emailHtml = '<span class="email-status email-status-pending" title="In coda di invio">⏳ In coda</span>';
+          emailHtml = `<span class="email-status email-status-pending" title="In coda di invio dall'agente Python (creata ${fmtRelTime(emailEntry.created_at)})">⏳ In coda</span>`;
         } else if (emailStatus === 'failed') {
-          emailHtml = '<span class="email-status email-status-failed" title="Invio fallito">⚠️ Fallita</span>';
+          // Fallita: bottone "Riprova" cliccabile + tooltip con errore
+          const tip = `Errore: ${emailEntry.error || 'sconosciuto'} (${emailEntry.attempts || 0} tentativi, ${fmtRelTime(emailEntry.created_at)})`;
+          emailHtml = `
+            <div class="email-cell">
+              <span class="email-status email-status-failed" title="${esc(tip)}">⚠️ Fallita</span>
+              <button type="button" class="btn-email-resend" data-id="${esc(g.id)}" onclick="sendQrEmailSingle(this)" title="Riprova invio (controlla che l'email sia corretta)">🔁 Riprova</button>
+            </div>`;
         } else {
           emailHtml = `<button type="button" class="btn-email-send" data-id="${esc(g.id)}" onclick="sendQrEmailSingle(this)" title="Invia QR personale via email">📧 Invia</button>`;
         }
+
+        // Email cell: mostra valore + matita per modificarlo manualmente
+        const emailValue = g.email ? esc(g.email) : '<span style="color:#cbd5e0">—</span>';
+        const emailValueHtml = `
+          <div class="email-value-cell">
+            <span class="email-value">${emailValue}</span>
+            <button type="button" class="btn-email-edit" data-id="${esc(g.id)}" onclick="editGuestEmail(this)" title="Modifica email (es. correggere errore di battitura)">✏️</button>
+          </div>`;
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><strong>${esc(g.first_name)}</strong></td>
           <td><strong>${esc(g.last_name)}</strong></td>
-          <td>${esc(g.email) || '<span style="color:#cbd5e0">—</span>'}</td>
+          <td>${emailValueHtml}</td>
           <td>${esc(g.company) || '—'}</td>
           <td>${dateFormatted}</td>
           <td>${esc(g.person_to_visit) || '—'}</td>
