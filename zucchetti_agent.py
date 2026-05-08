@@ -89,7 +89,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.4.0-multiuser"
+AGENT_VERSION = "1.4.1-dedup"
 
 
 def update_heartbeat(notes: str | None = None):
@@ -659,7 +659,11 @@ def is_event_open(event_id):
 
 
 def record_movement(visitor_id, event_id, ts_iso, direction, badge, tx_id=None):
-    """Append-only log delle timbrature in visitor_movements (prova legale)."""
+    """Append-only log delle timbrature in visitor_movements (prova legale).
+
+    Idempotente: usa on_conflict=raw_transaction_id + ignore-duplicates per
+    evitare doppioni quando l'agente rilegge le stesse transazioni AXS_DB ad
+    ogni ciclo (window overlap)."""
     try:
         body = {
             "visitor_id":   visitor_id,
@@ -671,13 +675,13 @@ def record_movement(visitor_id, event_id, ts_iso, direction, badge, tx_id=None):
         }
         if tx_id is not None:
             body["raw_transaction_id"] = tx_id
-        r = requests.post(
-            f"{SUPABASE_URL}/rest/v1/visitor_movements",
-            headers=_sb_headers,
-            json=body,
-            timeout=10,
-        )
-        if not r.ok:
+            url = f"{SUPABASE_URL}/rest/v1/visitor_movements?on_conflict=raw_transaction_id"
+            headers = {**_sb_headers, "Prefer": "resolution=ignore-duplicates,return=minimal"}
+        else:
+            url = f"{SUPABASE_URL}/rest/v1/visitor_movements"
+            headers = _sb_headers
+        r = requests.post(url, headers=headers, json=body, timeout=10)
+        if not r.ok and r.status_code != 409:
             log.warning(f"record_movement HTTP {r.status_code}: {r.text[:200]}")
     except Exception as e:
         log.warning(f"record_movement fallito: {e}")

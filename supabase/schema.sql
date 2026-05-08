@@ -298,3 +298,23 @@ DROP POLICY IF EXISTS "audit_log_auth_insert" ON audit_log;
 CREATE POLICY "audit_log_auth_read"   ON audit_log FOR SELECT USING (auth.role() = 'authenticated');
 -- Scrittura: tutti gli admin (chi fa l'azione registra il proprio log)
 CREATE POLICY "audit_log_auth_insert" ON audit_log FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- ============================================================
+-- MIGRATION v5b — Anti-duplicate visitor_movements (idempotenza agente)
+-- L'agente legge le transazioni recenti AXS_DB ogni 5s; senza dedup la stessa
+-- transazione viene scritta più volte in visitor_movements (es. 12 righe per minuto).
+-- Soluzione: UNIQUE su raw_transaction_id + insert con on_conflict ignore-duplicates.
+-- ============================================================
+
+-- Cleanup: cancella duplicati esistenti tenendo la riga con id minore (la prima inserita)
+DELETE FROM visitor_movements vm1
+USING visitor_movements vm2
+WHERE vm1.id > vm2.id
+  AND vm1.raw_transaction_id = vm2.raw_transaction_id
+  AND vm1.raw_transaction_id IS NOT NULL;
+
+-- UNIQUE partial: solo per raw_transaction_id valorizzato (le voci manuali senza
+-- raw_transaction_id possono comunque coesistere)
+CREATE UNIQUE INDEX IF NOT EXISTS visitor_movements_raw_tx_unique
+  ON visitor_movements (raw_transaction_id)
+  WHERE raw_transaction_id IS NOT NULL;
