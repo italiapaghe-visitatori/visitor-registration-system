@@ -45,7 +45,33 @@
     .header-logo { height: 80px; width: auto; object-fit: contain; }
     .header h1 { color: #fff; font-size: 20px; font-weight: 700; }
 
-    .header-right { display: flex; align-items: center; gap: 10px; }
+    /* Due righe: utility (in alto) + tab nav (sotto). Va a capo invece di scrollare. */
+    .header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+      max-width: 100%;
+    }
+    .header-utility,
+    .header-tabs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .header-utility {
+      font-size: 12px;
+      opacity: 0.95;
+    }
+    /* Pulsanti più compatti dentro la testata per stare in larghezza standard */
+    .header-tabs .btn,
+    .header-utility .btn {
+      padding: 8px 14px;
+      font-size: 13px;
+    }
 
     /* ── QR MODAL PREVIEW + PRINT ── */
     #qr-preview-area {
@@ -2032,19 +2058,25 @@
     </div>
 
     <div class="header-right">
-      <span id="agent-status" class="agent-status unknown" title="Stato agente XAtlas">
-        <span class="dot"></span><span id="agent-status-text">Agente: …</span>
-      </span>
-      <span id="user-email"></span>
-      <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')">Visitatori</button>
-      <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')">Ospiti Attesi</button>
-      <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')">🎫 Eventi</button>
-      <button type="button" class="btn btn-light" id="tab-drafts" onclick="switchView('drafts')">📝 Pre-assegnazione</button>
-      <button type="button" class="btn btn-light" id="tab-audit" onclick="switchView('audit')">📋 Audit</button>
-      <button type="button" class="btn btn-light" onclick="document.getElementById('users-modal').classList.add('active')">Utenti</button>
-      <button type="button" class="btn btn-light" onclick="exportCSV()">Esporta CSV</button>
-      <button type="button" class="btn btn-light" onclick="refreshCurrentView()" title="Ricarica dati della tab attiva">🔄 Aggiorna</button>
-      <button type="button" class="btn btn-danger" onclick="logout()">Esci</button>
+      <!-- Riga 1: utility (status, email, azioni globali) -->
+      <div class="header-utility">
+        <span id="agent-status" class="agent-status unknown" title="Stato agente XAtlas">
+          <span class="dot"></span><span id="agent-status-text">Agente: …</span>
+        </span>
+        <span id="user-email"></span>
+        <button type="button" class="btn btn-light" onclick="document.getElementById('users-modal').classList.add('active')" title="Gestione utenti">👤 Utenti</button>
+        <button type="button" class="btn btn-light" onclick="exportCSV()" title="Esporta CSV visitatori">📊 CSV</button>
+        <button type="button" class="btn btn-light" onclick="refreshCurrentView()" title="Ricarica dati della tab attiva">🔄</button>
+        <button type="button" class="btn btn-danger" onclick="logout()">Esci</button>
+      </div>
+      <!-- Riga 2: tab di navigazione -->
+      <div class="header-tabs">
+        <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')">Visitatori</button>
+        <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')">Ospiti Attesi</button>
+        <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')">🎫 Eventi</button>
+        <button type="button" class="btn btn-light" id="tab-drafts" onclick="switchView('drafts')">📝 Pre-assegnazione</button>
+        <button type="button" class="btn btn-light" id="tab-audit" onclick="switchView('audit')">📋 Audit</button>
+      </div>
     </div>
   </div>
 
