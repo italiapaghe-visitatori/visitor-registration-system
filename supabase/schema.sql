@@ -256,3 +256,45 @@ ALTER TABLE badge_pool ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "badge_pool_auth_all" ON badge_pool;
 -- Lettura/Scrittura: solo admin (l'agente Python usa service_role e bypassa)
 CREATE POLICY "badge_pool_auth_all" ON badge_pool FOR ALL USING (auth.role() = 'authenticated');
+
+-- ============================================================
+-- MIGRATION v5 — Multi-utenza tracking + audit log + pool rename agent
+-- Eseguire nel SQL Editor di Supabase Dashboard
+-- ============================================================
+
+-- 1) Tracciamento operatore su visitors e badge_pool
+ALTER TABLE visitors
+  ADD COLUMN IF NOT EXISTS assigned_by    TEXT,           -- email operatore che ha assegnato il badge
+  ADD COLUMN IF NOT EXISTS assigned_at    TIMESTAMPTZ,    -- quando il badge è stato assegnato
+  ADD COLUMN IF NOT EXISTS xatlas_renamed BOOLEAN DEFAULT FALSE; -- l'agente ha già rinominato l'utente XAtlas (per pool walk-in)
+
+ALTER TABLE badge_pool
+  ADD COLUMN IF NOT EXISTS assigned_by TEXT;              -- email operatore che ha consegnato il badge dal pool
+
+-- 2) Tabella guest_list: opzionale event_id per "ospite inatteso aggiunto durante evento"
+ALTER TABLE guest_list
+  ADD COLUMN IF NOT EXISTS event_id UUID REFERENCES events(id) DEFAULT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_guest_list_event_id ON guest_list(event_id);
+
+-- 3) Tabella audit_log: traccia delle azioni admin (chi ha fatto cosa, quando, su cosa)
+CREATE TABLE IF NOT EXISTS audit_log (
+  id          BIGSERIAL PRIMARY KEY,
+  user_email  TEXT NOT NULL,
+  action      TEXT NOT NULL,                 -- es. 'badge_assign','walkin_register','conclude_visit','event_create','event_start','event_close','pool_add','pool_remove','guest_add','guest_delete'
+  entity      TEXT,                          -- 'visitor' | 'event' | 'badge_pool' | 'guest_list'
+  entity_id   TEXT,                          -- id (UUID o BIGINT serializzato)
+  details     JSONB,                         -- payload contestuale (badge, nome, etc.)
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS audit_log_by_user  ON audit_log(user_email, created_at DESC);
+CREATE INDEX IF NOT EXISTS audit_log_by_entity ON audit_log(entity, entity_id);
+CREATE INDEX IF NOT EXISTS audit_log_recent   ON audit_log(created_at DESC);
+
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "audit_log_auth_read"   ON audit_log;
+DROP POLICY IF EXISTS "audit_log_auth_insert" ON audit_log;
+-- Lettura: tutti gli admin (utile per accountability)
+CREATE POLICY "audit_log_auth_read"   ON audit_log FOR SELECT USING (auth.role() = 'authenticated');
+-- Scrittura: tutti gli admin (chi fa l'azione registra il proprio log)
+CREATE POLICY "audit_log_auth_insert" ON audit_log FOR INSERT WITH CHECK (auth.role() = 'authenticated');
