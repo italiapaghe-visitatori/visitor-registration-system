@@ -1529,8 +1529,11 @@
     .sig-cell img { max-width: 80px; height: auto; border: 1px solid #e2e8f0; border-radius: 4px; display: block; }
 
     /* ── GUEST VIEW ── */
-    .view { display: none; }
-    .view.active { display: flex; flex-direction: column; }
+    /* !important per evitare overrides che nel browser di alcuni utenti
+       lasciano view non-active visibili (riprodotto in produzione: cliccando
+       Pre-assegnazione/Audit la tabella di Visitatori restava sopra). */
+    .view { display: none !important; }
+    .view.active { display: flex !important; flex-direction: column; }
     /* Riordina le sezioni di ogni view: PRIMA azioni/filtri (parte operativa),
        POI stat cards (dashboard di riepilogo), DOPO tabella (visualizzazione).
        Così cliccando una tab in cima atterri SUBITO sui controlli — niente
@@ -2728,6 +2731,8 @@
     <span>Sviluppato da</span>
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
+    <span class="sep">|</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-09c</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
