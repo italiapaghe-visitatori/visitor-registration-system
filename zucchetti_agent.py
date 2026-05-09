@@ -25,6 +25,7 @@ from email.mime.text import MIMEText
 from email.utils import formataddr
 
 import psycopg2
+from psycopg2 import pool as _pg_pool
 import requests
 
 # ── Configurazione ────────────────────────────────────────────────────────────
@@ -49,6 +50,34 @@ AXS_DB = dict(
     user=cfg["axs_db"]["user"],
     password=cfg["axs_db"].get("password", ""),
 )
+
+# Connection pool AXS_DB. Riusa connessioni invece di aprirne una nuova ad ogni
+# query: con polling 5s + 100+ visitatori in un evento, il pattern precedente
+# (psycopg2.connect ad ogni query) saturava max_connections del server PostgreSQL
+# in pochi minuti.
+_axs_pool: _pg_pool.SimpleConnectionPool | None = None
+
+def _init_axs_pool() -> None:
+    global _axs_pool
+    if _axs_pool is None:
+        _axs_pool = _pg_pool.SimpleConnectionPool(2, 10, **AXS_DB)
+
+def axs_acquire():
+    """Restituisce una connessione dal pool. Usare con `axs_release(conn)` in finally."""
+    if _axs_pool is None:
+        _init_axs_pool()
+    return _axs_pool.getconn()
+
+def axs_release(conn) -> None:
+    """Restituisce la connessione al pool. Best-effort: errori silenziosi (la
+    connessione potrebbe essere già morta, in tal caso il pool la sostituisce)."""
+    if conn is None or _axs_pool is None:
+        return
+    try:
+        _axs_pool.putconn(conn)
+    except Exception:
+        try: conn.close()
+        except Exception: pass
 
 # Valori fissi AXS_DB (da non modificare senza rigenerare il profilo)
 COMPANY_ID                  = 156
@@ -199,12 +228,31 @@ def xatlas_login():
 
 
 def xatlas_request(method, path, **kwargs):
+    """Wrapper di requests.Session.{get,post,...} con re-login automatico.
+
+    Resilienza:
+    - 401 → invalido la sessione e ri-faccio login (token scaduto).
+    - ConnectionError / Timeout → invalido la sessione (server XAtlas potrebbe
+      essersi riavviato e non riconosce più il JSESSIONID) e riprovo UNA volta
+      dopo nuovo login. Senza questo, una sessione "zombie" causerebbe stall di
+      ~45min (15s × MAX_RETRIES × N badge in coda) finché qualcuno la riavvia
+      manualmente.
+    """
     global _xatlas_session
     if _xatlas_session is None:
         xatlas_login()
     url = f"{XATLAS_BASE}{path}"
-    r = getattr(_xatlas_session, method)(url, timeout=15, **kwargs)
+    try:
+        r = getattr(_xatlas_session, method)(url, timeout=15, **kwargs)
+    except (requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+            requests.exceptions.ChunkedEncodingError) as e:
+        log.warning(f"XAtlas {method.upper()} {path} fallita ({type(e).__name__}: {e}), re-login e retry…")
+        _xatlas_session = None
+        xatlas_login()
+        r = getattr(_xatlas_session, method)(url, timeout=15, **kwargs)
     if r.status_code == 401:
+        _xatlas_session = None
         xatlas_login()
         r = getattr(_xatlas_session, method)(url, timeout=15, **kwargs)
     return r
@@ -222,14 +270,23 @@ def _today_ms():
 
 
 def _find_external_user_by_identifier(identifier: str) -> int | None:
-    """Cerca user_identifier.id per identifier (es. VIS241026)."""
+    """Cerca user_identifier.id per identifier (es. VIS241026).
+
+    ORDER BY id DESC: in caso di duplicati storici (creati prima del fix
+    idempotenza), prende il più recente — riducibile a "stesso utente"
+    dal punto di vista dell'agente. Senza ORDER BY, PostgreSQL può tornare
+    record in ordine arbitrario tra esecuzioni → comportamento instabile.
+    """
     try:
-        conn = psycopg2.connect(**AXS_DB)
+        conn = axs_acquire()
         cur  = conn.cursor()
-        cur.execute("SELECT id FROM user_identifier WHERE identifier = %s LIMIT 1;", (identifier,))
+        cur.execute(
+            "SELECT id FROM user_identifier WHERE identifier = %s ORDER BY id DESC LIMIT 1;",
+            (identifier,),
+        )
         row = cur.fetchone()
         cur.close()
-        conn.close()
+        axs_release(conn)
         return row[0] if row else None
     except Exception as e:
         log.error(f"Errore lookup user_identifier {identifier}: {e}")
@@ -239,12 +296,12 @@ def _find_external_user_by_identifier(identifier: str) -> int | None:
 def find_card_id_by_clear_code(clear_code: str) -> int | None:
     """Cerca card.id per clear_code (numero badge) in AXS_DB."""
     try:
-        conn = psycopg2.connect(**AXS_DB)
+        conn = axs_acquire()
         cur = conn.cursor()
         cur.execute("SELECT id FROM card WHERE clear_code = %s LIMIT 1;", (clear_code,))
         row = cur.fetchone()
         cur.close()
-        conn.close()
+        axs_release(conn)
         return row[0] if row else None
     except Exception as e:
         log.error(f"Errore lookup card_id per clear_code={clear_code}: {e}")
@@ -260,20 +317,25 @@ def ensure_card_free(card_id: int) -> bool:
     """
     conn = None
     try:
-        conn = psycopg2.connect(**AXS_DB)
+        conn = axs_acquire()
         cur  = conn.cursor()
+        # FOR UPDATE OF c: locka la riga della card per la durata della
+        # transazione. Se 2 segretarie cercano di assegnare lo stesso badge
+        # in parallelo, la seconda aspetta che la prima committi (e poi vede
+        # owner_id valorizzato → ritorna False, no double-assign).
         cur.execute(
             """
             SELECT c.user_id, u.identifier, c.validity_end
             FROM card c
             LEFT JOIN user_identifier u ON u.id = c.user_id
-            WHERE c.id = %s;
+            WHERE c.id = %s
+            FOR UPDATE OF c;
             """,
             (card_id,),
         )
         row = cur.fetchone()
         if row is None:
-            cur.close(); conn.close()
+            cur.close(); axs_release(conn)
             return False
         owner_id, owner_identifier, validity_end = row
 
@@ -292,7 +354,7 @@ def ensure_card_free(card_id: int) -> bool:
 
         if owner_id is None:
             conn.commit()
-            cur.close(); conn.close()
+            cur.close(); axs_release(conn)
             return True  # già libera
 
         if owner_identifier is None:
@@ -300,7 +362,7 @@ def ensure_card_free(card_id: int) -> bool:
             cur.execute("UPDATE card SET user_id = NULL WHERE id = %s;", (card_id,))
             conn.commit()
             log.info(f"Card {card_id}: liberata da user_id orfano {owner_id}")
-            cur.close(); conn.close()
+            cur.close(); axs_release(conn)
             return True
 
         # Utente reale: non liberare
@@ -309,14 +371,13 @@ def ensure_card_free(card_id: int) -> bool:
             f"Card {card_id} è assegnata a {owner_identifier} (id={owner_id}), "
             "non liberata automaticamente. Risolvere manualmente."
         )
-        cur.close(); conn.close()
+        cur.close(); axs_release(conn)
         return False
 
     except Exception as e:
         log.error(f"Errore ensure_card_free({card_id}): {e}")
         if conn:
-            try: conn.close()
-            except Exception: pass
+            axs_release(conn)
         return False
 
 
@@ -338,7 +399,7 @@ def find_or_create_card_id(clear_code: str) -> int | None:
     log.info(f"Card {clear_code} non esiste in AXS_DB → auto-creazione (user_id=NULL)")
     conn = None
     try:
-        conn = psycopg2.connect(**AXS_DB)
+        conn = axs_acquire()
         conn.autocommit = False
         cur = conn.cursor()
 
@@ -402,10 +463,7 @@ def find_or_create_card_id(clear_code: str) -> int | None:
         return None
     finally:
         if conn:
-            try:
-                conn.close()
-            except Exception:
-                pass
+            axs_release(conn)
 
 
 def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tuple[int, int]:
@@ -428,69 +486,80 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tu
             "Liberarla manualmente prima di riprovare."
         )
 
-    # 2) Crea utente esterno
+    # 2) Crea utente esterno (con idempotenza: salta se identifier già esistente)
     start_ms, end_ms = _today_ms()
     end_of_use_ms = 4133977199999  # 31/12/2099 come Baudo Pippo
     identifier = f"VIS{badge_number}"
 
-    params = {
-        "_dc": int(time.time() * 1000),
-        "locale": "it-IT",
-        "dummies": json.dumps([{"id": 0, "name": "Qualsiasi"}]),
-    }
-    short_name = f"{last_name} {first_name}".strip()  # formato come Baudo Pippo
-    body = {
-        "companyId": COMPANY_ID,
-        "externalCompanyId": EXTERNAL_COMPANY_ID,
-        "siteId": SITE_ID,
-        "organizationalStructureId": ORGANIZATIONAL_STRUCTURE_ID,
-        "identifier": identifier,
-        "firstname": first_name,
-        "lastname":  last_name,
-        "shortName": short_name,
-        "name":      first_name,
-        "surname":   last_name,
-        "allowed": True,
-        "enabled": True,
-        "safety": True,
-        "userType": 29,
-        "validityStart": str(start_ms),
-        "validityEnd": str(end_ms),
-        "endOfUse": str(end_of_use_ms),
-        "apbControl": True,
-        "apbLunchControl": True,
-        "userControl": True,
-        "timeControl": True,
-        "defaultTransitTime": True,
-        "exportTransaction": True,
-        "sensitive": True,
-        "authGroupId": AUTH_GROUP_ID,
-    }
-    r = xatlas_request(
-        "post",
-        "/users/data/ExternalUser/create",
-        params=params,
-        json=body,
-        headers={"x-requested-with": "XMLHttpRequest", "accept": "*/*"},
-    )
-    if r.ok:
-        data = r.json()
-        if data.get("success"):
-            xatlas_id = data["records"][0]["id"]
-            log.info(f"Utente XAtlas creato: id={xatlas_id} identifier={identifier}")
-        else:
-            raise RuntimeError(f"XAtlas create non riuscito: {data}")
+    # IDEMPOTENZA: se l'agente è crashato dopo INSERT user_identifier ma prima
+    # di PATCH visitors.xatlas_status='active', al restart riprocessa lo stesso
+    # visitor. Senza questo check, creerebbe un secondo utente VIS{badge}
+    # duplicato → tornello confuso. Check PRE-create: se identifier esiste
+    # già → riusa quel xatlas_id e salta la POST /create.
+    existing_xatlas_id = _find_external_user_by_identifier(identifier)
+    if existing_xatlas_id is not None:
+        xatlas_id = existing_xatlas_id
+        log.info(f"Utente XAtlas {identifier} già esistente (id={xatlas_id}), riuso (skip create)")
     else:
-        # Se l'utente esiste già (vincolo univoco), recuperalo dal DB invece di fallire
-        if "vincolo univoco" in r.text or "external_users" in r.text or "duplic" in r.text.lower():
-            existing_id = _find_external_user_by_identifier(identifier)
-            if existing_id:
-                xatlas_id = existing_id
-                log.info(f"Utente XAtlas {identifier} già esistente (id={xatlas_id}), riuso")
+        params = {
+            "_dc": int(time.time() * 1000),
+            "locale": "it-IT",
+            "dummies": json.dumps([{"id": 0, "name": "Qualsiasi"}]),
+        }
+        short_name = f"{last_name} {first_name}".strip()  # formato come Baudo Pippo
+        body = {
+            "companyId": COMPANY_ID,
+            "externalCompanyId": EXTERNAL_COMPANY_ID,
+            "siteId": SITE_ID,
+            "organizationalStructureId": ORGANIZATIONAL_STRUCTURE_ID,
+            "identifier": identifier,
+            "firstname": first_name,
+            "lastname":  last_name,
+            "shortName": short_name,
+            "name":      first_name,
+            "surname":   last_name,
+            "allowed": True,
+            "enabled": True,
+            "safety": True,
+            "userType": 29,
+            "validityStart": str(start_ms),
+            "validityEnd": str(end_ms),
+            "endOfUse": str(end_of_use_ms),
+            "apbControl": True,
+            "apbLunchControl": True,
+            "userControl": True,
+            "timeControl": True,
+            "defaultTransitTime": True,
+            "exportTransaction": True,
+            "sensitive": True,
+            "authGroupId": AUTH_GROUP_ID,
+        }
+        r = xatlas_request(
+            "post",
+            "/users/data/ExternalUser/create",
+            params=params,
+            json=body,
+            headers={"x-requested-with": "XMLHttpRequest", "accept": "*/*"},
+        )
+        if r.ok:
+            data = r.json()
+            if data.get("success"):
+                xatlas_id = data["records"][0]["id"]
+                log.info(f"Utente XAtlas creato: id={xatlas_id} identifier={identifier}")
             else:
-                raise RuntimeError(f"Utente esiste ma non lo trovo via DB: {r.status_code}")
+                raise RuntimeError(f"XAtlas create non riuscito: {data}")
         else:
-            raise RuntimeError(f"Errore creazione utente XAtlas: {r.status_code} {r.text[:200]}")
+            # Race condition fallback: se nel frattempo un altro processo l'ha
+            # creato (vincolo univoco), recuperalo dal DB invece di fallire.
+            if "vincolo univoco" in r.text or "external_users" in r.text or "duplic" in r.text.lower():
+                existing_id = _find_external_user_by_identifier(identifier)
+                if existing_id:
+                    xatlas_id = existing_id
+                    log.info(f"Utente XAtlas {identifier} appena creato da altro processo (id={xatlas_id}), riuso")
+                else:
+                    raise RuntimeError(f"Utente esiste ma non lo trovo via DB: {r.status_code}")
+            else:
+                raise RuntimeError(f"Errore creazione utente XAtlas: {r.status_code} {r.text[:200]}")
 
     # 3) Assegna tessera via /UserCard/assign (endpoint reale catturato con DevTools)
     ar = xatlas_request(
@@ -591,7 +660,7 @@ def get_recent_transactions(badge_codes: list[str]) -> list[dict]:
         return []
 
     try:
-        conn = psycopg2.connect(**AXS_DB)
+        conn = axs_acquire()
         cur  = conn.cursor()
         placeholders = ",".join(["%s"] * len(badge_codes))
         cur.execute(
@@ -607,7 +676,7 @@ def get_recent_transactions(badge_codes: list[str]) -> list[dict]:
         cols = [d[0] for d in cur.description]
         rows = [dict(zip(cols, r)) for r in cur.fetchall()]
         cur.close()
-        conn.close()
+        axs_release(conn)
         return rows
     except Exception as e:
         log.error(f"Errore lettura transazioni AXS_DB: {e}")
@@ -873,7 +942,7 @@ def startup_catchup():
             continue
 
         try:
-            conn = psycopg2.connect(**AXS_DB)
+            conn = axs_acquire()
             cur  = conn.cursor()
             cur.execute(
                 """
@@ -887,7 +956,7 @@ def startup_catchup():
             )
             rows = cur.fetchall()
             cur.close()
-            conn.close()
+            axs_release(conn)
         except Exception as e:
             log.error(f"Catchup: errore query badge {badge}: {e}")
             continue
