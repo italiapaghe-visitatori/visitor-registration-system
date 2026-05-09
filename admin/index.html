@@ -1903,6 +1903,27 @@
       margin-top:   0    !important;
       margin-bottom: 16px !important;
     }
+
+    /* SNELLA: quando view-visitors fa da panoramica (NON è la tab attiva
+       Visitatori), nascondi filtri, stats card, paginazione e ricerca per
+       lasciare SOLO la tabella. Evita la duplicazione visiva di controlli
+       che la segretaria ha già nella propria tab di lavoro. */
+    body[data-view]:not([data-view="visitors"]):not([data-view="login"]):not([data-view=""]) #view-visitors > .stats-bar,
+    body[data-view]:not([data-view="visitors"]):not([data-view="login"]):not([data-view=""]) #view-visitors > .filters,
+    body[data-view]:not([data-view="visitors"]):not([data-view="login"]):not([data-view=""]) #view-visitors > .pagination {
+      display: none !important;
+    }
+    /* Etichetta sopra la tabella così è chiaro che è la panoramica e non
+       la tab Visitatori vera. */
+    body[data-view]:not([data-view="visitors"]):not([data-view="login"]):not([data-view=""]) #view-visitors > .table-wrap::before {
+      content: "👥 Panoramica visitatori — evento attivo";
+      display: block;
+      padding: 6px 14px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #4c51bf;
+      letter-spacing: 0.3px;
+    }
     /* Feedback visivo all'attivazione di una view: brillio + leggera traslazione
        dall'alto (~250ms). Comunica subito "ho cambiato pagina" anche se l'utente
        era scrollato in basso. */
@@ -3306,7 +3327,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10c · panoramica-bottom</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10d · panoramica-snella</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
