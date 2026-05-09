@@ -285,6 +285,7 @@ def _find_external_user_by_identifier(identifier: str) -> int | None:
     dal punto di vista dell'agente. Senza ORDER BY, PostgreSQL può tornare
     record in ordine arbitrario tra esecuzioni → comportamento instabile.
     """
+    conn = None
     try:
         conn = axs_acquire()
         cur  = conn.cursor()
@@ -294,26 +295,31 @@ def _find_external_user_by_identifier(identifier: str) -> int | None:
         )
         row = cur.fetchone()
         cur.close()
-        axs_release(conn)
         return row[0] if row else None
     except Exception as e:
         log.error(f"Errore lookup user_identifier {identifier}: {e}")
         return None
+    finally:
+        if conn is not None:
+            axs_release(conn)
 
 
 def find_card_id_by_clear_code(clear_code: str) -> int | None:
     """Cerca card.id per clear_code (numero badge) in AXS_DB."""
+    conn = None
     try:
         conn = axs_acquire()
         cur = conn.cursor()
         cur.execute("SELECT id FROM card WHERE clear_code = %s LIMIT 1;", (clear_code,))
         row = cur.fetchone()
         cur.close()
-        axs_release(conn)
         return row[0] if row else None
     except Exception as e:
         log.error(f"Errore lookup card_id per clear_code={clear_code}: {e}")
         return None
+    finally:
+        if conn is not None:
+            axs_release(conn)
 
 
 def ensure_card_free(card_id: int) -> bool:
@@ -322,8 +328,13 @@ def ensure_card_free(card_id: int) -> bool:
     a un utente NON esistente (orfano), libera automaticamente la card.
     Se la card è assegnata a un utente reale, NON la tocca → ritorna False.
     Inoltre estende la validità della card se è scaduta (1900 → 2100).
+
+    Pattern try/finally garantisce che la conn sia sempre rilasciata al pool,
+    anche se cur.close() solleva eccezione (raro ma possibile su connessioni
+    rotte). Su exception path, conn.rollback() libera anche il lock FOR UPDATE.
     """
     conn = None
+    cur = None
     try:
         conn = axs_acquire()
         cur  = conn.cursor()
@@ -343,7 +354,7 @@ def ensure_card_free(card_id: int) -> bool:
         )
         row = cur.fetchone()
         if row is None:
-            cur.close(); axs_release(conn)
+            conn.rollback()
             return False
         owner_id, owner_identifier, validity_end = row
 
@@ -362,7 +373,6 @@ def ensure_card_free(card_id: int) -> bool:
 
         if owner_id is None:
             conn.commit()
-            cur.close(); axs_release(conn)
             return True  # già libera
 
         if owner_identifier is None:
@@ -370,7 +380,6 @@ def ensure_card_free(card_id: int) -> bool:
             cur.execute("UPDATE card SET user_id = NULL WHERE id = %s;", (card_id,))
             conn.commit()
             log.info(f"Card {card_id}: liberata da user_id orfano {owner_id}")
-            cur.close(); axs_release(conn)
             return True
 
         # Utente reale: non liberare
@@ -379,14 +388,20 @@ def ensure_card_free(card_id: int) -> bool:
             f"Card {card_id} è assegnata a {owner_identifier} (id={owner_id}), "
             "non liberata automaticamente. Risolvere manualmente."
         )
-        cur.close(); axs_release(conn)
         return False
 
     except Exception as e:
         log.error(f"Errore ensure_card_free({card_id}): {e}")
-        if conn:
-            axs_release(conn)
+        if conn is not None:
+            try: conn.rollback()
+            except Exception: pass
         return False
+    finally:
+        if cur is not None:
+            try: cur.close()
+            except Exception: pass
+        if conn is not None:
+            axs_release(conn)
 
 
 def find_or_create_card_id(clear_code: str) -> int | None:
@@ -667,6 +682,8 @@ def get_recent_transactions(badge_codes: list[str]) -> list[dict]:
     if not badge_codes:
         return []
 
+    conn = None
+    cur = None
     try:
         conn = axs_acquire()
         cur  = conn.cursor()
@@ -683,12 +700,16 @@ def get_recent_transactions(badge_codes: list[str]) -> list[dict]:
         )
         cols = [d[0] for d in cur.description]
         rows = [dict(zip(cols, r)) for r in cur.fetchall()]
-        cur.close()
-        axs_release(conn)
         return rows
     except Exception as e:
         log.error(f"Errore lettura transazioni AXS_DB: {e}")
         return []
+    finally:
+        if cur is not None:
+            try: cur.close()
+            except Exception: pass
+        if conn is not None:
+            axs_release(conn)
 
 
 # ── Ciclo principale ──────────────────────────────────────────────────────────

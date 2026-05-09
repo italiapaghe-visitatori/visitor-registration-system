@@ -1516,12 +1516,17 @@
     function signatureHasContent() {
       try {
         const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        // Soglia adattiva alla dimensione canvas: ~1/2000 dell'area totale,
+        // minimo 20 (per canvas tablet 700×160 = ~56 soglia, per mobile 300×100
+        // = ~20 soglia). Garantisce che firme legittime su canvas piccoli non
+        // vengano rigettate, ma resta abbastanza per filtrare 1 click accidentale.
+        const totalPixels = (canvas.width * canvas.height);
+        const threshold = Math.max(20, Math.floor(totalPixels / 2000));
         let nonWhite = 0;
         for (let i = 0; i < data.length; i += 16) { // ogni 4° pixel (4 byte/pix × 4)
-          // R<255 || G<255 || B<255 = non bianco puro
           if (data[i] < 250 || data[i+1] < 250 || data[i+2] < 250) {
             nonWhite++;
-            if (nonWhite >= 50) return true; // shortcut, soglia raggiunta
+            if (nonWhite >= threshold) return true;
           }
         }
         return false;
@@ -2321,8 +2326,17 @@
     document.getElementById('first_name').addEventListener('input', updateAgreementName);
     document.getElementById('last_name').addEventListener('input', updateAgreementName);
 
+    // Flag globale anti double-submit: se l'utente preme Enter 2 volte rapide
+    // (o doppio click sul bottone), il primo submit gira ma il secondo viene
+    // bloccato. Senza, si potevano creare 2 AbortController + 2 fetch
+    // contemporanee, con rischio di doppia registrazione lato Supabase
+    // (visitor_movements duplicati nonostante la migration v5b).
+    let _kioskSubmitting = false;
+
     document.getElementById('visitor-form').addEventListener('submit', async e => {
       e.preventDefault();
+
+      if (_kioskSubmitting) return;
 
       if (!validateForm()) {
         showMsg('error', 'Compila tutti i campi obbligatori (evidenziati in rosso) e acconsenti al trattamento dei dati.');
@@ -2331,6 +2345,8 @@
         if (firstInvalid) firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
+
+      _kioskSubmitting = true;
 
       const consentEl   = document.getElementById('data_consent');
       const signatureOn = CONFIG.fields.signature?.enabled !== false;
@@ -2474,6 +2490,7 @@
         }
       } finally {
         clearTimeout(submitTimeout);
+        _kioskSubmitting = false;
         btn.disabled = false;
         btn.textContent = 'Registra Visita';
       }
