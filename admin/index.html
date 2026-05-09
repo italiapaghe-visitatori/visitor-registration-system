@@ -3330,7 +3330,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10j · norme-struttura</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10k · top-legal-proof</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -4185,6 +4185,34 @@
             <a href="../assets/S2S_Brochure_Accesso_Immobile.pdf" target="_blank" rel="noopener" class="consent-link">📄 Apri PDF</a>
           </div>
         `;
+
+        // ── PROVA LEGALE TOP TIER (Migration v11) ──────────────
+        // Aggiunge i 4 campi di audit avanzato sotto la sezione consensi
+        // standard. Visibili solo se popolati (record vecchi pre-v11
+        // non li hanno → mostriamo "—" o nascondiamo la sezione).
+        const ip      = row.consent_ip;
+        const ua      = row.consent_user_agent;
+        const pdfHash = row.access_rules_pdf_hash;
+        const pdfSize = row.access_rules_pdf_size;
+        const hasAnyV11 = ip || ua || pdfHash || pdfSize;
+        if (hasAnyV11) {
+          const uaShort = ua ? (ua.length > 90 ? ua.substring(0, 90) + '…' : ua) : null;
+          const hashShort = pdfHash ? pdfHash.substring(0, 16) + '…' + pdfHash.substring(pdfHash.length - 8) : null;
+          consentsEl.innerHTML += `
+            <div class="consent-row ok" style="background:#f5f3ff;border-color:#c4b5fd">
+              <span class="consent-icon">🛡️</span>
+              <div class="consent-text">
+                <div><strong>Prova legale completa</strong> <small style="color:#7c3aed">(audit avanzato)</small></div>
+                <div class="consent-meta" style="font-family:monospace;font-size:11px;line-height:1.6">
+                  ${ip      ? '<div>🌐 IP: <strong>' + esc(ip) + '</strong></div>' : ''}
+                  ${uaShort ? '<div title="' + esc(ua) + '">💻 Device: ' + esc(uaShort) + '</div>' : ''}
+                  ${hashShort ? '<div title="SHA256 completo: ' + esc(pdfHash) + '">🔒 Hash PDF: ' + esc(hashShort) + '</div>' : ''}
+                  ${pdfSize ? '<div>📄 Dim. PDF: ' + esc(String(pdfSize)) + ' bytes</div>' : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        }
       }
 
       // Carica storico timbrature da visitor_movements

@@ -492,3 +492,27 @@ ALTER TABLE badge_pool
 CREATE INDEX IF NOT EXISTS badge_pool_scan_session
   ON badge_pool(scan_session_id, scan_order)
   WHERE scan_session_id IS NOT NULL;
+
+-- =====================================================
+-- MIGRATION v11 — Top legal proof (IP + UA + PDF hash)
+-- =====================================================
+-- Estende l'audit trail del consenso GDPR + Norme di accesso con 4 campi
+-- aggiuntivi che blindano la prova legale in caso di contestazione:
+--
+-- consent_ip:            IP pubblico del visitor al momento della firma
+--                        (rilevato lato client via api.ipify.org). Prova
+--                        "ha firmato da questa rete" (es. WiFi guest S2S).
+-- consent_user_agent:    User-Agent string del browser/device usato. Prova
+--                        "ha firmato da questo dispositivo" (es. Tablet
+--                        kiosk vs smartphone personale via QR).
+-- access_rules_pdf_hash: SHA256 hex del file PDF servito al momento della
+--                        firma (calcolato lato client al boot). Prova
+--                        "ha visto ESATTAMENTE questo documento, non
+--                        modificato in seguito".
+-- access_rules_pdf_size: Dimensione del PDF in bytes (extra checksum,
+--                        ridondanza con hash per detection di anomalie).
+ALTER TABLE visitors
+  ADD COLUMN IF NOT EXISTS consent_ip            TEXT,
+  ADD COLUMN IF NOT EXISTS consent_user_agent    TEXT,
+  ADD COLUMN IF NOT EXISTS access_rules_pdf_hash TEXT,
+  ADD COLUMN IF NOT EXISTS access_rules_pdf_size INTEGER;

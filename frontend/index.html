@@ -1620,6 +1620,47 @@
       if (link) window.__accessRulesPdfOpened = true;
     }, true);
 
+    // ── AUDIT LEGAL PROOF (top tier) ─────────────────────
+    // Prefetch IP + hash PDF al boot della pagina, così sono pronti al submit
+    // senza far aspettare l'ospite. Cache in window.* — se la fetch fallisce
+    // (rete debole, CORS, ecc.) il campo resta null, non blocca la registrazione.
+    window.__visitorIp           = null;
+    window.__pdfHash             = null;
+    window.__pdfSize             = null;
+    window.__visitorUserAgent    = (navigator.userAgent || '').substring(0, 500);
+
+    // 1) IP pubblico via api.ipify.org (gratis, no API key, no rate limit per uso normale)
+    (async () => {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 4000);
+        const r = await fetch('https://api.ipify.org?format=json', { signal: ctrl.signal });
+        clearTimeout(t);
+        if (r.ok) {
+          const j = await r.json();
+          window.__visitorIp = (j.ip || '').substring(0, 64);
+        }
+      } catch (_) { /* silent: IP è null = audit più debole ma non blocca */ }
+    })();
+
+    // 2) SHA256 + dimensione del PDF servito ADESSO. Prova "il visitor ha
+    //    visto ESATTAMENTE questo file, non modificato dopo". Calcolato via
+    //    Web Crypto API (browser native, no dipendenze esterne).
+    (async () => {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        const r = await fetch('../assets/S2S_Brochure_Accesso_Immobile.pdf', { signal: ctrl.signal });
+        clearTimeout(t);
+        if (!r.ok) return;
+        const buf = await r.arrayBuffer();
+        window.__pdfSize = buf.byteLength;
+        const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+        window.__pdfHash = Array.from(new Uint8Array(hashBuf))
+          .map(b => b.toString(16).padStart(2, '0')).join('');
+      } catch (_) { /* silent: hash è null = stessa tolleranza dell'IP */ }
+    })();
+
     // Modalità QR: l'ospite ha aperto la pagina dal proprio cellulare scansionando il QR al desk.
     // Cambia: messaggio finale persistente "ritira il badge alla reception", niente screensaver,
     // niente auto-reset del form (un device = un utente), polling guest_list più frequente (8s).
@@ -2383,10 +2424,20 @@
         // Norme di accesso alla struttura (PDF brochure S2S): consenso separato dal GDPR
         // per audit/legal. Il checkbox unico copre entrambi i consensi (l'ospite spunta
         // un solo box ma confermando dichiara di aver letto il PDF + accettato GDPR).
-        access_rules_consent: consentEl.checked,
-        access_rules_at:      consentEl.checked ? new Date().toISOString() : null,
-        access_rules_version: ACCESS_RULES_VERSION,
-        access_rules_opened:  !!window.__accessRulesPdfOpened,
+        access_rules_consent:  consentEl.checked,
+        access_rules_at:       consentEl.checked ? new Date().toISOString() : null,
+        access_rules_version:  ACCESS_RULES_VERSION,
+        access_rules_opened:   !!window.__accessRulesPdfOpened,
+        // ── AUDIT LEGAL PROOF (Migration v11) ──────────────
+        // 4 campi per blindare la prova legale del consenso:
+        // - consent_ip:          IP del visitor (rete da cui ha firmato)
+        // - consent_user_agent:  device/browser usato per firmare
+        // - access_rules_pdf_hash: SHA256 del PDF visto (immutabilità documento)
+        // - access_rules_pdf_size: bytes del PDF (checksum ridondante)
+        consent_ip:            window.__visitorIp || null,
+        consent_user_agent:    window.__visitorUserAgent || null,
+        access_rules_pdf_hash: window.__pdfHash || null,
+        access_rules_pdf_size: window.__pdfSize || null,
         badge_agreement:  document.getElementById('badge_agreement').checked,
         signature:        (signatureOn && signatureHasContent()) ? canvas.toDataURL('image/jpeg', 0.7) : null
       };
