@@ -1528,9 +1528,14 @@
        Così cliccando una tab in cima atterri SUBITO sui controlli — niente
        più sensazione "il click non ha effetto" perché le card di stato
        riempivano tutto lo schermo. */
+    /* Coperti tutti i contenitori toolbar usati nelle 5 view:
+       .filters       (Visitatori, Audit, Pre-assegnazione)
+       .toolbar-actions (Ospiti Attesi)
+       .guest-actions (Eventi — usato per i bottoni Aggiungi/Nuovo Evento) */
     .view.active > .filters,
-    .view.active > .toolbar-actions { order: 1; }
-    .view.active > .stats-bar       { order: 2; margin-top: 4px; }
+    .view.active > .toolbar-actions,
+    .view.active > .guest-actions    { order: 1; }
+    .view.active > .stats-bar        { order: 2; margin-top: 4px; }
     .view.active > .table-wrap,
     .view.active > .audit-pagination { order: 3; }
     /* Tab Pre-assegnazione ha sub-view (lista vs editor) come child diretti.
@@ -1542,7 +1547,9 @@
     #drafts-list-view > .filters,
     #drafts-editor-view > .filters,
     #drafts-list-view > .toolbar-actions,
-    #drafts-editor-view > .toolbar-actions { order: 1; }
+    #drafts-editor-view > .toolbar-actions,
+    #drafts-list-view > .guest-actions,
+    #drafts-editor-view > .guest-actions { order: 1; }
     #drafts-list-view > .stats-bar,
     #drafts-editor-view > .stats-bar { order: 2; margin-top: 4px; }
     #drafts-list-view > .table-wrap,
