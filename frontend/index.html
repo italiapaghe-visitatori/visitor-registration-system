@@ -1313,7 +1313,7 @@
 
         <div class="form-group" id="badge-number-group">
           <label for="badge_number">Numero Badge</label>
-          <input type="text" id="badge_number" name="badge_number" autocomplete="off" placeholder="Badge assegnato in portineria">
+          <input type="text" id="badge_number" name="badge_number" autocomplete="off" placeholder="Badge assegnato in portineria" inputmode="numeric" pattern="\d{3,12}" maxlength="12" title="Solo numeri, da 3 a 12 cifre">
         </div>
 
         <div class="form-group" id="phone-group">
@@ -1505,6 +1505,30 @@
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, w, h);
       setupCtx();
+    }
+
+    // Verifica che il canvas firma contenga DAVVERO segno di matita, non solo
+    // un click accidentale che setta hasDrawn=true. Scansiona ogni 4° pixel
+    // (campionamento, basta per soglia significativa) e conta quanti NON sono
+    // bianchi puri. Soglia 50 pixel non-bianchi = firma reale (un punto piccolo
+    // ne ha già ~30, una scarabocchiata ne ha migliaia). Senza questo, un ospite
+    // poteva "firmare" toccando 1 pixel a caso e l'audit trail era invalidato.
+    function signatureHasContent() {
+      try {
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        let nonWhite = 0;
+        for (let i = 0; i < data.length; i += 16) { // ogni 4° pixel (4 byte/pix × 4)
+          // R<255 || G<255 || B<255 = non bianco puro
+          if (data[i] < 250 || data[i+1] < 250 || data[i+2] < 250) {
+            nonWhite++;
+            if (nonWhite >= 50) return true; // shortcut, soglia raggiunta
+          }
+        }
+        return false;
+      } catch (_) {
+        // In caso di errore (canvas tainted da CSP, ecc.), fallback al flag legacy
+        return hasDrawn;
+      }
     }
 
     function clearSig() {
@@ -2234,10 +2258,11 @@
       check('department',    'department');
       check('vehiclePlate',  'vehicle_plate');
 
-      // Signature
+      // Signature: deve essere DAVVERO disegnata, non solo "toccata" 1 pixel.
+      // signatureHasContent() conta i pixel non-bianchi, soglia ≥ 50.
       const signatureOn = f.signature?.enabled !== false && f.signature?.required !== false;
       const sigWrapper = document.querySelector('.sig-wrapper');
-      if (signatureOn && !hasDrawn) {
+      if (signatureOn && !signatureHasContent()) {
         if (sigWrapper) sigWrapper.style.borderColor = '#e53e3e';
         valid = false;
       } else {
@@ -2338,7 +2363,7 @@
         access_rules_version: ACCESS_RULES_VERSION,
         access_rules_opened:  !!window.__accessRulesPdfOpened,
         badge_agreement:  document.getElementById('badge_agreement').checked,
-        signature:        (signatureOn && hasDrawn) ? canvas.toDataURL('image/jpeg', 0.7) : null
+        signature:        (signatureOn && signatureHasContent()) ? canvas.toDataURL('image/jpeg', 0.7) : null
       };
 
       // Tag evento: se c'è un evento attivo (CURRENT_EVENT popolato), tagga il visitatore.
@@ -2376,6 +2401,13 @@
       // Se l'ospite era già pre-attivato (stub creato dall'admin), aggiorna invece di creare nuovo
       const existingStubId = (payload.guest_id && preAssignedVisitorByGuest.get(payload.guest_id)) || null;
 
+      // Timeout 30s sul submit: senza, se Supabase risponde lento o cade, il
+      // bottone resta disabilitato all'infinito e l'ospite non sa se la
+      // registrazione è andata. Con AbortController dopo 30s lanciamo errore
+      // chiaro così l'ospite può ritentare (non genera doppia registrazione
+      // perché il PATCH è idempotente sull'id, e l'INSERT pre-fail).
+      const submitController = new AbortController();
+      const submitTimeout = setTimeout(() => submitController.abort(), 30000);
       try {
         let res;
         if (existingStubId) {
@@ -2388,7 +2420,8 @@
               'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
               'Prefer':        'return=minimal'
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: submitController.signal
           });
         } else {
           // INSERT: nuovo visitor (walk-in o ospite non pre-attivato)
@@ -2400,7 +2433,8 @@
               'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
               'Prefer':        'return=minimal'
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: submitController.signal
           });
         }
 
@@ -2433,8 +2467,13 @@
           throw new Error(err.message || `Errore del server (${res.status})`);
         }
       } catch (err) {
-        showMsg('error', 'Errore: ' + err.message);
+        if (err.name === 'AbortError') {
+          showMsg('error', 'Timeout: il server non ha risposto entro 30 secondi. Riprova o avvisa il personale.');
+        } else {
+          showMsg('error', 'Errore: ' + err.message);
+        }
       } finally {
+        clearTimeout(submitTimeout);
         btn.disabled = false;
         btn.textContent = 'Registra Visita';
       }
