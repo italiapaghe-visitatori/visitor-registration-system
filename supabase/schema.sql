@@ -446,3 +446,49 @@ ALTER TABLE visitors
 --                       tracciata via JS, evidenza ulteriore per audit)
 
 CREATE INDEX IF NOT EXISTS visitors_access_rules_idx ON visitors(access_rules_consent);
+
+-- =====================================================
+-- MIGRATION v10 — Modalità Acquisizione & Pair Badge
+-- =====================================================
+-- Permette di passare i badge fisici a un lettore RFID USB-HID 125kHz (es.
+-- HDWR HD-RD80) o a qualsiasi altro dispositivo che si comporti come tastiera
+-- (numero+Invio), e raggrupparli in "sessioni di scan" per poi fare il pair
+-- con la lista ospiti in tre modalità: auto-sequenziale, click+scan, drag-drop.
+--
+-- Il design è agnostico al lettore (basta che produca stringa+Invio): funziona
+-- anche solo a tastiera per fallback / test.
+
+-- Tabella sessioni di scan (raggruppa N badge_pool con stesso scan_session_id)
+CREATE TABLE IF NOT EXISTS badge_scan_sessions (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  event_id    UUID REFERENCES events(id) ON DELETE SET NULL,
+  name        TEXT,                                   -- "Sessione 12 mag pomeriggio"
+  status      TEXT DEFAULT 'open'
+                CHECK (status IN ('open','closed','archived')),
+  created_by  TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  closed_at   TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS badge_scan_sessions_event   ON badge_scan_sessions(event_id);
+CREATE INDEX IF NOT EXISTS badge_scan_sessions_status  ON badge_scan_sessions(status, created_at DESC);
+
+ALTER TABLE badge_scan_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "scan_sessions_auth_read"   ON badge_scan_sessions;
+DROP POLICY IF EXISTS "scan_sessions_auth_insert" ON badge_scan_sessions;
+DROP POLICY IF EXISTS "scan_sessions_auth_update" ON badge_scan_sessions;
+DROP POLICY IF EXISTS "scan_sessions_auth_delete" ON badge_scan_sessions;
+CREATE POLICY "scan_sessions_auth_read"   ON badge_scan_sessions FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "scan_sessions_auth_insert" ON badge_scan_sessions FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "scan_sessions_auth_update" ON badge_scan_sessions FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "scan_sessions_auth_delete" ON badge_scan_sessions FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Estensione tabella badge_pool: collega ogni badge a una sessione di scan
+-- (NULL per badge inseriti col vecchio metodo "+ Aggiungi al pool" via range/lista)
+ALTER TABLE badge_pool
+  ADD COLUMN IF NOT EXISTS scan_session_id UUID REFERENCES badge_scan_sessions(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS scan_order      INTEGER;
+
+-- Indice per query "tutti i badge di una sessione, in ordine di scansione"
+CREATE INDEX IF NOT EXISTS badge_pool_scan_session
+  ON badge_pool(scan_session_id, scan_order)
+  WHERE scan_session_id IS NOT NULL;

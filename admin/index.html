@@ -1302,6 +1302,269 @@
     .dre-status-finalized { background: #c6f6d5; color: #22543d; }
     .dre-status-archived  { background: #e2e8f0; color: #4a5568; }
 
+    /* ── ACQUISIZIONE & PAIR (tab "🔍 Acquisizione") ── */
+    /* Pill stato sessione (open/closed/archived) */
+    .acq-session-pill {
+      font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px;
+      letter-spacing: 0.4px; white-space: nowrap;
+    }
+    .acq-session-pill.open     { background: #c6f6d5; color: #22543d; }
+    .acq-session-pill.closed   { background: #fefcbf; color: #744210; }
+    .acq-session-pill.archived { background: #e2e8f0; color: #4a5568; }
+
+    /* Tabs Stage 1 / Stage 2 — grossi, ben visibili */
+    .acq-stage-tabs {
+      display: flex; gap: 8px;
+    }
+    .acq-stage-tab {
+      flex: 1;
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px;
+      background: #f7f9fc; color: #4a5568;
+      border: 2px solid transparent; border-radius: 10px;
+      cursor: pointer; font-size: 14px;
+      transition: all 0.15s;
+    }
+    .acq-stage-tab:hover { background: #edf2f7; border-color: #cbd5e0; }
+    .acq-stage-tab.active {
+      background: linear-gradient(135deg, #ebf4ff 0%, #e9d8fd 100%);
+      color: #4c51bf; border-color: #4c51bf;
+      box-shadow: 0 3px 10px rgba(76,81,191,0.2);
+    }
+    .acq-stage-num {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: #fff; color: #4c51bf;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 13px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    .acq-stage-tab.active .acq-stage-num { background: #4c51bf; color: #fff; }
+    .acq-stage-lbl { flex: 1; font-weight: 700; }
+    .acq-stage-cnt {
+      background: rgba(76,81,191,0.12); color: #4c51bf;
+      font-size: 12px; font-weight: 700;
+      padding: 3px 9px; border-radius: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+    .acq-stage-tab.active .acq-stage-cnt {
+      background: #4c51bf; color: #fff;
+    }
+    .acq-stage-pane { margin-top: 10px; }
+
+    /* Stage 1: zona scan (input + stats) */
+    .acq-scan-area {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 16px;
+      padding: 16px 18px;
+      background: linear-gradient(135deg, #f0fff4 0%, #e6fffa 100%);
+      border: 2px dashed #38b2ac;
+      border-radius: 12px;
+      margin-bottom: 14px;
+    }
+    .acq-scan-input-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .acq-scan-input {
+      width: 100%;
+      padding: 16px 18px;
+      font-size: 24px; font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 1px;
+      border: 2px solid #38b2ac;
+      border-radius: 10px;
+      background: #fff;
+      color: #234e52;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .acq-scan-input:focus {
+      outline: none;
+      border-color: #285e61;
+      box-shadow: 0 0 0 3px rgba(56,178,172,0.25);
+    }
+    .acq-scan-input:disabled { background: #f0f4f8; color: #a0aec0; cursor: not-allowed; }
+    .acq-scan-hint { font-size: 11px; color: #4a5568; }
+
+    .acq-scan-stats {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    }
+    .acq-scan-stat-item {
+      background: #fff; border-radius: 8px;
+      padding: 8px 10px;
+      text-align: center;
+      border: 1px solid #e6fffa;
+    }
+    .acq-scan-stat-num {
+      font-size: 28px; font-weight: 800; color: #234e52;
+      font-variant-numeric: tabular-nums;
+    }
+    .acq-scan-stat-lbl {
+      font-size: 10px; text-transform: uppercase; color: #718096;
+      letter-spacing: 0.5px; font-weight: 700;
+    }
+    @media (max-width: 900px) {
+      .acq-scan-area { grid-template-columns: 1fr; }
+    }
+
+    .acq-scan-list-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 8px; font-size: 13px;
+    }
+
+    /* Stage 2: tabs delle modalità pair */
+    .acq-pair-modes {
+      display: flex; gap: 8px; margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .acq-pair-mode-btn {
+      flex: 1; min-width: 180px;
+      padding: 10px 16px;
+      background: #fff; color: #4a5568;
+      border: 2px solid #e2e8f0; border-radius: 10px;
+      cursor: pointer; font-size: 13px; font-weight: 600;
+      transition: all 0.15s;
+    }
+    .acq-pair-mode-btn:hover { border-color: #4c51bf; background: #f7fafc; }
+    .acq-pair-mode-btn.active {
+      background: linear-gradient(135deg, #4c51bf 0%, #553c9a 100%);
+      color: #fff; border-color: #4c51bf;
+      box-shadow: 0 3px 10px rgba(76,81,191,0.3);
+    }
+    .acq-pair-pane { animation: fadeIn 0.2s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .acq-info-box {
+      background: #fffaf0; border-left: 4px solid #ed8936;
+      padding: 10px 14px; border-radius: 6px;
+      font-size: 13px; color: #744210; line-height: 1.5;
+    }
+
+    /* Progress bar auto-pair */
+    .acq-progress-bar {
+      width: 100%; height: 8px;
+      background: #e2e8f0; border-radius: 4px; overflow: hidden;
+    }
+    .acq-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #38b2ac 0%, #4c51bf 100%);
+      transition: width 0.2s ease-out;
+      width: 0%;
+    }
+
+    /* Layout click+scan */
+    .acq-click-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 14px;
+      align-items: start;
+    }
+    .acq-click-list-col { min-width: 0; }
+    .acq-click-list-header {
+      display: flex; gap: 10px; align-items: center; margin-bottom: 8px;
+    }
+    .acq-click-search {
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0; border-radius: 6px;
+      font-size: 13px;
+      flex: 1; min-width: 150px;
+    }
+    .acq-click-input-col {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 14px;
+      background: #f7fafc; border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      position: sticky; top: 110px;
+    }
+    .acq-click-current {
+      padding: 10px;
+      background: #fff; border: 1px dashed #cbd5e0; border-radius: 8px;
+      text-align: center;
+    }
+    .acq-click-current-lbl {
+      font-size: 10px; text-transform: uppercase; color: #718096;
+      font-weight: 700; letter-spacing: 0.5px;
+    }
+    .acq-click-current-name {
+      font-size: 16px; font-weight: 700; color: #2d3748; margin-top: 4px;
+    }
+    .acq-click-stats {
+      font-size: 12px; color: #718096; text-align: center;
+      font-weight: 600;
+    }
+    /* Riga ospite cliccabile in mod CLICK */
+    #acq-click-guest-body tr { cursor: pointer; transition: background 0.1s; }
+    #acq-click-guest-body tr:hover { background: #ebf4ff; }
+    #acq-click-guest-body tr.selected {
+      background: #4c51bf; color: #fff;
+    }
+    #acq-click-guest-body tr.selected td { color: #fff; }
+
+    /* Layout drag-drop */
+    .acq-dnd-layout {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    }
+    .acq-dnd-col {
+      background: #f7fafc; border-radius: 10px;
+      padding: 12px;
+      border: 1px solid #e2e8f0;
+      min-height: 400px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .acq-dnd-col-header {
+      font-weight: 700; color: #4a5568;
+    }
+    .acq-dnd-chips-area {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      flex: 1;
+      padding: 8px;
+      background: #fff; border-radius: 6px;
+      align-content: flex-start;
+      overflow-y: auto;
+      max-height: 500px;
+    }
+    .acq-dnd-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 6px 10px;
+      background: linear-gradient(135deg, #fffaf0 0%, #feebc8 100%);
+      border: 1px solid #ed8936; border-radius: 16px;
+      font-size: 12px; font-weight: 700;
+      color: #7c2d12;
+      cursor: grab; user-select: none;
+      transition: transform 0.1s;
+    }
+    .acq-dnd-chip:hover { transform: translateY(-1px); }
+    .acq-dnd-chip:active, .acq-dnd-chip.dragging {
+      cursor: grabbing; opacity: 0.5;
+    }
+    .acq-dnd-guests-area {
+      flex: 1;
+      background: #fff; border-radius: 6px;
+      overflow-y: auto;
+      max-height: 500px;
+    }
+    .acq-dnd-guest-row {
+      padding: 10px 12px;
+      border-bottom: 1px solid #edf0f5;
+      display: flex; align-items: center; gap: 10px;
+      transition: background 0.15s;
+    }
+    .acq-dnd-guest-row.drag-over {
+      background: #ebf4ff; border-color: #4c51bf;
+      box-shadow: inset 0 0 0 2px #4c51bf;
+    }
+    .acq-dnd-guest-row .guest-info { flex: 1; min-width: 0; }
+    .acq-dnd-guest-row .guest-name { font-weight: 700; color: #2d3748; }
+    .acq-dnd-guest-row .guest-co   { font-size: 11px; color: #718096; }
+    .acq-dnd-guest-row .guest-badge {
+      padding: 4px 8px; background: #c6f6d5; color: #22543d;
+      border-radius: 12px; font-size: 11px; font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .acq-dnd-guest-row .guest-badge.empty { background: #fed7d7; color: #822727; }
+
+    @media (max-width: 800px) {
+      .acq-click-layout, .acq-dnd-layout { grid-template-columns: 1fr; }
+      .acq-click-input-col { position: static; }
+    }
+
     /* ── ACTION BUTTONS ── */
     .btn-delete {
       background: none; border: 1.5px solid #fc8181; color: #e53e3e;
@@ -2255,6 +2518,7 @@
         <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')" title="Lista ospiti invitati prima dell'evento: stato invio email QR, badge pronti, arrivi. La vista 'segreteria' nella fase preparatoria.">Ospiti Attesi</button>
         <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')" title="Gestione eventi: crea/avvia/chiudi, pool badge dedicato, generazione QR pubblico. Solo un evento può essere attivo alla volta.">🎫 Eventi</button>
         <button type="button" class="btn btn-light" id="tab-drafts" onclick="switchView('drafts')" title="Editor pre-assegnazione massiva badge: importa CSV partecipanti, assegna badge (manuale/auto-numera/pool) con validazione live e cross-check multi-utente, esporta o importa direttamente in Ospiti Attesi.">📝 Pre-assegnazione</button>
+        <button type="button" class="btn btn-light" id="tab-acquire" onclick="switchView('acquire')" title="Modalità Acquisizione &amp; Pair Badge: scansiona velocemente i badge fisici col lettore RFID USB (o digitazione manuale) per popolare il pool, poi assegnali agli ospiti in 3 modalità (auto-sequenziale, click+scan, drag-drop). 96 badge in 5 minuti totali.">🔍 Acquisizione</button>
         <button type="button" class="btn btn-light" id="tab-audit" onclick="switchView('audit')" title="Storico azioni operatori (chi ha fatto cosa, quando, su cosa). Utile per accountability in ambienti multi-utente.">📋 Audit</button>
       </div>
     </div>
@@ -2594,6 +2858,13 @@
               <option value="draft_finalize">Pre-assegna: finalizza</option>
               <option value="draft_import">Pre-assegna: import in Ospiti Attesi</option>
               <option value="draft_delete">Pre-assegna: elimina draft</option>
+              <option value="scan_session_create">Acquisizione: nuova sessione</option>
+              <option value="scan_session_close">Acquisizione: chiudi sessione</option>
+              <option value="pool_scan_add">Acquisizione: scan badge</option>
+              <option value="scan_undo">Acquisizione: undo scan</option>
+              <option value="pair_badge">Pair badge → ospite</option>
+              <option value="pair_badge_bulk">Pair bulk (auto)</option>
+              <option value="pair_undo">Pair: undo</option>
             </select>
           </div>
           <div class="filter-group filter-actions">
@@ -2761,6 +3032,230 @@
       </div>
     </div>
 
+    <!-- ============== VIEW: 🔍 ACQUISIZIONE & PAIR BADGE ============== -->
+    <!-- Tre sotto-viste: lista sessioni / Stage 1 (scan) / Stage 2 (pair) -->
+    <div class="view" id="view-acquire">
+
+      <!-- ── Sotto-vista A: Lista sessioni di scan ── -->
+      <div id="acq-list-view">
+        <div class="filters">
+          <div class="filters-secondary" style="justify-content:space-between">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button type="button" class="btn btn-primary" onclick="acqNewSession()" title="Crea una nuova sessione di scan badge. Una sessione raggruppa N badge fisici scansionati col lettore (o digitati a mano) per permetterne il pair successivo con la lista ospiti.">＋ Nuova sessione di scan</button>
+              <label style="font-size:13px;color:#4a5568;display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="acq-show-closed" onchange="loadAcquireSessions()"> Mostra sessioni chiuse e archiviate
+              </label>
+            </div>
+            <span style="font-size:12px;color:#718096">
+              💡 Workflow: 1) crea sessione → 2) scansiona i badge → 3) chiudi sessione → 4) pair con ospiti
+            </span>
+          </div>
+        </div>
+
+        <div class="stats-bar stats-3">
+          <div class="stat-card stat-card-primary">
+            <span class="stat-icon">&#128194;</span>
+            <h3>Sessioni totali</h3>
+            <div class="value" id="acq-stat-total">—</div>
+            <div class="sub">tutte</div>
+          </div>
+          <div class="stat-card stat-card-warning">
+            <span class="stat-icon">&#128268;</span>
+            <h3>Aperte</h3>
+            <div class="value" id="acq-stat-open">—</div>
+            <div class="sub">in scansione</div>
+          </div>
+          <div class="stat-card stat-card-success">
+            <span class="stat-icon">&#9989;</span>
+            <h3>Chiuse</h3>
+            <div class="value" id="acq-stat-closed">—</div>
+            <div class="sub">pronte per pair</div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <div id="acq-table-status" class="table-status">Caricamento sessioni...</div>
+          <div class="table-scroll table-hidden" id="acq-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th class="no-sort">📂 Nome sessione</th>
+                  <th class="no-sort">🎫 Evento</th>
+                  <th class="no-sort">🔢 Badge scansionati</th>
+                  <th class="no-sort">⚙️ Stato</th>
+                  <th class="no-sort">⏱ Creata</th>
+                  <th class="no-sort">👤 Da</th>
+                  <th class="no-sort">Azioni</th>
+                </tr>
+              </thead>
+              <tbody id="acq-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Sotto-vista B: Editor sessione (Stage 1 + Stage 2) ── -->
+      <div id="acq-editor-view" style="display:none">
+
+        <!-- Header sessione + tabs Stage 1 / Stage 2 -->
+        <div class="filters" style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button type="button" class="btn btn-secondary" onclick="acqCloseEditor()" title="Torna alla lista delle sessioni">← Torna alle sessioni</button>
+            <input type="text" id="acq-session-name" placeholder="Nome sessione" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;font-weight:600">
+            <select id="acq-session-event" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+              <option value="">— Seleziona evento —</option>
+            </select>
+            <span id="acq-session-status" class="acq-session-pill open">📡 APERTA</span>
+          </div>
+
+          <!-- Tab navigation tra Stage 1 (Scan) e Stage 2 (Pair) -->
+          <div class="acq-stage-tabs">
+            <button type="button" id="acq-stage-tab-1" class="acq-stage-tab active" onclick="acqSelectStage(1)" title="Stage 1: scansiona o digita i badge fisici per popolare la sessione">
+              <span class="acq-stage-num">1</span>
+              <span class="acq-stage-lbl">📡 Acquisizione</span>
+              <span class="acq-stage-cnt" id="acq-cnt-stage1">0</span>
+            </button>
+            <button type="button" id="acq-stage-tab-2" class="acq-stage-tab" onclick="acqSelectStage(2)" title="Stage 2: assegna i badge agli ospiti dell'evento (3 modalità)">
+              <span class="acq-stage-num">2</span>
+              <span class="acq-stage-lbl">👥 Pair badge → ospiti</span>
+              <span class="acq-stage-cnt" id="acq-cnt-stage2">0/0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Stage 1 — Acquisizione ── -->
+        <div id="acq-stage-1" class="acq-stage-pane">
+          <div class="acq-scan-area">
+            <div class="acq-scan-input-wrap">
+              <label for="acq-scan-input" style="font-size:12px;color:#718096;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">📡 Numero badge (scanner o tastiera)</label>
+              <input type="text" id="acq-scan-input" autocomplete="off" placeholder="Passa il badge al lettore o digita…" inputmode="numeric"
+                     class="acq-scan-input">
+              <div class="acq-scan-hint">L'input resta sempre attivo. Premi Invio per aggiungere. Il lettore HID lo fa automaticamente.</div>
+            </div>
+            <div class="acq-scan-stats">
+              <div class="acq-scan-stat-item"><div class="acq-scan-stat-num" id="acq-scan-count">0</div><div class="acq-scan-stat-lbl">scansionati</div></div>
+              <div class="acq-scan-stat-item"><div class="acq-scan-stat-num" id="acq-scan-dups">0</div><div class="acq-scan-stat-lbl">duplicati</div></div>
+              <div class="acq-scan-stat-item"><div class="acq-scan-stat-num" id="acq-scan-errs">0</div><div class="acq-scan-stat-lbl">errori</div></div>
+            </div>
+          </div>
+
+          <div class="acq-scan-list-header">
+            <strong>Cronologia scansioni</strong> <span style="color:#718096;font-size:12px">(più recenti in cima)</span>
+            <button type="button" class="btn btn-light" onclick="acqUndoLastScan()" id="acq-undo-btn" disabled
+                    style="margin-left:auto" title="Annulla l'ultimo badge scansionato (rimuove dal pool)">↶ Annulla ultimo</button>
+            <button type="button" class="btn btn-warning" onclick="acqCloseSession()" id="acq-close-session-btn"
+                    title="Chiudi la sessione: non si possono più aggiungere badge. Le scansioni restano e si può fare pair.">🔒 Chiudi sessione</button>
+          </div>
+          <div class="table-wrap">
+            <div class="table-scroll" id="acq-scan-list-container">
+              <table id="acq-scan-list">
+                <thead>
+                  <tr>
+                    <th class="no-sort" style="width:60px">#</th>
+                    <th class="no-sort">🎟 Numero badge</th>
+                    <th class="no-sort">⏱ Scansionato</th>
+                    <th class="no-sort">⚙️ Stato attivazione</th>
+                    <th class="no-sort">👤 Pair (ospite)</th>
+                  </tr>
+                </thead>
+                <tbody id="acq-scan-list-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Stage 2 — Pair (3 modalità) ── -->
+        <div id="acq-stage-2" class="acq-stage-pane" style="display:none">
+          <div class="acq-pair-modes">
+            <button type="button" class="acq-pair-mode-btn active" data-mode="auto" onclick="acqSelectPairMode('auto')" title="N-esimo badge della sessione → N-esimo ospite della lista. Veloce e batch.">🔄 Auto-pair sequenziale</button>
+            <button type="button" class="acq-pair-mode-btn" data-mode="click" onclick="acqSelectPairMode('click')" title="Click su ospite + scansiona/digita badge → assegnato. Tab/Shift+Tab per navigare. Esc per cancellare. Backspace per undo.">👆 Click + scan</button>
+            <button type="button" class="acq-pair-mode-btn" data-mode="dnd" onclick="acqSelectPairMode('dnd')" title="Trascina chip badge dalla colonna sinistra alla riga ospite a destra.">🔀 Drag-drop</button>
+          </div>
+
+          <!-- Modalità AUTO -->
+          <div id="acq-pair-mode-auto" class="acq-pair-pane">
+            <div class="acq-info-box">
+              💡 <strong>Auto-pair sequenziale</strong>: il sistema assegna il <em>1° badge scansionato</em> al <em>1° ospite</em> della lista, il 2° al 2°, etc.
+              <br>Ordina gli ospiti come preferisci (alfabetico, per data, etc.) prima di lanciare. Gli ospiti già pre-assegnati con un altro badge vengono saltati di default.
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;margin:10px 0">
+              <label style="font-size:13px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="acq-auto-skip-paired" checked> Salta ospiti già pre-assegnati</label>
+              <span style="flex:1"></span>
+              <button type="button" class="btn btn-primary" onclick="acqRunAutoPair()" id="acq-run-auto-pair">🚀 Avvia auto-pair</button>
+            </div>
+            <div id="acq-auto-progress" style="display:none">
+              <div class="acq-progress-bar"><div class="acq-progress-fill" id="acq-auto-progress-fill"></div></div>
+              <div id="acq-auto-progress-msg" style="text-align:center;font-size:13px;color:#4a5568;margin-top:6px"></div>
+            </div>
+            <div class="table-wrap" style="margin-top:10px">
+              <div class="table-scroll" style="max-height:400px">
+                <table id="acq-auto-preview">
+                  <thead>
+                    <tr>
+                      <th class="no-sort" style="width:50px">#</th>
+                      <th class="no-sort">🎟 Badge</th>
+                      <th class="no-sort">→</th>
+                      <th class="no-sort">👤 Ospite</th>
+                      <th class="no-sort">⚙️ Stato</th>
+                    </tr>
+                  </thead>
+                  <tbody id="acq-auto-preview-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modalità CLICK + SCAN -->
+          <div id="acq-pair-mode-click" class="acq-pair-pane" style="display:none">
+            <div class="acq-info-box">
+              💡 <strong>Click + scan</strong>: clicca un ospite per selezionarlo, poi passa il badge al lettore (o digita Invio). Si assegna e il focus passa al prossimo ospite. <strong>Tab</strong>/<strong>Shift+Tab</strong> per navigare, <strong>Esc</strong> per deselezionare, <strong>Backspace</strong> (lista vuota) per undo.
+            </div>
+            <div class="acq-click-layout">
+              <div class="acq-click-list-col">
+                <div class="acq-click-list-header">
+                  <strong>👥 Ospiti senza badge</strong>
+                  <input type="text" id="acq-click-search" placeholder="Cerca cognome/azienda…" class="acq-click-search">
+                </div>
+                <div class="table-wrap"><div class="table-scroll" style="max-height:500px"><table>
+                  <thead><tr><th class="no-sort">Cognome</th><th class="no-sort">Nome</th><th class="no-sort">Azienda</th></tr></thead>
+                  <tbody id="acq-click-guest-body"></tbody>
+                </table></div></div>
+              </div>
+              <div class="acq-click-input-col">
+                <div class="acq-click-current">
+                  <div class="acq-click-current-lbl">Ospite selezionato</div>
+                  <div class="acq-click-current-name" id="acq-click-current-name">— nessuno —</div>
+                </div>
+                <input type="text" id="acq-click-input" autocomplete="off" placeholder="Passa badge dopo aver selezionato un ospite…" class="acq-scan-input" disabled>
+                <div class="acq-click-stats" id="acq-click-stats">0 / 0 ospiti pair</div>
+                <button type="button" class="btn btn-light" onclick="acqClickUndoLast()" id="acq-click-undo" disabled>↶ Annulla ultimo</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modalità DRAG-DROP -->
+          <div id="acq-pair-mode-dnd" class="acq-pair-pane" style="display:none">
+            <div class="acq-info-box">
+              💡 <strong>Drag-drop</strong>: trascina un chip badge dalla colonna sinistra su una riga ospite a destra. Adatto a workflow asincrono (scan oggi, pair domani).
+            </div>
+            <div class="acq-dnd-layout">
+              <div class="acq-dnd-col">
+                <div class="acq-dnd-col-header">🎟 Badge non assegnati</div>
+                <input type="text" id="acq-dnd-search-badge" placeholder="Filtra numero…" class="acq-click-search">
+                <div id="acq-dnd-badge-list" class="acq-dnd-chips-area"></div>
+              </div>
+              <div class="acq-dnd-col">
+                <div class="acq-dnd-col-header">👥 Ospiti senza badge</div>
+                <input type="text" id="acq-dnd-search-guest" placeholder="Filtra nome/azienda…" class="acq-click-search">
+                <div id="acq-dnd-guest-list" class="acq-dnd-guests-area"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 
   <footer class="admin-footer">
@@ -2770,7 +3265,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-09e</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10a · acquisizione</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -2960,6 +3455,8 @@
       if (auView) auView.classList.toggle('active', v === 'audit');
       const drView = document.getElementById('view-drafts');
       if (drView) drView.classList.toggle('active', v === 'drafts');
+      const acView = document.getElementById('view-acquire');
+      if (acView) acView.classList.toggle('active', v === 'acquire');
       document.getElementById('tab-visitors').classList.toggle('active-tab', v === 'visitors');
       document.getElementById('tab-guests').classList.toggle('active-tab', v === 'guests');
       const evTab = document.getElementById('tab-events');
@@ -2968,10 +3465,13 @@
       if (auTab) auTab.classList.toggle('active-tab', v === 'audit');
       const drTab = document.getElementById('tab-drafts');
       if (drTab) drTab.classList.toggle('active-tab', v === 'drafts');
+      const acTab = document.getElementById('tab-acquire');
+      if (acTab) acTab.classList.toggle('active-tab', v === 'acquire');
       if (v === 'guests') loadGuestList();
       if (v === 'events') loadEvents();
       if (v === 'audit')  loadAuditLog();
       if (v === 'drafts') loadDrafts();
+      if (v === 'acquire') loadAcquireSessions();
       // Flash visuale sulla view appena attivata: feedback immediato che il click è andato
       // a segno (oltre allo scroll-to-top). Soprattutto utile per chi è nuovo alla piattaforma.
       const newView = document.querySelector('.view.active');
@@ -3934,6 +4434,13 @@
       draft_finalize:          { label: 'Pre-assegna: Finalizza',color: 'audit-color-green'  },
       draft_import:            { label: 'Pre-assegna: Import',   color: 'audit-color-purple' },
       draft_delete:            { label: 'Pre-assegna: Elimina',  color: 'audit-color-red'    },
+      scan_session_create:     { label: 'Acquisizione: nuova',   color: 'audit-color-teal'   },
+      scan_session_close:      { label: 'Acquisizione: chiusa',  color: 'audit-color-yellow' },
+      pool_scan_add:           { label: 'Acquisizione: scan badge', color: 'audit-color-orange' },
+      scan_undo:               { label: 'Acquisizione: undo scan',  color: 'audit-color-yellow' },
+      pair_badge:              { label: 'Pair badge → ospite',   color: 'audit-color-green'  },
+      pair_badge_bulk:         { label: 'Pair bulk (auto)',      color: 'audit-color-green'  },
+      pair_undo:               { label: 'Pair: undo',            color: 'audit-color-yellow' },
     };
 
     async function loadAuditLog() {
@@ -5094,13 +5601,166 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       });
     }
 
+    // ───────────────────────────────────────────────────────────────────────
+    // Persistenza badge nel pool (logica condivisa). Usata da:
+    //  - addBadgesToPool (input range/lista nella modale Pool)
+    //  - acquireScanAdd  (un singolo badge dallo scan/digitazione in tab Acquisizione)
+    //  - importDraftToGuests / future call site
+    // Garantisce: validazione duplicati, check visitor pre-assegnati, popolamento
+    // assigned_by (BUG-FIX v10: prima questo campo non veniva valorizzato),
+    // tracciamento sessione di scan, audit log uniforme.
+    //
+    // params:
+    //   eventId     UUID evento target
+    //   badges      array di stringhe (numeri badge da aggiungere)
+    //   options     {
+    //     scanSessionId?: UUID    // se presente, badge taggati con la sessione
+    //     scanOrderStart?: number // ordine iniziale (default: dal max esistente +1)
+    //     source?: string         // 'manual_form' | 'scan_acquire' | 'draft_import'
+    //     existingPool?: array    // pool già caricato per validazione duplicati locale
+    //     showAlerts?: boolean    // se true → alert UI; se false → ritorna risultato silenzioso
+    //   }
+    // returns: { added: [...], skipped: [...], errors: [...] }
+    async function _persistBadgesToPool(eventId, badges, options = {}) {
+      const opts = {
+        scanSessionId:  null,
+        scanOrderStart: null,
+        source:         'manual_form',
+        existingPool:   null,
+        showAlerts:     true,
+        ...options,
+      };
+      const result = { added: [], skipped: [], errors: [] };
+      if (!eventId) {
+        const m = 'Nessun evento specificato';
+        if (opts.showAlerts) alert(m);
+        result.errors.push(m);
+        return result;
+      }
+      const closed = findClosedEvent(eventId);
+      if (closed) {
+        const m = `L'evento "${closed.name}" è chiuso. Non si possono più aggiungere badge al pool.`;
+        if (opts.showAlerts) alert(m);
+        result.errors.push(m);
+        return result;
+      }
+      if (!Array.isArray(badges) || badges.length === 0) {
+        result.errors.push('Nessun badge fornito');
+        return result;
+      }
+
+      // Filtra duplicati nel pool dell'evento (usa cache se passata, altrimenti query)
+      let existingSet;
+      if (opts.existingPool) {
+        existingSet = new Set(opts.existingPool.map(p => p.badge_number));
+      } else {
+        try {
+          const r = await api(`${SUPABASE_URL}/rest/v1/badge_pool?select=badge_number&event_id=eq.${eventId}&status=in.(preparing,available,in_use)`);
+          const rows = r && r.ok ? await r.json() : [];
+          existingSet = new Set(rows.map(p => p.badge_number));
+        } catch (_) { existingSet = new Set(); }
+      }
+      const toAdd = badges.filter(b => {
+        if (existingSet.has(b)) {
+          result.skipped.push({ badge: b, reason: 'già nel pool dell\'evento' });
+          return false;
+        }
+        return true;
+      });
+      if (toAdd.length === 0) return result;
+
+      // Check incrociato visitors pre-assegnati (anti-conflitto)
+      try {
+        const inList = toAdd.map(b => `"${b}"`).join(',');
+        const r = await api(
+          `${SUPABASE_URL}/rest/v1/visitors?select=badge_number,first_name,last_name,xatlas_status,assigned_by&badge_number=in.(${inList})&xatlas_status=in.(pending,active)`
+        );
+        if (r && r.ok) {
+          const conflicts = await r.json();
+          if (conflicts.length > 0) {
+            const conflictBadges = new Set(conflicts.map(c => c.badge_number));
+            // sposta in skipped i badge conflittanti
+            const stillToAdd = [];
+            toAdd.forEach(b => {
+              if (conflictBadges.has(b)) {
+                const c = conflicts.find(x => x.badge_number === b);
+                result.skipped.push({
+                  badge: b,
+                  reason: `pre-assegnato a ${c.first_name} ${c.last_name} (${c.xatlas_status})${c.assigned_by ? ' da ' + c.assigned_by : ''}`
+                });
+              } else {
+                stillToAdd.push(b);
+              }
+            });
+            // Se TUTTI sono conflittanti e showAlerts → alert riassuntivo
+            if (opts.showAlerts && stillToAdd.length === 0 && conflicts.length === toAdd.length) {
+              const lines = conflicts.map(c => `  • ${c.badge_number} → ${c.first_name} ${c.last_name} (${c.xatlas_status})${c.assigned_by ? ' assegnato da ' + c.assigned_by : ''}`);
+              alert(
+                `⚠️ ${conflicts.length} badge sono GIÀ pre-assegnati nominalmente:\n\n` +
+                lines.join('\n') +
+                `\n\nRimuovili dai visitatori prima o usa un range diverso.`
+              );
+              return result;
+            }
+            toAdd.length = 0;
+            toAdd.push(...stillToAdd);
+          }
+        }
+      } catch (_) { /* best-effort */ }
+
+      if (toAdd.length === 0) return result;
+
+      // Determina scan_order iniziale se richiesto
+      let nextOrder = opts.scanOrderStart;
+      if (opts.scanSessionId && nextOrder == null) {
+        try {
+          const r = await api(`${SUPABASE_URL}/rest/v1/badge_pool?select=scan_order&scan_session_id=eq.${opts.scanSessionId}&order=scan_order.desc&limit=1`);
+          const rows = r && r.ok ? await r.json() : [];
+          nextOrder = (rows[0]?.scan_order || 0) + 1;
+        } catch (_) { nextOrder = 1; }
+      }
+
+      // Costruisci payload con assigned_by (BUG-FIX) + scan_session_id + scan_order
+      const payload = toAdd.map((b, i) => {
+        const row = {
+          badge_number:  b,
+          event_id:      eventId,
+          status:        'preparing',
+          assigned_by:   CURRENT_USER_EMAIL || null,
+        };
+        if (opts.scanSessionId) {
+          row.scan_session_id = opts.scanSessionId;
+          row.scan_order      = (nextOrder || 1) + i;
+        }
+        return row;
+      });
+
+      try {
+        const r = await api(`${SUPABASE_URL}/rest/v1/badge_pool`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify(payload)
+        });
+        if (!r || !r.ok) {
+          const b = r ? await r.json().catch(()=>({})) : {};
+          throw new Error(b.message || `Errore ${r?.status}`);
+        }
+        const inserted = await r.json();
+        result.added.push(...inserted);
+        auditLog(
+          opts.source === 'scan_acquire' ? 'pool_scan_add' : 'pool_add',
+          'badge_pool',
+          eventId,
+          { count: result.added.length, badges: toAdd.slice(0, 10), source: opts.source, session: opts.scanSessionId }
+        );
+      } catch (err) {
+        result.errors.push(err.message);
+      }
+      return result;
+    }
+
     async function addBadgesToPool() {
       if (!currentPoolEventId) return;
-      const closed = findClosedEvent(currentPoolEventId);
-      if (closed) {
-        alert(`L'evento "${closed.name}" è chiuso. Non si possono più aggiungere badge al pool.`);
-        return;
-      }
       const from = parseInt(document.getElementById('pool-range-from').value, 10);
       const to   = parseInt(document.getElementById('pool-range-to').value, 10);
       const list = document.getElementById('pool-list').value.trim();
@@ -5118,56 +5778,26 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       if (badges.length === 0) { alert('Inserisci un range valido o una lista di badge.'); return; }
       if (badges.length > 200 && !confirm(`Stai per aggiungere ${badges.length} badge al pool. Continuare?`)) return;
 
-      // Filtra duplicati già presenti nel pool corrente
-      const existing = new Set(poolData.map(p => p.badge_number));
-      const toAdd = badges.filter(b => !existing.has(b));
-      if (toAdd.length === 0) { alert('Tutti questi badge sono già nel pool.'); return; }
+      const result = await _persistBadgesToPool(currentPoolEventId, badges, {
+        source:       'manual_form',
+        existingPool: poolData,
+        showAlerts:   true,
+      });
 
-      // Check incrociato con visitors: se qualche badge è già pre-assegnato nominalmente, blocca
-      try {
-        const inList = toAdd.map(b => `"${b}"`).join(',');
-        const res = await api(
-          `${SUPABASE_URL}/rest/v1/visitors?select=badge_number,first_name,last_name,xatlas_status,assigned_by&badge_number=in.(${inList})&xatlas_status=in.(pending,active)`
-        );
-        if (res && res.ok) {
-          const conflicts = await res.json();
-          if (conflicts.length > 0) {
-            const lines = conflicts.map(c => `  • ${c.badge_number} → ${c.first_name} ${c.last_name} (${c.xatlas_status})${c.assigned_by ? ' assegnato da ' + c.assigned_by : ''}`);
-            alert(
-              `⚠️ ${conflicts.length} badge sono GIÀ pre-assegnati nominalmente a visitatori specifici:\n\n` +
-              lines.join('\n') +
-              `\n\nNon posso aggiungerli al pool: creerebbe conflitto sui tornelli.\n` +
-              `Rimuovili manualmente dai visitatori (Tab Visitatori) prima di aggiungerli al pool, oppure usa un range diverso.`
-            );
-            return;
-          }
-        }
-      } catch (_) { /* check best-effort, prosegui */ }
+      // Reset form + reload
+      document.getElementById('pool-range-from').value = '';
+      document.getElementById('pool-range-to').value = '';
+      document.getElementById('pool-list').value = '';
+      await loadPoolForEvent(currentPoolEventId);
 
-      const payload = toAdd.map(b => ({
-        badge_number: b,
-        event_id:     currentPoolEventId,
-        status:       'preparing'
-      }));
-      try {
-        const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify(payload)
-        });
-        if (!res || !res.ok) {
-          const b = res ? await res.json().catch(()=>({})) : {};
-          throw new Error(b.message || `Errore ${res?.status}`);
-        }
-        document.getElementById('pool-range-from').value = '';
-        document.getElementById('pool-range-to').value = '';
-        document.getElementById('pool-list').value = '';
-        await loadPoolForEvent(currentPoolEventId);
-        auditLog('pool_add', 'badge_pool', currentPoolEventId, { count: toAdd.length, badges: toAdd.slice(0, 10) });
-        alert(`✓ ${toAdd.length} badge aggiunti al pool. L'agente li attiverà ai tornelli entro 1-2 minuti.`);
-      } catch (err) {
-        alert('Errore aggiunta pool: ' + err.message);
-      }
+      // Riepilogo
+      const okN = result.added.length;
+      const skN = result.skipped.length;
+      const erN = result.errors.length;
+      let msg = okN > 0 ? `✓ ${okN} badge aggiunti al pool. L'agente li attiverà ai tornelli entro 1-2 minuti.` : '';
+      if (skN > 0) msg += (msg ? '\n\n' : '') + `⚠️ ${skN} badge saltati:\n - ` + result.skipped.slice(0, 10).map(s => `${s.badge}: ${s.reason}`).join('\n - ');
+      if (erN > 0) msg += (msg ? '\n\n' : '') + `❌ ${erN} errori:\n - ` + result.errors.join('\n - ');
+      if (msg) alert(msg);
     }
 
     async function removeFromPool(poolId) {
@@ -7327,6 +7957,946 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         alert('Errore eliminazione: ' + err.message);
       }
     }
+
+    // ────────────────────────────────────────────────────────────────────
+    // ── 🔍 ACQUISIZIONE & PAIR BADGE (tab "Acquisizione") ──────────────
+    // ────────────────────────────────────────────────────────────────────
+    // Workflow:
+    //   1. Crea/apre una "sessione di scan" (badge_scan_sessions, RLS auth).
+    //   2. Stage 1: campo input always-focused. Lettore HID o digitazione manuale →
+    //      Enter → POST badge_pool (status='preparing', scan_session_id, scan_order).
+    //      Beep audio ok/err. Lista cronologica live.
+    //   3. Stage 2: 3 modalità di pair badge↔ospite (auto-sequenziale, click+scan, drag-drop).
+    //
+    // Riusa _persistBadgesToPool() e logica creazione visitor stub esistente.
+    // Polling 5s per dual-operator.
+
+    let acqState = {
+      sessions:        [],
+      activeSession:   null,
+      scanLog:         [],          // badge della sessione attiva ({id, badge_number, scan_order, status, visitor_id, ...})
+      eventGuestList:  [],          // ospiti dell'evento per Stage 2
+      preAssignedMap:  new Map(),   // guest_id → {badge, visitor_id, status}
+      stage:           1,           // 1 | 2
+      pairMode:        'auto',      // 'auto' | 'click' | 'dnd'
+      clickSelectedGuestId: null,   // mod 2
+      lastUndoStack:   [],          // stack {visitor_id, guest_id, badge_pool_id, mode} per undo
+      pollTimer:       null,
+    };
+
+    // Beep audio Web Audio API (no asset esterni). Primo click utente sblocca AudioContext.
+    let _acqAudioCtx = null;
+    function _beep(freq, ms, delayMs = 0) {
+      try {
+        if (!_acqAudioCtx) _acqAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        setTimeout(() => {
+          const o = _acqAudioCtx.createOscillator();
+          const g = _acqAudioCtx.createGain();
+          o.type = 'sine';
+          o.frequency.value = freq;
+          o.connect(g); g.connect(_acqAudioCtx.destination);
+          g.gain.setValueAtTime(0.18, _acqAudioCtx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.001, _acqAudioCtx.currentTime + ms / 1000);
+          o.start();
+          o.stop(_acqAudioCtx.currentTime + ms / 1000);
+        }, delayMs);
+      } catch (_) { /* AudioContext bloccato / non supportato */ }
+    }
+    function acqBeepOk()    { _beep(880, 90); }
+    function acqBeepDup()   { _beep(440, 120); _beep(330, 120, 130); }
+    function acqBeepError() { _beep(220, 200); _beep(180, 200, 220); }
+
+    // ── LISTA SESSIONI ───────────────────────────────────
+    async function loadAcquireSessions() {
+      if (currentView !== 'acquire') return;
+      const showClosed = document.getElementById('acq-show-closed')?.checked;
+      const statuses = showClosed ? "in.(open,closed,archived)" : "eq.open";
+      const status = document.getElementById('acq-table-status');
+      const cont   = document.getElementById('acq-table-container');
+      status.style.display = '';
+      status.textContent = 'Caricamento sessioni...';
+      cont.classList.add('table-hidden');
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/badge_scan_sessions?status=${statuses}&order=created_at.desc&limit=100`);
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        acqState.sessions = await res.json();
+
+        // Conta badge per sessione (singola query in IN)
+        if (acqState.sessions.length > 0) {
+          const ids = acqState.sessions.map(s => s.id).map(id => `"${id}"`).join(',');
+          const r2 = await api(`${SUPABASE_URL}/rest/v1/badge_pool?select=scan_session_id&scan_session_id=in.(${ids})&status=in.(preparing,available,in_use)`);
+          const rows = r2 && r2.ok ? await r2.json() : [];
+          const counts = {};
+          rows.forEach(r => counts[r.scan_session_id] = (counts[r.scan_session_id] || 0) + 1);
+          acqState.sessions.forEach(s => s._badgeCount = counts[s.id] || 0);
+        }
+        renderAcquireSessions();
+        updateAcquireStats();
+      } catch (err) {
+        status.textContent = 'Errore caricamento: ' + err.message;
+      }
+    }
+
+    function updateAcquireStats() {
+      document.getElementById('acq-stat-total').textContent  = acqState.sessions.length;
+      document.getElementById('acq-stat-open').textContent   = acqState.sessions.filter(s => s.status === 'open').length;
+      document.getElementById('acq-stat-closed').textContent = acqState.sessions.filter(s => s.status === 'closed' || s.status === 'archived').length;
+    }
+
+    function renderAcquireSessions() {
+      const status = document.getElementById('acq-table-status');
+      const cont   = document.getElementById('acq-table-container');
+      const tbody  = document.getElementById('acq-table-body');
+      if (acqState.sessions.length === 0) {
+        status.textContent = 'Nessuna sessione. Crea la prima con "+ Nuova sessione di scan".';
+        status.style.display = '';
+        cont.classList.add('table-hidden');
+        return;
+      }
+      status.style.display = 'none';
+      cont.classList.remove('table-hidden');
+      // Lookup eventi
+      const evMap = {};
+      (Array.isArray(eventsData) ? eventsData : []).forEach(e => evMap[e.id] = e);
+      tbody.innerHTML = '';
+      acqState.sessions.forEach(s => {
+        const tr = document.createElement('tr');
+        const evLabel = s.event_id && evMap[s.event_id] ? `🎫 ${esc(evMap[s.event_id].name)}` :
+                        (s.event_id ? '🎫 (evento)' : '<span class="empty-dash">—</span>');
+        const statusLabel = s.status === 'open'      ? '📡 APERTA'
+                          : s.status === 'closed'    ? '🔒 CHIUSA'
+                          : '📦 ARCHIVIATA';
+        const createdAgo = s.created_at ? fmtRelativeTime(s.created_at) : '—';
+        tr.innerHTML = `
+          <td><strong>${esc(s.name || '(senza nome)')}</strong></td>
+          <td>${evLabel}</td>
+          <td><strong>${s._badgeCount || 0}</strong></td>
+          <td><span class="acq-session-pill ${s.status}">${statusLabel}</span></td>
+          <td title="${s.created_at || ''}">${createdAgo}</td>
+          <td>${esc(s.created_by || '—')}</td>
+          <td>
+            <button type="button" class="btn btn-primary" style="padding:6px 12px;font-size:12px"
+                    onclick="acqOpenSession('${s.id}')"
+                    title="Apri editor di questa sessione (Stage 1: scan, Stage 2: pair)">
+              ${s.status === 'open' ? '✏️ Apri' : '👁️ Visualizza'}
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ── CREAZIONE / APERTURA SESSIONE ───────────────────
+    async function acqNewSession() {
+      // Pre-popola con suggerimento basato su evento attivo
+      const defaultName = activeEvent
+        ? `${activeEvent.name} — ${new Date().toLocaleDateString('it-IT')}`
+        : `Sessione ${new Date().toLocaleDateString('it-IT')}`;
+      const name = prompt('Nome della sessione di scan:', defaultName);
+      if (!name || !name.trim()) return;
+      // Selezione evento: default a evento attivo se presente
+      let eventId = activeEvent ? activeEvent.id : null;
+      if (!eventId) {
+        // Prompt evento se non c'è attivo
+        const evList = (eventsData || []).filter(e => !e.closed_at);
+        if (evList.length === 0) {
+          alert('Nessun evento aperto. Crea/avvia un evento prima.');
+          return;
+        }
+        const opts = evList.map((e, i) => `${i+1}. ${e.name}`).join('\n');
+        const sel = prompt(`Quale evento?\n\n${opts}\n\nDigita il numero (1-${evList.length}):`);
+        const idx = parseInt(sel, 10) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= evList.length) return;
+        eventId = evList[idx].id;
+      }
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/badge_scan_sessions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify({ name: name.trim(), event_id: eventId, created_by: CURRENT_USER_EMAIL || null })
+        });
+        if (!res || !res.ok) {
+          const b = res ? await res.json().catch(() => ({})) : {};
+          throw new Error(b.message || `Errore ${res?.status}`);
+        }
+        const created = await res.json();
+        const session = Array.isArray(created) ? created[0] : created;
+        auditLog('scan_session_create', 'badge_scan_sessions', session.id, { name: session.name, event_id: eventId });
+        await loadAcquireSessions();
+        await acqOpenSession(session.id);
+      } catch (err) {
+        alert('Errore creazione sessione: ' + err.message);
+      }
+    }
+
+    async function acqOpenSession(sessionId) {
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/badge_scan_sessions?id=eq.${sessionId}&select=*&limit=1`);
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        const arr = await res.json();
+        if (!arr.length) throw new Error('Sessione non trovata');
+        acqState.activeSession = arr[0];
+        // Switch a editor view
+        document.getElementById('acq-list-view').style.display   = 'none';
+        document.getElementById('acq-editor-view').style.display = '';
+        // Header
+        document.getElementById('acq-session-name').value = acqState.activeSession.name || '';
+        document.getElementById('acq-session-name').disabled = acqState.activeSession.status !== 'open';
+        // Pill stato
+        const pill = document.getElementById('acq-session-status');
+        pill.className = 'acq-session-pill ' + acqState.activeSession.status;
+        pill.textContent = acqState.activeSession.status === 'open'   ? '📡 APERTA'
+                         : acqState.activeSession.status === 'closed' ? '🔒 CHIUSA'
+                         : '📦 ARCHIVIATA';
+        // Popola dropdown eventi
+        await acqPopulateEventDropdown(acqState.activeSession.event_id);
+        // Reset stato pair
+        acqState.scanLog = [];
+        acqState.eventGuestList = [];
+        acqState.preAssignedMap = new Map();
+        acqState.lastUndoStack = [];
+        acqState.clickSelectedGuestId = null;
+        // Carica log scansioni
+        await acqLoadScans();
+        // Stage 1 di default
+        acqSelectStage(1);
+        // Avvia polling per dual-operator
+        acqStartPolling();
+      } catch (err) {
+        alert('Errore apertura sessione: ' + err.message);
+      }
+    }
+
+    async function acqPopulateEventDropdown(selectedId) {
+      const sel = document.getElementById('acq-session-event');
+      sel.innerHTML = '<option value="">— Seleziona evento —</option>';
+      const today = todayLocalIso();
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/events?select=id,name,event_start_date,event_end_date,closed_at&order=event_start_date.desc&limit=50`);
+        if (!res || !res.ok) return;
+        const evs = await res.json();
+        evs.forEach(e => {
+          const opt = document.createElement('option');
+          opt.value = e.id;
+          if (e.closed_at) {
+            if (e.id !== selectedId) return;
+            opt.textContent = `🔒 ${e.name} — chiuso`;
+            opt.disabled = true;
+          } else if (today > e.event_end_date) {
+            opt.textContent = `🕐 ${e.name} — passato`;
+          } else {
+            opt.textContent = `${e.name}`;
+          }
+          if (e.id === selectedId) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      } catch (_) {/*silent*/}
+      // Disabilita modifica se sessione non aperta
+      sel.disabled = acqState.activeSession?.status !== 'open';
+    }
+
+    function acqCloseEditor() {
+      acqStopPolling();
+      acqState.activeSession = null;
+      document.getElementById('acq-list-view').style.display   = '';
+      document.getElementById('acq-editor-view').style.display = 'none';
+      loadAcquireSessions();
+    }
+
+    function acqSelectStage(n) {
+      acqState.stage = n;
+      document.getElementById('acq-stage-tab-1').classList.toggle('active', n === 1);
+      document.getElementById('acq-stage-tab-2').classList.toggle('active', n === 2);
+      document.getElementById('acq-stage-1').style.display = n === 1 ? '' : 'none';
+      document.getElementById('acq-stage-2').style.display = n === 2 ? '' : 'none';
+      if (n === 1) {
+        // Focus input scan
+        setTimeout(() => {
+          const inp = document.getElementById('acq-scan-input');
+          if (inp && acqState.activeSession?.status === 'open') inp.focus();
+        }, 50);
+      } else {
+        // Carica ospiti dell'evento + render mod attiva
+        acqLoadGuestsForPair();
+      }
+    }
+
+    // ── STAGE 1 — SCAN ──────────────────────────────────
+    async function acqLoadScans() {
+      if (!acqState.activeSession) return;
+      try {
+        const res = await api(
+          `${SUPABASE_URL}/rest/v1/badge_pool?select=id,badge_number,scan_order,status,visitor_id,created_at,assigned_by` +
+          `&scan_session_id=eq.${acqState.activeSession.id}` +
+          `&order=scan_order.asc.nullslast,created_at.asc`
+        );
+        if (!res || !res.ok) return;
+        acqState.scanLog = await res.json();
+        renderAcqScanList();
+        updateAcqStageCounts();
+      } catch (_) { /*silent*/ }
+    }
+
+    function renderAcqScanList() {
+      const tbody = document.getElementById('acq-scan-list-body');
+      const docColMap = new Map(acqState.scanLog.map((s, i) => [s.id, i]));
+      tbody.innerHTML = '';
+      // Più recenti in cima → reverse
+      [...acqState.scanLog].reverse().forEach((s, idx) => {
+        const realIdx = acqState.scanLog.length - idx;
+        const tr = document.createElement('tr');
+        const statusLbl = s.status === 'available' ? '<span class="xstatus xstatus-active">✅ Attivato</span>'
+                       : s.status === 'in_use'    ? '<span class="xstatus xstatus-active">👤 In uso</span>'
+                       : s.status === 'released'  ? '<span class="xstatus xstatus-none">📦 Rilasciato</span>'
+                       :                            '<span class="xstatus xstatus-pending">⏳ In attivazione</span>';
+        const visitorInfo = s.visitor_id ? `<span class="gtype gtype-atteso">→ pair</span>` : '<span class="empty-dash">—</span>';
+        tr.innerHTML = `
+          <td>${s.scan_order || realIdx}</td>
+          <td><strong>${esc(s.badge_number)}</strong></td>
+          <td title="${s.created_at || ''}">${s.created_at ? fmtRelativeTime(s.created_at) : '—'}</td>
+          <td>${statusLbl}</td>
+          <td>${visitorInfo}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      // Aggiorna stats
+      document.getElementById('acq-scan-count').textContent = acqState.scanLog.length;
+      document.getElementById('acq-undo-btn').disabled = acqState.scanLog.length === 0 || acqState.activeSession?.status !== 'open';
+      document.getElementById('acq-close-session-btn').disabled = acqState.activeSession?.status !== 'open';
+    }
+
+    function updateAcqStageCounts() {
+      document.getElementById('acq-cnt-stage1').textContent = acqState.scanLog.length;
+      const paired = acqState.scanLog.filter(s => !!s.visitor_id).length;
+      document.getElementById('acq-cnt-stage2').textContent = `${paired}/${acqState.scanLog.length}`;
+    }
+
+    // Handler input scan: Enter → aggiungi
+    function acqInitScanInput() {
+      const inp = document.getElementById('acq-scan-input');
+      if (!inp || inp._acqInited) return;
+      inp._acqInited = true;
+      inp.addEventListener('keydown', async (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const v = (inp.value || '').trim();
+        if (!v) return;
+        if (acqState.activeSession?.status !== 'open') {
+          acqBeepError();
+          alert('La sessione è chiusa: non si possono più aggiungere badge.');
+          return;
+        }
+        // Validazione: solo cifre 1-12
+        if (!/^\d{1,12}$/.test(v)) {
+          acqBeepError();
+          inp.style.borderColor = '#e53e3e';
+          setTimeout(() => inp.style.borderColor = '', 600);
+          // counter errori
+          const e = document.getElementById('acq-scan-errs');
+          e.textContent = (parseInt(e.textContent,10) || 0) + 1;
+          inp.value = '';
+          return;
+        }
+        // Disabilita brevemente per evitare doppio Enter
+        inp.disabled = true;
+        try {
+          const result = await _persistBadgesToPool(
+            acqState.activeSession.event_id,
+            [v],
+            {
+              scanSessionId: acqState.activeSession.id,
+              source:        'scan_acquire',
+              showAlerts:    false,
+            }
+          );
+          if (result.added.length > 0) {
+            acqBeepOk();
+            // Aggiungi in memoria + render
+            const inserted = result.added[0];
+            acqState.scanLog.push(inserted);
+            renderAcqScanList();
+            updateAcqStageCounts();
+          } else if (result.skipped.length > 0) {
+            acqBeepDup();
+            const sk = document.getElementById('acq-scan-dups');
+            sk.textContent = (parseInt(sk.textContent,10) || 0) + 1;
+            // Tooltip motivo
+            inp.title = result.skipped[0].reason || '';
+            setTimeout(() => inp.title = '', 3000);
+          } else if (result.errors.length > 0) {
+            acqBeepError();
+            const e = document.getElementById('acq-scan-errs');
+            e.textContent = (parseInt(e.textContent,10) || 0) + 1;
+          }
+        } finally {
+          inp.value = '';
+          inp.disabled = false;
+          inp.focus();
+        }
+      });
+      // Re-focus se utente clicca altrove (in Stage 1)
+      document.getElementById('acq-stage-1').addEventListener('click', (e) => {
+        if (acqState.stage !== 1) return;
+        if (acqState.activeSession?.status !== 'open') return;
+        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+        if (e.target.tagName === 'INPUT') return;
+        inp.focus();
+      });
+    }
+
+    async function acqUndoLastScan() {
+      if (acqState.scanLog.length === 0) return;
+      if (acqState.activeSession?.status !== 'open') return;
+      const last = acqState.scanLog[acqState.scanLog.length - 1];
+      if (!confirm(`Annullare l'ultimo badge scansionato (${last.badge_number})?\n\nVerrà eliminato dal pool. Se l'agente lo ha già attivato sui tornelli, verrà disattivato al prossimo cleanup.`)) return;
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool?id=eq.${last.id}`, {
+          method: 'DELETE',
+          headers: { 'Prefer': 'return=minimal' }
+        });
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        acqState.scanLog.pop();
+        renderAcqScanList();
+        updateAcqStageCounts();
+        auditLog('scan_undo', 'badge_pool', last.id, { badge: last.badge_number, session: acqState.activeSession.id });
+        document.getElementById('acq-scan-input').focus();
+      } catch (err) {
+        alert('Errore undo: ' + err.message);
+      }
+    }
+
+    async function acqCloseSession() {
+      if (!acqState.activeSession) return;
+      if (acqState.activeSession.status !== 'open') return;
+      if (!confirm(`Chiudere la sessione "${acqState.activeSession.name}"?\n\nNon si potranno più aggiungere badge. Le scansioni esistenti restano e si può procedere con il pair (Stage 2).`)) return;
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/badge_scan_sessions?id=eq.${acqState.activeSession.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ status: 'closed', closed_at: new Date().toISOString() })
+        });
+        if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+        acqState.activeSession.status = 'closed';
+        acqState.activeSession.closed_at = new Date().toISOString();
+        // Aggiorna UI pill + disabilita input
+        const pill = document.getElementById('acq-session-status');
+        pill.className = 'acq-session-pill closed';
+        pill.textContent = '🔒 CHIUSA';
+        document.getElementById('acq-scan-input').disabled = true;
+        document.getElementById('acq-scan-input').placeholder = 'Sessione chiusa — Stage 1 disabilitato';
+        document.getElementById('acq-session-name').disabled = true;
+        document.getElementById('acq-session-event').disabled = true;
+        renderAcqScanList();
+        auditLog('scan_session_close', 'badge_scan_sessions', acqState.activeSession.id, { name: acqState.activeSession.name, count: acqState.scanLog.length });
+        alert(`✓ Sessione chiusa con ${acqState.scanLog.length} badge. Vai a Stage 2 per fare il pair.`);
+        acqSelectStage(2);
+      } catch (err) {
+        alert('Errore chiusura: ' + err.message);
+      }
+    }
+
+    // ── POLLING dual-operator ────────────────────────────
+    function acqStartPolling() {
+      acqStopPolling();
+      acqState.pollTimer = setInterval(async () => {
+        if (currentView !== 'acquire' || !acqState.activeSession) return;
+        if (document.visibilityState === 'hidden') return;
+        // Re-fetch scan log (silenzioso: aggiorna solo contatori e nuovi)
+        await acqLoadScans();
+      }, 5000);
+    }
+    function acqStopPolling() {
+      if (acqState.pollTimer) { clearInterval(acqState.pollTimer); acqState.pollTimer = null; }
+    }
+
+    // ── Init scan input al primo caricamento (deferred) ──
+    // L'input è dentro view-acquire, quindi inizializziamo quando la view viene aperta.
+    // Hook: acqOpenSession chiama acqSelectStage(1) che mette focus → ma il listener serve
+    // una sola volta. acqInitScanInput è idempotente (flag _acqInited).
+    // Lo agganciamo anche al DOMContentLoaded come safety.
+    document.addEventListener('DOMContentLoaded', () => {
+      // Differita: la view può essere già nel DOM
+      setTimeout(acqInitScanInput, 0);
+    });
+
+    // ── STAGE 2 — PAIR badge ↔ ospiti ────────────────────
+    //
+    // Carica ospiti dell'evento (guest_list) + visitor stub esistenti.
+    // preAssignedMap: guest_id → {visitor_id, badge, status}
+    async function acqLoadGuestsForPair() {
+      if (!acqState.activeSession || !acqState.activeSession.event_id) return;
+      try {
+        // Guest list dell'evento
+        const gRes = await api(
+          `${SUPABASE_URL}/rest/v1/guest_list?select=id,first_name,last_name,company,email,expected_date,event_id` +
+          `&event_id=eq.${acqState.activeSession.event_id}` +
+          `&order=last_name.asc.nullslast,first_name.asc.nullslast`
+        );
+        acqState.eventGuestList = gRes && gRes.ok ? await gRes.json() : [];
+
+        // Visitor stub correlati (per sapere chi è già pre-assegnato)
+        if (acqState.eventGuestList.length > 0) {
+          const ids = acqState.eventGuestList.map(g => `"${g.id}"`).join(',');
+          const vRes = await api(
+            `${SUPABASE_URL}/rest/v1/visitors?select=id,guest_id,badge_number,xatlas_status,signature` +
+            `&guest_id=in.(${ids})&xatlas_status=in.(pending,active)`
+          );
+          const visitors = vRes && vRes.ok ? await vRes.json() : [];
+          acqState.preAssignedMap = new Map();
+          visitors.forEach(v => {
+            if (v.guest_id) {
+              acqState.preAssignedMap.set(v.guest_id, {
+                visitor_id: v.id, badge: v.badge_number, status: v.xatlas_status, signature: v.signature
+              });
+            }
+          });
+        } else {
+          acqState.preAssignedMap = new Map();
+        }
+        // Render modalità corrente
+        acqRenderPairMode();
+        updateAcqStageCounts();
+      } catch (err) {
+        console.error('acqLoadGuestsForPair err', err);
+      }
+    }
+
+    function acqSelectPairMode(mode) {
+      acqState.pairMode = mode;
+      ['auto', 'click', 'dnd'].forEach(m => {
+        const btn = document.querySelector(`.acq-pair-mode-btn[data-mode="${m}"]`);
+        const pane = document.getElementById(`acq-pair-mode-${m}`);
+        if (btn)  btn.classList.toggle('active', m === mode);
+        if (pane) pane.style.display = m === mode ? '' : 'none';
+      });
+      acqRenderPairMode();
+    }
+
+    function acqRenderPairMode() {
+      if (acqState.pairMode === 'auto')  acqRenderAutoPair();
+      if (acqState.pairMode === 'click') acqRenderClickPair();
+      if (acqState.pairMode === 'dnd')   acqRenderDndPair();
+    }
+
+    // ── MODALITÀ 1: Auto-pair sequenziale ────────────────
+    function acqRenderAutoPair() {
+      const tbody = document.getElementById('acq-auto-preview-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      // Ospiti del evento NON ancora pre-assegnati (filtro skip-paired controlla checkbox)
+      const skipPaired = document.getElementById('acq-auto-skip-paired')?.checked;
+      const guestsTodo = skipPaired
+        ? acqState.eventGuestList.filter(g => !acqState.preAssignedMap.has(g.id))
+        : acqState.eventGuestList;
+      // Badge non ancora pair (visitor_id NULL)
+      const badgesAvail = acqState.scanLog.filter(s => !s.visitor_id);
+      const max = Math.max(badgesAvail.length, guestsTodo.length);
+      for (let i = 0; i < max; i++) {
+        const tr = document.createElement('tr');
+        const b = badgesAvail[i];
+        const g = guestsTodo[i];
+        const guestStr = g ? `${esc(g.last_name || '')} ${esc(g.first_name || '')}${g.company ? ' · ' + esc(g.company) : ''}` : '<span class="empty-dash">— ospite mancante</span>';
+        const badgeStr = b ? `<strong>${esc(b.badge_number)}</strong>` : '<span class="empty-dash">— badge mancante</span>';
+        const status = (b && g) ? '<span class="xstatus xstatus-pending">⏳ in coda</span>'
+                     : (!g)    ? '<span class="xstatus xstatus-none">badge resta nel pool anonimo</span>'
+                     :           '<span class="xstatus xstatus-none">ospite resta senza badge</span>';
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${badgeStr}</td>
+          <td style="text-align:center;color:#a0aec0">→</td>
+          <td>${guestStr}</td>
+          <td>${status}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function acqRunAutoPair() {
+      if (!acqState.activeSession) return;
+      const skipPaired = document.getElementById('acq-auto-skip-paired')?.checked;
+      const guestsTodo = skipPaired
+        ? acqState.eventGuestList.filter(g => !acqState.preAssignedMap.has(g.id))
+        : acqState.eventGuestList;
+      const badgesAvail = acqState.scanLog.filter(s => !s.visitor_id);
+      const pairs = Math.min(badgesAvail.length, guestsTodo.length);
+      if (pairs === 0) {
+        alert('Niente da pair: serve almeno 1 badge non pair e 1 ospite non pre-assegnato.');
+        return;
+      }
+      if (!confirm(`Auto-pair sequenziale: ${pairs} badge → ${pairs} ospiti.\n\n${badgesAvail.length - pairs} badge restanti resteranno nel pool come anonimi.\n${guestsTodo.length - pairs} ospiti restanti resteranno senza badge.\n\nProcedere?`)) return;
+
+      const progressBar = document.getElementById('acq-auto-progress');
+      const fill        = document.getElementById('acq-auto-progress-fill');
+      const msg         = document.getElementById('acq-auto-progress-msg');
+      const runBtn      = document.getElementById('acq-run-auto-pair');
+      progressBar.style.display = '';
+      runBtn.disabled = true;
+      let okN = 0, errN = 0;
+      const errors = [];
+
+      for (let i = 0; i < pairs; i++) {
+        const b = badgesAvail[i];
+        const g = guestsTodo[i];
+        msg.textContent = `Pair ${i + 1}/${pairs}: ${b.badge_number} → ${g.last_name} ${g.first_name}…`;
+        fill.style.width = `${Math.round((i / pairs) * 100)}%`;
+        const r = await acqPersistPair(b, g, 'auto_pair');
+        if (r.ok) okN++; else { errN++; errors.push(`${b.badge_number} → ${g.last_name}: ${r.error}`); }
+      }
+      fill.style.width = '100%';
+      msg.textContent = `Completato: ${okN} OK · ${errN} errori`;
+      runBtn.disabled = false;
+      auditLog('pair_badge_bulk', 'badge_pool', acqState.activeSession.id, {
+        ok: okN, errors: errN, mode: 'auto', session: acqState.activeSession.name
+      });
+      // Reload data
+      await acqLoadScans();
+      await acqLoadGuestsForPair();
+      let summary = `✓ ${okN} pair completati.`;
+      if (errN > 0) summary += `\n\n⚠️ ${errN} errori:\n - ` + errors.slice(0, 10).join('\n - ');
+      alert(summary);
+    }
+
+    // ── MODALITÀ 2: Click + scan ────────────────────────
+    function acqRenderClickPair() {
+      const tbody = document.getElementById('acq-click-guest-body');
+      if (!tbody) return;
+      const search = (document.getElementById('acq-click-search')?.value || '').trim().toLowerCase();
+      const todo = acqState.eventGuestList.filter(g => {
+        if (acqState.preAssignedMap.has(g.id)) return false;
+        if (search) {
+          const blob = `${g.last_name || ''} ${g.first_name || ''} ${g.company || ''}`.toLowerCase();
+          return blob.includes(search);
+        }
+        return true;
+      });
+      tbody.innerHTML = '';
+      todo.forEach(g => {
+        const tr = document.createElement('tr');
+        tr.dataset.guestId = g.id;
+        if (g.id === acqState.clickSelectedGuestId) tr.classList.add('selected');
+        tr.innerHTML = `
+          <td><strong>${esc(g.last_name || '')}</strong></td>
+          <td>${esc(g.first_name || '')}</td>
+          <td>${esc(g.company || '')}</td>
+        `;
+        tr.addEventListener('click', () => acqClickSelectGuest(g.id));
+        tbody.appendChild(tr);
+      });
+      // Stats
+      const paired = acqState.scanLog.filter(s => !!s.visitor_id).length;
+      document.getElementById('acq-click-stats').textContent = `${paired} / ${acqState.eventGuestList.length} ospiti pair`;
+      document.getElementById('acq-click-undo').disabled = acqState.lastUndoStack.length === 0;
+    }
+
+    function acqClickSelectGuest(guestId) {
+      acqState.clickSelectedGuestId = guestId;
+      const g = acqState.eventGuestList.find(x => x.id === guestId);
+      document.getElementById('acq-click-current-name').textContent = g ? `${g.last_name} ${g.first_name}${g.company ? ' · ' + g.company : ''}` : '— nessuno —';
+      // Highlight + scroll
+      [...document.querySelectorAll('#acq-click-guest-body tr')].forEach(tr => {
+        tr.classList.toggle('selected', tr.dataset.guestId === guestId);
+        if (tr.dataset.guestId === guestId) tr.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
+      // Abilita input scan
+      const inp = document.getElementById('acq-click-input');
+      inp.disabled = false;
+      inp.placeholder = 'Passa il badge ora…';
+      setTimeout(() => inp.focus(), 30);
+    }
+
+    function acqInitClickInput() {
+      const inp = document.getElementById('acq-click-input');
+      if (!inp || inp._acqInited) return;
+      inp._acqInited = true;
+      const search = document.getElementById('acq-click-search');
+      if (search) search.addEventListener('input', acqRenderClickPair);
+      // Tasti rapidi sul container
+      document.getElementById('acq-pair-mode-click').addEventListener('keydown', (e) => {
+        if (acqState.pairMode !== 'click') return;
+        if (e.key === 'Escape') {
+          acqState.clickSelectedGuestId = null;
+          document.getElementById('acq-click-current-name').textContent = '— nessuno —';
+          inp.disabled = true;
+          inp.value = '';
+          acqRenderClickPair();
+        }
+        if (e.key === 'Tab' && acqState.clickSelectedGuestId) {
+          // Già il default browser sposta focus, qui aggiungiamo selezione su prossimo guest
+          const todo = [...document.querySelectorAll('#acq-click-guest-body tr')];
+          const cur = todo.findIndex(tr => tr.dataset.guestId === acqState.clickSelectedGuestId);
+          const next = e.shiftKey ? cur - 1 : cur + 1;
+          if (next >= 0 && next < todo.length) {
+            e.preventDefault();
+            acqClickSelectGuest(todo[next].dataset.guestId);
+          }
+        }
+      });
+      inp.addEventListener('keydown', async (e) => {
+        if (e.key === 'Backspace' && inp.value === '' && acqState.lastUndoStack.length > 0) {
+          e.preventDefault();
+          await acqClickUndoLast();
+          return;
+        }
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const v = (inp.value || '').trim();
+        if (!v) return;
+        if (!acqState.clickSelectedGuestId) {
+          acqBeepError();
+          alert('Seleziona prima un ospite cliccandolo nella lista a sinistra.');
+          return;
+        }
+        if (!/^\d{1,12}$/.test(v)) {
+          acqBeepError();
+          inp.value = '';
+          return;
+        }
+        // Trova badge nel scanLog (deve essere stato scansionato in Stage 1)
+        const badge = acqState.scanLog.find(s => s.badge_number === v);
+        if (!badge) {
+          // Auto-aggiunge alla sessione se ancora aperta? No, in Stage 2 la sessione DOVREBBE essere chiusa.
+          // Però se è ancora aperta, aggiungilo al volo.
+          if (acqState.activeSession?.status === 'open') {
+            const r = await _persistBadgesToPool(acqState.activeSession.event_id, [v], {
+              scanSessionId: acqState.activeSession.id, source: 'scan_acquire', showAlerts: false
+            });
+            if (r.added.length > 0) {
+              acqState.scanLog.push(r.added[0]);
+              await _doClickPair(r.added[0], inp);
+              return;
+            }
+          }
+          acqBeepError();
+          alert(`Badge ${v} non trovato nella sessione. Aggiungilo prima in Stage 1.`);
+          inp.value = '';
+          return;
+        }
+        if (badge.visitor_id) {
+          acqBeepDup();
+          alert(`Badge ${v} è già assegnato a un altro ospite.`);
+          inp.value = '';
+          return;
+        }
+        await _doClickPair(badge, inp);
+      });
+    }
+
+    async function _doClickPair(badge, inp) {
+      const guestId = acqState.clickSelectedGuestId;
+      const guest = acqState.eventGuestList.find(g => g.id === guestId);
+      if (!guest) return;
+      const r = await acqPersistPair(badge, guest, 'click_scan');
+      if (!r.ok) {
+        acqBeepError();
+        alert('Errore pair: ' + r.error);
+        return;
+      }
+      acqBeepOk();
+      // Auto-passa al prossimo ospite della lista corrente
+      const todo = [...document.querySelectorAll('#acq-click-guest-body tr')];
+      const cur = todo.findIndex(tr => tr.dataset.guestId === guestId);
+      // Reload struttura
+      await acqLoadScans();
+      await acqLoadGuestsForPair();
+      // Cerca prossimo non ancora pair (la lista è stata ri-renderizzata)
+      const newTodo = [...document.querySelectorAll('#acq-click-guest-body tr')];
+      if (newTodo.length > 0) {
+        const next = newTodo[Math.min(cur, newTodo.length - 1)] || newTodo[0];
+        if (next) acqClickSelectGuest(next.dataset.guestId);
+      } else {
+        acqState.clickSelectedGuestId = null;
+        document.getElementById('acq-click-current-name').textContent = '✓ Tutti gli ospiti sono stati pair!';
+        inp.disabled = true;
+      }
+      inp.value = '';
+    }
+
+    async function acqClickUndoLast() {
+      if (acqState.lastUndoStack.length === 0) return;
+      const last = acqState.lastUndoStack.pop();
+      if (!confirm(`Annullare l'ultimo pair (${last.badge} → ${last.guestName})?`)) {
+        acqState.lastUndoStack.push(last); // ripristina
+        return;
+      }
+      try {
+        // Cancella visitor stub
+        await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${last.visitor_id}`, { method: 'DELETE', headers: { 'Prefer': 'return=minimal' } });
+        // Libera badge_pool
+        await api(`${SUPABASE_URL}/rest/v1/badge_pool?id=eq.${last.badge_pool_id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ visitor_id: null, status: 'preparing' })
+        });
+        auditLog('pair_undo', 'badge_pool', last.badge_pool_id, { badge: last.badge, guest_id: last.guest_id, mode: last.mode });
+        await acqLoadScans();
+        await acqLoadGuestsForPair();
+      } catch (err) {
+        alert('Errore undo: ' + err.message);
+        acqState.lastUndoStack.push(last);
+      }
+    }
+
+    // ── MODALITÀ 3: Drag-drop ────────────────────────────
+    function acqRenderDndPair() {
+      const badgeArea = document.getElementById('acq-dnd-badge-list');
+      const guestArea = document.getElementById('acq-dnd-guest-list');
+      if (!badgeArea || !guestArea) return;
+      const badgeFilter = (document.getElementById('acq-dnd-search-badge')?.value || '').trim();
+      const guestFilter = (document.getElementById('acq-dnd-search-guest')?.value || '').trim().toLowerCase();
+      // Badge non assegnati
+      const badges = acqState.scanLog
+        .filter(s => !s.visitor_id)
+        .filter(s => !badgeFilter || s.badge_number.includes(badgeFilter));
+      badgeArea.innerHTML = '';
+      badges.forEach(b => {
+        const chip = document.createElement('div');
+        chip.className = 'acq-dnd-chip';
+        chip.draggable = true;
+        chip.dataset.badgePoolId = b.id;
+        chip.dataset.badge = b.badge_number;
+        chip.textContent = `🎟 ${b.badge_number}`;
+        chip.title = `Ordine #${b.scan_order || '—'} · ${b.status}`;
+        chip.addEventListener('dragstart', (e) => {
+          chip.classList.add('dragging');
+          e.dataTransfer.setData('application/x-badge', JSON.stringify({ id: b.id, badge: b.badge_number }));
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+        badgeArea.appendChild(chip);
+      });
+      if (badges.length === 0) badgeArea.innerHTML = '<span style="color:#a0aec0;font-size:13px;padding:14px">Nessun badge libero</span>';
+
+      // Ospiti senza badge
+      const guests = acqState.eventGuestList.filter(g => {
+        if (acqState.preAssignedMap.has(g.id)) return false;
+        if (guestFilter) {
+          const blob = `${g.last_name || ''} ${g.first_name || ''} ${g.company || ''}`.toLowerCase();
+          return blob.includes(guestFilter);
+        }
+        return true;
+      });
+      guestArea.innerHTML = '';
+      guests.forEach(g => {
+        const row = document.createElement('div');
+        row.className = 'acq-dnd-guest-row';
+        row.dataset.guestId = g.id;
+        row.innerHTML = `
+          <div class="guest-info">
+            <div class="guest-name">${esc(g.last_name || '')} ${esc(g.first_name || '')}</div>
+            <div class="guest-co">${esc(g.company || '')}</div>
+          </div>
+          <span class="guest-badge empty">vuoto</span>
+        `;
+        row.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          row.classList.add('drag-over');
+        });
+        row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+        row.addEventListener('drop', async (e) => {
+          e.preventDefault();
+          row.classList.remove('drag-over');
+          const data = e.dataTransfer.getData('application/x-badge');
+          if (!data) return;
+          let parsed; try { parsed = JSON.parse(data); } catch (_) { return; }
+          const badge = acqState.scanLog.find(s => s.id === parsed.id);
+          if (!badge) return;
+          const r = await acqPersistPair(badge, g, 'drag_drop');
+          if (r.ok) acqBeepOk(); else { acqBeepError(); alert('Errore: ' + r.error); }
+          await acqLoadScans();
+          await acqLoadGuestsForPair();
+        });
+        guestArea.appendChild(row);
+      });
+      if (guests.length === 0) guestArea.innerHTML = '<span style="color:#a0aec0;font-size:13px;padding:14px">Nessun ospite senza badge</span>';
+      // Hook search filters
+      ['acq-dnd-search-badge', 'acq-dnd-search-guest'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el._acqHooked) {
+          el._acqHooked = true;
+          el.addEventListener('input', () => acqRenderDndPair());
+        }
+      });
+    }
+
+    // ── PAIR core (riusato dalle 3 modalità) ─────────────
+    // Crea visitor stub per (guest, badge), aggiorna badge_pool, mantiene undo stack.
+    async function acqPersistPair(badge, guest, mode) {
+      try {
+        const today = todayLocalIso();
+        const visitorPayload = {
+          first_name:      guest.first_name,
+          last_name:       guest.last_name,
+          email:           guest.email           || null,
+          company:         guest.company         || null,
+          person_to_visit: null,
+          visit_reason:    'Visita',
+          visit_date:      today,
+          badge_number:    badge.badge_number,
+          xatlas_user_id:  null,           // verrà popolato dall'agente in fase di rinominate
+          xatlas_status:   'pending',      // l'agente Python rinomina + attiva
+          xatlas_renamed:  false,
+          event_id:        acqState.activeSession?.event_id || null,
+          event_name:      activeEvent?.id === acqState.activeSession?.event_id ? activeEvent.name : null,
+          event_date:      activeEvent?.id === acqState.activeSession?.event_id ? activeEvent.event_start_date : null,
+          guest_id:        guest.id,
+          assigned_by:     CURRENT_USER_EMAIL || null,
+          assigned_at:     new Date().toISOString(),
+          data_consent:    false,
+          signature:       null,
+        };
+        const vRes = await api(`${SUPABASE_URL}/rest/v1/visitors`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify(visitorPayload),
+        });
+        if (!vRes || !vRes.ok) {
+          const b = vRes ? await vRes.json().catch(() => ({})) : {};
+          throw new Error(b.message || `${vRes?.status}`);
+        }
+        const created = await vRes.json();
+        const visitorId = Array.isArray(created) ? created[0].id : created.id;
+
+        // Aggiorna badge_pool: status='in_use' (o resta 'preparing' se non ancora attivato), visitor_id, assigned_by
+        const newStatus = badge.status === 'available' ? 'in_use' : badge.status;
+        await api(`${SUPABASE_URL}/rest/v1/badge_pool?id=eq.${badge.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            status:      newStatus,
+            visitor_id:  visitorId,
+            assigned_at: new Date().toISOString(),
+            assigned_by: CURRENT_USER_EMAIL || null,
+          })
+        });
+
+        auditLog('pair_badge', 'badge_pool', badge.id, {
+          badge: badge.badge_number, guest_id: guest.id,
+          guest_name: `${guest.first_name} ${guest.last_name}`,
+          mode, session: acqState.activeSession?.id,
+        });
+        // Stack undo (per click+scan)
+        acqState.lastUndoStack.push({
+          visitor_id:    visitorId,
+          guest_id:      guest.id,
+          guestName:     `${guest.last_name} ${guest.first_name}`,
+          badge_pool_id: badge.id,
+          badge:         badge.badge_number,
+          mode,
+        });
+        if (acqState.lastUndoStack.length > 50) acqState.lastUndoStack.shift();
+        return { ok: true, visitor_id: visitorId };
+      } catch (err) {
+        return { ok: false, error: err.message };
+      }
+    }
+
+    // Init listener click+scan al caricamento
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        acqInitClickInput();
+      }, 0);
+    });
 
     // ── ERROR UI ──────────────────────────────────────
     function showError(msg) { const el = document.getElementById('error-banner'); el.textContent = msg; el.style.display = 'block'; }
