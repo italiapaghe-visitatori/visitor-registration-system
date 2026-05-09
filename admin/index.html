@@ -1539,16 +1539,18 @@
        Così cliccando una tab in cima atterri SUBITO sui controlli — niente
        più sensazione "il click non ha effetto" perché le card di stato
        riempivano tutto lo schermo. */
-    /* Coperti tutti i contenitori toolbar usati nelle 5 view:
-       .filters       (Visitatori, Audit, Pre-assegnazione)
-       .toolbar-actions (Ospiti Attesi)
-       .guest-actions (Eventi — usato per i bottoni Aggiungi/Nuovo Evento) */
+    /* RIORDINO RADICALE: priorità all'azione + contenuto principale,
+       statistiche relegate in fondo (consultabili scrollando ma non rubano viewport).
+       Order 1: filtri/azioni (parte operativa, in cima)
+       Order 2: tabella/contenuto (la cosa che vuoi vedere/usare)
+       Order 3: paginazione tabella
+       Order 4: stat cards (dashboard secondaria, in fondo) */
     .view.active > .filters,
     .view.active > .toolbar-actions,
     .view.active > .guest-actions    { order: 1; }
-    .view.active > .stats-bar        { order: 2; margin-top: 4px; }
-    .view.active > .table-wrap,
+    .view.active > .table-wrap       { order: 2; }
     .view.active > .audit-pagination { order: 3; }
+    .view.active > .stats-bar        { order: 4; margin-top: 16px; margin-bottom: 0; }
     /* Tab Pre-assegnazione ha sub-view (lista vs editor) come child diretti.
        Stesso riordino applicato ricorsivamente nelle sub-view. */
     #drafts-list-view, #drafts-editor-view {
@@ -1561,12 +1563,12 @@
     #drafts-editor-view > .toolbar-actions,
     #drafts-list-view > .guest-actions,
     #drafts-editor-view > .guest-actions { order: 1; }
-    #drafts-list-view > .stats-bar,
-    #drafts-editor-view > .stats-bar { order: 2; margin-top: 4px; }
     #drafts-list-view > .table-wrap,
-    #drafts-editor-view > .table-wrap,
+    #drafts-editor-view > .table-wrap    { order: 2; }
     #drafts-list-view > #dre-validation,
     #drafts-editor-view > #dre-validation { order: 3; }
+    #drafts-list-view > .stats-bar,
+    #drafts-editor-view > .stats-bar { order: 4; margin-top: 16px; margin-bottom: 0; }
     /* Feedback visivo all'attivazione di una view: brillio + leggera traslazione
        dall'alto (~250ms). Comunica subito "ho cambiato pagina" anche se l'utente
        era scrollato in basso. */
@@ -2732,7 +2734,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-09c</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-09d</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
