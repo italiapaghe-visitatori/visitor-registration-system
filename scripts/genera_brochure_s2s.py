@@ -6,17 +6,20 @@ originale di Gi Group e adattandolo:
 - Ragione sociale: "Service to Service S.r.l." (S2S) al posto di "Gi Group S.p.A."
 - Sede: S.S. Appia 7 Bis Km 800, presso Parco Commerciale "Appia Center",
         81030 Teverola CE
+- Pagina 4: norme di emergenza con icone vettoriali al posto delle immagini
+  bitmap dell'originale (riprodotte con primitive ReportLab/canvas).
 """
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 from reportlab.lib.units import mm
-from reportlab.lib.colors import HexColor
+from reportlab.lib.colors import HexColor, white, black
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak,
-    KeepTogether
+    KeepTogether, Flowable
 )
 from pathlib import Path
+import copy
 
 ROOT = Path(__file__).resolve().parents[1]
 LOGO_PATH = ROOT / "assets" / "logo-S2S-def.gif"
@@ -26,153 +29,391 @@ OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 # ─── Costanti documento ───
 COMPANY_NAME = "Service to Service S.r.l."
 COMPANY_SHORT = "S2S"
-ADDRESS_LINE = (
+ADDRESS_LINE_1 = 'S.S. Appia 7 Bis Km 800, Parco Commerciale "Appia Center"'
+ADDRESS_LINE_2 = "81030 Teverola (CE)"
+ADDRESS_FULL = (
     'S.S. Appia 7 Bis Km 800, presso Parco Commerciale "Appia Center", '
     "81030 Teverola CE"
 )
 EMAIL_PRIVACY = "privacy@s2s.it"
 EMAIL_DPO = "dpo@s2s.it"
 
-# Header text (apparirà su ogni pagina via canvas)
-HEADER_TITLE = COMPANY_NAME
-HEADER_SUB = "Brochure informativa per l'accesso all'immobile"
-HEADER_SUB2 = ADDRESS_LINE
 DOC_REV = "Rev.1_20260509"
 DOC_ALLEGATO = "Allegato 01_PEI"
 
-# Colori brand S2S (blu del logo)
+# Colori
 BRAND_BLUE = HexColor("#0E3B7A")
 BRAND_GREY = HexColor("#666666")
 RULE_COLOR = HexColor("#CCCCCC")
 TEXT_DARK = HexColor("#222222")
+EMERGENCY_RED = HexColor("#C62828")
+EMERGENCY_BG = HexColor("#FFEBEE")
+SECTION_BG = HexColor("#FFE0B2")
+SECTION_FG = HexColor("#BF360C")
+WARN_YELLOW = HexColor("#FBC02D")
+SAFE_GREEN = HexColor("#2E7D32")
+INFO_BLUE = HexColor("#1565C0")
 
 
 # ─── Header/Footer su ogni pagina ───
 def draw_page_header_footer(canvas, doc):
     canvas.saveState()
-
-    # ── Header banda ──
     page_w, page_h = A4
-    header_h = 28 * mm
-    canvas.setStrokeColor(RULE_COLOR)
-    canvas.setLineWidth(0.5)
-    canvas.line(15 * mm, page_h - header_h - 2 * mm,
-                page_w - 15 * mm, page_h - header_h - 2 * mm)
 
-    # Logo a sinistra (height 18mm)
+    # ── Header layout fisso 30mm ──
+    header_top = page_h - 6 * mm                  # margin top header
+    header_bottom = page_h - 32 * mm              # bottom della banda header
+    line_y = header_bottom                         # linea sotto header
+
+    # Logo a sinistra
+    logo_x = 18 * mm
+    logo_y = header_bottom + 2 * mm
+    logo_w = 26 * mm
+    logo_h = 18 * mm
     if LOGO_PATH.exists():
         try:
             canvas.drawImage(
-                str(LOGO_PATH),
-                15 * mm,
-                page_h - header_h + 4 * mm,
-                width=30 * mm,
-                height=20 * mm,
-                preserveAspectRatio=True,
-                mask="auto",
+                str(LOGO_PATH), logo_x, logo_y,
+                width=logo_w, height=logo_h,
+                preserveAspectRatio=True, mask="auto",
             )
         except Exception:
-            # fallback testo
             canvas.setFont("Helvetica-Bold", 14)
             canvas.setFillColor(BRAND_BLUE)
-            canvas.drawString(15 * mm, page_h - 18 * mm, "S2S")
+            canvas.drawString(logo_x, logo_y + 6 * mm, "S2S")
 
-    # Titolo al centro
-    canvas.setFont("Helvetica-Bold", 11)
+    # Box destro (Allegato / Rev / Pagina) — più stretto e in alto
+    box_w = 50 * mm
+    box_h = 22 * mm
+    box_x = page_w - 18 * mm - box_w   # 18mm margine destro
+    box_y = header_bottom + 0 * mm
+    canvas.setStrokeColor(black)
+    canvas.setLineWidth(0.5)
+    canvas.rect(box_x, box_y, box_w, box_h, stroke=1, fill=0)
+    # 3 righe interne
+    row_h = box_h / 3
+    canvas.line(box_x, box_y + 2 * row_h, box_x + box_w, box_y + 2 * row_h)
+    canvas.line(box_x, box_y + 1 * row_h, box_x + box_w, box_y + 1 * row_h)
+    canvas.setFont("Helvetica", 8.5)
     canvas.setFillColor(TEXT_DARK)
-    canvas.drawString(60 * mm, page_h - 14 * mm, HEADER_TITLE)
-    canvas.setFont("Helvetica", 8)
-    canvas.setFillColor(BRAND_GREY)
-    canvas.drawString(60 * mm, page_h - 19 * mm, HEADER_SUB)
-    canvas.drawString(60 * mm, page_h - 23 * mm, HEADER_SUB2)
-
-    # Riquadro destro: Allegato + Rev + Pagina
-    box_x = page_w - 60 * mm
-    box_y = page_h - header_h + 2 * mm
-    canvas.setStrokeColor(RULE_COLOR)
-    canvas.setLineWidth(0.4)
-    canvas.rect(box_x, box_y, 45 * mm, 22 * mm, stroke=1, fill=0)
-    canvas.line(box_x, box_y + 14 * mm, box_x + 45 * mm, box_y + 14 * mm)
-    canvas.line(box_x, box_y + 7 * mm, box_x + 45 * mm, box_y + 7 * mm)
-    canvas.setFont("Helvetica", 8)
-    canvas.setFillColor(TEXT_DARK)
-    canvas.drawCentredString(box_x + 22.5 * mm, box_y + 18 * mm, DOC_ALLEGATO)
-    canvas.drawCentredString(box_x + 22.5 * mm, box_y + 10 * mm, DOC_REV)
+    canvas.drawCentredString(box_x + box_w / 2, box_y + 2 * row_h + row_h / 2 - 3, DOC_ALLEGATO)
+    canvas.drawCentredString(box_x + box_w / 2, box_y + 1 * row_h + row_h / 2 - 3, DOC_REV)
+    total = getattr(doc, "_totalPages", "5")
     canvas.drawCentredString(
-        box_x + 22.5 * mm, box_y + 3 * mm,
-        f"Pagina {doc.page} di {doc._totalPages if hasattr(doc, '_totalPages') else '4'}",
+        box_x + box_w / 2, box_y + row_h / 2 - 3,
+        f"Pagina {doc.page} di {total}",
     )
+
+    # Centro: titolo + sottotitoli (lo spazio è da logo_x+logo_w+4mm a box_x-4mm)
+    text_x = logo_x + logo_w + 6 * mm
+    text_max = box_x - text_x - 4 * mm
+    canvas.setFont("Helvetica-Bold", 12)
+    canvas.setFillColor(TEXT_DARK)
+    canvas.drawString(text_x, header_bottom + 16 * mm, COMPANY_NAME)
+    canvas.setFont("Helvetica", 8.5)
+    canvas.setFillColor(BRAND_GREY)
+    canvas.drawString(text_x, header_bottom + 11 * mm,
+                      "Brochure informativa per l'accesso all'immobile")
+    # Indirizzo su due righe per non sovrapporsi al box
+    canvas.drawString(text_x, header_bottom + 7 * mm, ADDRESS_LINE_1)
+    canvas.drawString(text_x, header_bottom + 3 * mm, ADDRESS_LINE_2)
+
+    # Linea sotto header
+    canvas.setStrokeColor(RULE_COLOR)
+    canvas.setLineWidth(0.5)
+    canvas.line(15 * mm, line_y - 1 * mm, page_w - 15 * mm, line_y - 1 * mm)
 
     # ── Footer ──
     canvas.setFont("Helvetica-Oblique", 7)
     canvas.setFillColor(BRAND_GREY)
     footer_y = 12 * mm
-    canvas.drawCentredString(
-        page_w / 2,
-        footer_y,
-        f"Questo documento è di proprietà di {COMPANY_NAME}.",
-    )
-    canvas.drawCentredString(
-        page_w / 2,
-        footer_y - 4 * mm,
-        f"Il suo contenuto, intero o in parte, non può essere copiato, utilizzato o "
-        f"divulgato a terzi senza autorizzazione scritta di {COMPANY_NAME}.",
-    )
+    canvas.drawCentredString(page_w / 2, footer_y,
+                              f"Questo documento è di proprietà di {COMPANY_NAME}.")
+    canvas.drawCentredString(page_w / 2, footer_y - 4 * mm,
+                              f"Il suo contenuto, intero o in parte, non può essere copiato, "
+                              f"utilizzato o divulgato a terzi senza autorizzazione scritta di "
+                              f"{COMPANY_NAME}.")
 
     canvas.restoreState()
 
 
 # ─── Stili paragrafi ───
 styles = getSampleStyleSheet()
-body = ParagraphStyle(
-    "Body",
-    parent=styles["BodyText"],
-    fontName="Helvetica",
-    fontSize=10,
-    leading=13,
-    alignment=TA_JUSTIFY,
-    textColor=TEXT_DARK,
-    spaceAfter=4,
-)
-section_h = ParagraphStyle(
-    "SectionH",
-    parent=styles["Heading2"],
-    fontName="Helvetica-Bold",
-    fontSize=12,
-    leading=16,
-    textColor=BRAND_BLUE,
-    spaceBefore=10,
-    spaceAfter=6,
-    alignment=TA_CENTER,
-)
-sub_h = ParagraphStyle(
-    "SubH",
-    parent=styles["Heading3"],
-    fontName="Helvetica-Bold",
-    fontSize=11,
-    leading=14,
-    textColor=TEXT_DARK,
-    spaceBefore=8,
-    spaceAfter=2,
-)
-center_b = ParagraphStyle(
-    "CenterBold",
-    parent=body,
-    fontName="Helvetica-Bold",
-    fontSize=11,
-    alignment=TA_CENTER,
-    textColor=BRAND_BLUE,
-    spaceBefore=10,
-    spaceAfter=6,
-)
-emergency_h = ParagraphStyle(
-    "EmergencyH",
-    parent=section_h,
-    fontSize=18,
-    textColor=HexColor("#C62828"),
-    spaceBefore=4,
-    spaceAfter=10,
-)
+body = ParagraphStyle("Body", parent=styles["BodyText"],
+                      fontName="Helvetica", fontSize=10, leading=13,
+                      alignment=TA_JUSTIFY, textColor=TEXT_DARK, spaceAfter=4)
+section_h = ParagraphStyle("SectionH", parent=styles["Heading2"],
+                           fontName="Helvetica-Bold", fontSize=12, leading=16,
+                           textColor=BRAND_BLUE, spaceBefore=10, spaceAfter=6,
+                           alignment=TA_CENTER)
+sub_h = ParagraphStyle("SubH", parent=styles["Heading3"],
+                       fontName="Helvetica-Bold", fontSize=11, leading=14,
+                       textColor=TEXT_DARK, spaceBefore=8, spaceAfter=2)
+center_b = ParagraphStyle("CenterBold", parent=body, fontName="Helvetica-Bold",
+                          fontSize=11, alignment=TA_CENTER, textColor=BRAND_BLUE,
+                          spaceBefore=10, spaceAfter=6)
+emergency_h = ParagraphStyle("EmergencyH", parent=section_h, fontSize=22,
+                             textColor=EMERGENCY_RED, spaceBefore=4, spaceAfter=14)
+
+
+# ─── Icone vettoriali (Flowable custom) ───
+class Icon(Flowable):
+    """Disegna un'icona vettoriale di emergenza/sicurezza dentro un quadrato.
+    `kind` può essere uno di:
+      fire-extinguisher, hydrant, alarm-button, electric-panel, you-are-here,
+      exit-arrow, emergency-exit, emergency-stairs, meeting-point, first-aid,
+      no-smoking, no-trash-fire, fire, no-elevator, evacuate-walk, phone,
+      lock, danger
+    """
+    def __init__(self, kind, size=14 * mm):
+        super().__init__()
+        self.kind = kind
+        self.size = size
+        self.width = size
+        self.height = size
+
+    def draw(self):
+        c = self.canv
+        s = self.size
+        c.saveState()
+        # Sfondo: bianco con bordo grigio sottile
+        c.setStrokeColor(HexColor("#BBBBBB"))
+        c.setLineWidth(0.4)
+        c.rect(0, 0, s, s, stroke=1, fill=0)
+        cx, cy = s / 2, s / 2
+        k = self.kind
+
+        def red():    c.setFillColor(HexColor("#E53935")); c.setStrokeColor(HexColor("#B71C1C"))
+        def green():  c.setFillColor(HexColor("#43A047")); c.setStrokeColor(HexColor("#1B5E20"))
+        def yellow(): c.setFillColor(HexColor("#FBC02D")); c.setStrokeColor(HexColor("#F57F17"))
+        def blue():   c.setFillColor(HexColor("#1E88E5")); c.setStrokeColor(HexColor("#0D47A1"))
+        def black_():  c.setFillColor(black); c.setStrokeColor(black)
+        def white_():  c.setFillColor(white); c.setStrokeColor(black)
+
+        if k == "fire-extinguisher":
+            # Estintore: corpo rosso + maniglia + base
+            red(); c.roundRect(cx - 2.5*mm, cy - 4*mm, 5*mm, 8*mm, 1*mm, fill=1, stroke=1)
+            black_(); c.rect(cx - 0.5*mm, cy + 4*mm, 1*mm, 1.2*mm, fill=1, stroke=1)
+            c.line(cx + 0.5*mm, cy + 4.6*mm, cx + 2.2*mm, cy + 4.6*mm)
+            c.setFillColor(white); c.rect(cx - 1.5*mm, cy - 1*mm, 3*mm, 2*mm, fill=1, stroke=0)
+
+        elif k == "hydrant":
+            # Idrante: corpo rosso ad arco + fori
+            red(); c.roundRect(cx - 3*mm, cy - 4*mm, 6*mm, 8*mm, 1.5*mm, fill=1, stroke=1)
+            white_(); c.circle(cx - 1.2*mm, cy + 1.5*mm, 0.6*mm, fill=1, stroke=0)
+            c.circle(cx + 1.2*mm, cy + 1.5*mm, 0.6*mm, fill=1, stroke=0)
+            c.circle(cx, cy - 1*mm, 0.6*mm, fill=1, stroke=0)
+
+        elif k == "alarm-button":
+            # Pulsante allarme: cerchio rosso con quadrato bianco interno
+            red(); c.circle(cx, cy, 4*mm, fill=1, stroke=1)
+            white_(); c.rect(cx - 1.5*mm, cy - 1.5*mm, 3*mm, 3*mm, fill=1, stroke=0)
+
+        elif k == "electric-panel":
+            # Quadro elettrico: rettangolo giallo con saetta nera
+            yellow(); c.roundRect(cx - 3.5*mm, cy - 3.5*mm, 7*mm, 7*mm, 0.8*mm, fill=1, stroke=1)
+            # Saetta semplificata
+            c.setFillColor(black)
+            p = c.beginPath()
+            p.moveTo(cx + 0.5*mm, cy + 2.5*mm)
+            p.lineTo(cx - 1.5*mm, cy)
+            p.lineTo(cx, cy)
+            p.lineTo(cx - 0.5*mm, cy - 2.5*mm)
+            p.lineTo(cx + 1.5*mm, cy - 0.2*mm)
+            p.lineTo(cx, cy - 0.2*mm)
+            p.lineTo(cx + 0.5*mm, cy + 2.5*mm)
+            p.close()
+            c.drawPath(p, fill=1, stroke=0)
+
+        elif k == "you-are-here":
+            # Posizione: cerchio blu con punto
+            blue(); c.circle(cx, cy, 3.5*mm, fill=1, stroke=1)
+            white_(); c.circle(cx, cy, 1.2*mm, fill=1, stroke=0)
+
+        elif k == "exit-arrow":
+            # Direzione di esodo: freccia verde verso destra
+            green(); c.rect(cx - 4*mm, cy - 1.5*mm, 5*mm, 3*mm, fill=1, stroke=0)
+            p = c.beginPath()
+            p.moveTo(cx + 1*mm, cy - 3*mm); p.lineTo(cx + 1*mm, cy + 3*mm)
+            p.lineTo(cx + 4*mm, cy); p.close()
+            c.drawPath(p, fill=1, stroke=0)
+
+        elif k == "emergency-exit":
+            # Uscita emergenza: omino verde + porta + freccia
+            green(); c.rect(cx - 3.5*mm, cy - 4*mm, 7*mm, 8*mm, fill=1, stroke=0)
+            # omino bianco
+            c.setFillColor(white)
+            c.circle(cx - 1.2*mm, cy + 2*mm, 0.8*mm, fill=1, stroke=0)
+            c.rect(cx - 1.5*mm, cy - 2*mm, 0.6*mm, 3*mm, fill=1, stroke=0)
+            c.rect(cx - 1.0*mm, cy - 2*mm, 0.6*mm, 3*mm, fill=1, stroke=0)
+            # freccia laterale
+            p = c.beginPath()
+            p.moveTo(cx + 1*mm, cy - 1*mm); p.lineTo(cx + 1*mm, cy + 1*mm)
+            p.lineTo(cx + 3*mm, cy); p.close()
+            c.drawPath(p, fill=1, stroke=0)
+
+        elif k == "emergency-stairs":
+            # Scala emergenza: omino + scaletta
+            green(); c.rect(cx - 3.5*mm, cy - 4*mm, 7*mm, 8*mm, fill=1, stroke=0)
+            c.setFillColor(white)
+            # gradini
+            for i in range(3):
+                c.rect(cx + 0.0*mm + i*0.7*mm, cy - 3*mm + i*1.0*mm,
+                       2*mm - i*0.3*mm, 0.6*mm, fill=1, stroke=0)
+            # omino
+            c.circle(cx - 1.3*mm, cy + 2*mm, 0.7*mm, fill=1, stroke=0)
+            c.rect(cx - 1.6*mm, cy - 1*mm, 0.6*mm, 3*mm, fill=1, stroke=0)
+
+        elif k == "meeting-point":
+            # Punto di raduno: 4 frecce convergenti su pallino centrale
+            green(); c.rect(cx - 3.5*mm, cy - 3.5*mm, 7*mm, 7*mm, fill=1, stroke=0)
+            c.setFillColor(white)
+            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                p = c.beginPath()
+                p.moveTo(cx + dx*1.5*mm - dy*0.6*mm, cy + dy*1.5*mm - dx*0.6*mm)
+                p.lineTo(cx + dx*1.5*mm + dy*0.6*mm, cy + dy*1.5*mm + dx*0.6*mm)
+                p.lineTo(cx + dx*0.4*mm, cy + dy*0.4*mm)
+                p.close()
+                c.drawPath(p, fill=1, stroke=0)
+            c.circle(cx, cy, 0.6*mm, fill=1, stroke=0)
+
+        elif k == "first-aid":
+            # Cassetta primo soccorso: quadrato verde con croce bianca
+            green(); c.roundRect(cx - 3.5*mm, cy - 3*mm, 7*mm, 6*mm, 0.5*mm, fill=1, stroke=0)
+            white_();
+            c.rect(cx - 0.7*mm, cy - 1.6*mm, 1.4*mm, 3.2*mm, fill=1, stroke=0)
+            c.rect(cx - 1.6*mm, cy - 0.7*mm, 3.2*mm, 1.4*mm, fill=1, stroke=0)
+
+        elif k == "no-smoking":
+            # No fumare: cerchio rosso barrato + sigaretta
+            black_(); c.rect(cx - 2.5*mm, cy - 0.4*mm, 5*mm, 0.8*mm, fill=1, stroke=0)  # sigaretta
+            c.setFillColor(HexColor("#E0E0E0")); c.rect(cx + 1.7*mm, cy - 0.4*mm, 1*mm, 0.8*mm, fill=1, stroke=0)
+            # cerchio rosso barrato
+            c.setStrokeColor(HexColor("#E53935")); c.setLineWidth(1.2)
+            c.circle(cx, cy, 4*mm, stroke=1, fill=0)
+            c.line(cx - 2.8*mm, cy - 2.8*mm, cx + 2.8*mm, cy + 2.8*mm)
+
+        elif k == "no-trash-fire":
+            # Vietato gettare materiale infiammabile: cestino + fiamma + cerchio barrato
+            black_(); c.rect(cx - 1.8*mm, cy - 2*mm, 3.6*mm, 3*mm, fill=0, stroke=1)
+            c.line(cx - 2*mm, cy + 1*mm, cx + 2*mm, cy + 1*mm)
+            # fiamma piccola
+            c.setFillColor(HexColor("#FB8C00"))
+            p = c.beginPath()
+            p.moveTo(cx - 1*mm, cy - 1.5*mm); p.lineTo(cx + 1*mm, cy - 1.5*mm)
+            p.lineTo(cx, cy + 0.5*mm); p.close()
+            c.drawPath(p, fill=1, stroke=0)
+            # cerchio barrato
+            c.setStrokeColor(HexColor("#E53935")); c.setLineWidth(1.2)
+            c.circle(cx, cy, 4*mm, stroke=1, fill=0)
+            c.line(cx - 2.8*mm, cy - 2.8*mm, cx + 2.8*mm, cy + 2.8*mm)
+
+        elif k == "fire":
+            # Fiamma
+            c.setFillColor(HexColor("#FB8C00"))
+            p = c.beginPath()
+            p.moveTo(cx, cy - 3*mm)
+            p.curveTo(cx + 3*mm, cy - 1*mm, cx + 1.5*mm, cy + 2*mm, cx, cy + 3*mm)
+            p.curveTo(cx - 1.5*mm, cy + 2*mm, cx - 3*mm, cy - 1*mm, cx, cy - 3*mm)
+            c.drawPath(p, fill=1, stroke=0)
+            c.setFillColor(HexColor("#FFEB3B"))
+            p2 = c.beginPath()
+            p2.moveTo(cx, cy - 1*mm)
+            p2.curveTo(cx + 1.5*mm, cy + 0*mm, cx + 0.7*mm, cy + 1.5*mm, cx, cy + 2*mm)
+            p2.curveTo(cx - 0.7*mm, cy + 1.5*mm, cx - 1.5*mm, cy, cx, cy - 1*mm)
+            c.drawPath(p2, fill=1, stroke=0)
+
+        elif k == "no-elevator":
+            # Vietato ascensore: rettangolo + cerchio barrato
+            black_(); c.rect(cx - 2*mm, cy - 3*mm, 4*mm, 6*mm, fill=0, stroke=1)
+            c.line(cx, cy - 3*mm, cx, cy + 3*mm)
+            # frecce su/giù
+            c.line(cx - 1*mm, cy + 1*mm, cx - 1*mm, cy + 2.5*mm)
+            c.line(cx + 1*mm, cy - 1*mm, cx + 1*mm, cy - 2.5*mm)
+            # cerchio barrato
+            c.setStrokeColor(HexColor("#E53935")); c.setLineWidth(1.2)
+            c.circle(cx, cy, 4*mm, stroke=1, fill=0)
+            c.line(cx - 2.8*mm, cy - 2.8*mm, cx + 2.8*mm, cy + 2.8*mm)
+
+        elif k == "evacuate-walk":
+            # Personale che evacua: omino in movimento (verde, simbolo standard)
+            green(); c.rect(cx - 3.5*mm, cy - 3.5*mm, 7*mm, 7*mm, fill=1, stroke=0)
+            c.setFillColor(white)
+            c.circle(cx - 0.5*mm, cy + 2.2*mm, 0.7*mm, fill=1, stroke=0)
+            # corpo (linea inclinata)
+            c.setLineWidth(1)
+            c.setStrokeColor(white)
+            c.line(cx - 0.5*mm, cy + 1.4*mm, cx + 0.5*mm, cy - 1.5*mm)
+            # gambe
+            c.line(cx + 0.5*mm, cy - 1.5*mm, cx - 1*mm, cy - 3*mm)
+            c.line(cx + 0.5*mm, cy - 1.5*mm, cx + 2*mm, cy - 3*mm)
+            # braccia
+            c.line(cx - 0.5*mm, cy + 1*mm, cx - 2.2*mm, cy + 0.5*mm)
+            c.line(cx - 0.5*mm, cy + 0.5*mm, cx + 2.2*mm, cy + 1.5*mm)
+
+        elif k == "phone":
+            # Telefono di emergenza
+            c.setFillColor(HexColor("#1E88E5"))
+            c.roundRect(cx - 3*mm, cy - 4*mm, 6*mm, 8*mm, 1*mm, fill=1, stroke=0)
+            c.setFillColor(white)
+            c.rect(cx - 2*mm, cy - 1*mm, 4*mm, 4*mm, fill=1, stroke=0)
+            c.circle(cx, cy - 2.5*mm, 0.6*mm, fill=1, stroke=0)
+
+        elif k == "lock":
+            # Lucchetto
+            c.setFillColor(HexColor("#FB8C00"))
+            c.roundRect(cx - 2.5*mm, cy - 3*mm, 5*mm, 5*mm, 0.5*mm, fill=1, stroke=0)
+            c.setLineWidth(1.4)
+            c.setStrokeColor(HexColor("#FB8C00"))
+            c.arc(cx - 2*mm, cy + 1*mm, cx + 2*mm, cy + 4*mm, 0, 180)
+            white_(); c.circle(cx, cy - 0.5*mm, 0.6*mm, fill=1, stroke=0)
+
+        elif k == "danger":
+            # Triangolo di pericolo giallo con !
+            yellow()
+            p = c.beginPath()
+            p.moveTo(cx, cy + 3.5*mm); p.lineTo(cx + 3.5*mm, cy - 2.5*mm)
+            p.lineTo(cx - 3.5*mm, cy - 2.5*mm); p.close()
+            c.drawPath(p, fill=1, stroke=1)
+            black_(); c.rect(cx - 0.3*mm, cy - 1*mm, 0.6*mm, 2.5*mm, fill=1, stroke=0)
+            c.circle(cx, cy - 1.8*mm, 0.4*mm, fill=1, stroke=0)
+
+        elif k == "videocamera":
+            # Videocamera sorveglianza
+            c.setFillColor(HexColor("#37474F"))
+            c.rect(cx - 3*mm, cy - 1.5*mm, 5*mm, 3*mm, fill=1, stroke=0)
+            p = c.beginPath()
+            p.moveTo(cx + 2*mm, cy - 1*mm); p.lineTo(cx + 2*mm, cy + 1*mm)
+            p.lineTo(cx + 3.5*mm, cy + 0.6*mm); p.lineTo(cx + 3.5*mm, cy - 0.6*mm)
+            p.close()
+            c.drawPath(p, fill=1, stroke=0)
+            white_(); c.circle(cx - 1*mm, cy + 2.5*mm, 0.5*mm, fill=1, stroke=0)
+
+        elif k == "badge":
+            # Badge con clip
+            c.setFillColor(HexColor("#1E88E5"))
+            c.roundRect(cx - 2.5*mm, cy - 3*mm, 5*mm, 5.5*mm, 0.5*mm, fill=1, stroke=0)
+            black_(); c.rect(cx - 0.5*mm, cy + 2.5*mm, 1*mm, 1*mm, fill=1, stroke=0)
+            white_();
+            c.circle(cx, cy + 0.5*mm, 1*mm, fill=1, stroke=0)
+            c.rect(cx - 1.5*mm, cy - 2.2*mm, 3*mm, 0.8*mm, fill=1, stroke=0)
+
+        c.restoreState()
+
+
+def icon_with_label(kind, label, label_w=70 * mm):
+    """Cella tabella: icona + testo accanto."""
+    return Table(
+        [[Icon(kind), Paragraph(label, body)]],
+        colWidths=[16 * mm, label_w],
+        style=TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 2),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+            ("TOPPADDING", (0, 0), (-1, -1), 1),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ])
+    )
 
 
 # ─── Costruzione contenuto ───
@@ -180,17 +421,21 @@ story = []
 
 # === Pagina 1 ===
 story.append(Spacer(1, 4 * mm))
-story.append(Paragraph(f"{COMPANY_NAME} — Sede di Teverola (CE)", center_b))
 story.append(Paragraph(
     "Gentile Ospite,<br/>"
     f"Le forniamo nel seguito alcune informazioni in merito all'accesso "
-    f"nell'immobile di {ADDRESS_LINE}, sede di {COMPANY_NAME} e delle "
+    f"nell'immobile di {ADDRESS_FULL}, sede di {COMPANY_NAME} e delle "
     f"società del gruppo {COMPANY_SHORT}.",
     body,
 ))
 story.append(Spacer(1, 4 * mm))
 
-story.append(Paragraph("BADGE ACCESSO", section_h))
+# Sezione BADGE con icona accanto
+story.append(Table(
+    [[Icon("badge"), Paragraph("BADGE ACCESSO", section_h)]],
+    colWidths=[16 * mm, 150 * mm],
+    style=TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE")])
+))
 story.append(Paragraph(
     "Le verrà fornito un badge per accedere ai piani; il badge è "
     "necessario al fine di monitorare l'accesso e la sua presenza "
@@ -201,7 +446,12 @@ story.append(Paragraph(
     body,
 ))
 
-story.append(Paragraph("VIDEOSORVEGLIANZA", section_h))
+# Sezione VIDEOSORVEGLIANZA con icona
+story.append(Table(
+    [[Icon("videocamera"), Paragraph("VIDEOSORVEGLIANZA", section_h)]],
+    colWidths=[16 * mm, 150 * mm],
+    style=TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE")])
+))
 story.append(Paragraph(
     "Le segnaliamo che le aree di accesso all'immobile (hall di ingresso) "
     "e ai piani (sbarchi ascensori) sono soggette a videosorveglianza come "
@@ -306,7 +556,7 @@ story.append(Paragraph(
 story.append(Paragraph("F — Dati di contatto del Titolare", sub_h))
 story.append(Paragraph(
     f"Titolare del Trattamento dei dati personali è <b>{COMPANY_NAME}</b>, "
-    f"con sede in {ADDRESS_LINE}, in persona del legale rappresentante "
+    f"con sede in {ADDRESS_FULL}, in persona del legale rappresentante "
     f"pro tempore.",
     body,
 ))
@@ -315,7 +565,7 @@ story.append(Paragraph("G — Dati di contatto del Data Protection Officer (DPO)
 story.append(Paragraph(
     f"Responsabile della protezione dei dati (DPO) è contattabile al "
     f"seguente recapito:<br/>"
-    f"{ADDRESS_LINE}, all'attenzione del Data Protection Officer, "
+    f"{ADDRESS_FULL}, all'attenzione del Data Protection Officer, "
     f"email <b>{EMAIL_DPO}</b>.",
     body,
 ))
@@ -374,10 +624,9 @@ story.append(Spacer(1, 4 * mm))
 story.append(Paragraph("SICUREZZA", section_h))
 story.append(Paragraph(
     f"La informiamo, infine, che esiste un piano di emergenza interno "
-    f"all'azienda.<br/>"
-    "Sono stati identificati gli addetti alla gestione delle emergenze. "
-    "Vi invitiamo a prendere visione delle planimetrie di evacuazione "
-    "posizionate ad ogni piano.<br/>"
+    f"all'azienda. Sono stati identificati gli addetti alla gestione delle "
+    "emergenze. Vi invitiamo a prendere visione delle planimetrie di "
+    "evacuazione posizionate ad ogni piano.<br/>"
     "<b>In caso di allarme:</b> seguite le indicazioni della persona di "
     "riferimento o dei componenti della squadra di emergenza. Uscite dai "
     "locali chiudendo la porta. Non utilizzate gli ascensori, ma il corpo "
@@ -392,158 +641,213 @@ story.append(Paragraph(
 
 story.append(PageBreak())
 
-# === Pagina 4 — Norme di emergenza (versione testuale, niente icone) ===
-story.append(Spacer(1, 4 * mm))
+# === Pagina 4 — Norme di emergenza con icone vettoriali ===
+story.append(Spacer(1, 2 * mm))
 story.append(Paragraph("NORME DI COMPORTAMENTO IN CASO DI", section_h))
 story.append(Paragraph("EMERGENZA", emergency_h))
 story.append(Paragraph(
     "<b>1.</b> MANTENERE LA CALMA. NON FARSI PRENDERE DAL PANICO.<br/>"
     "<b>2.</b> SEGUIRE LE ISTRUZIONI QUI RIPORTATE PER UN ESODO RAPIDO E ORDINATO.",
     ParagraphStyle("EmIntro", parent=body, alignment=TA_CENTER, fontSize=11,
-                   spaceAfter=12),
+                   spaceAfter=10),
 ))
 
-# Tabella tipo "tipologie di emergenza"
-def emergency_table(title, items_html):
-    return KeepTogether([
-        Paragraph(title, ParagraphStyle("EmSec", parent=sub_h, alignment=TA_CENTER,
-                                         backColor=HexColor("#FFE0B2"),
-                                         textColor=HexColor("#BF360C"),
-                                         borderPadding=4)),
-        Paragraph(items_html, body),
-        Spacer(1, 4 * mm),
+
+def section_box(title_text, bg_color, fg_color):
+    return Paragraph(
+        f"<b>{title_text}</b>",
+        ParagraphStyle("EmSec", parent=sub_h, alignment=TA_CENTER,
+                       backColor=bg_color, textColor=fg_color, borderPadding=4,
+                       spaceBefore=4, spaceAfter=2)
+    )
+
+
+# MISURE PREVENTIVE — icone vietato fumare e vietato gettare materiale infiammabile
+story.append(section_box("MISURE PREVENTIVE", SECTION_BG, SECTION_FG))
+story.append(Table(
+    [[
+        icon_with_label("no-smoking",
+                        "<b>È VIETATO FUMARE</b> e fare uso di fiamme libere "
+                        "nelle zone prescritte.", label_w=70*mm),
+        icon_with_label("no-trash-fire",
+                        "<b>È VIETATO GETTARE</b> nei cestini mozziconi di sigarette, "
+                        "materiali infiammabili, ecc.", label_w=70*mm),
+    ]],
+    colWidths=[88*mm, 88*mm],
+    style=TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
     ])
-
-story.append(emergency_table(
-    "MISURE PREVENTIVE",
-    "• <b>È VIETATO FUMARE</b> e fare uso di fiamme libere nelle zone prescritte.<br/>"
-    "• <b>È VIETATO GETTARE</b> nei cestini mozziconi di sigarette, materiali infiammabili, ecc.",
 ))
+story.append(Spacer(1, 4 * mm))
 
-story.append(emergency_table(
-    "IN CASO DI EMERGENZA",
-    "Chiunque rilevi fatti anomali che possano far presumere un'imminente "
-    "\"situazione di pericolo\", che non possa essere prontamente eliminata "
-    "con interventi diretti (es. uso di estintore portatile in caso di "
-    "incendio) deve immediatamente chiamare il numero di emergenza interno: "
-    "<b>NUMERO DI EMERGENZA — Reception S2S</b>.<br/>"
-    "Durante l'attesa l'addetto disponibile per estinguere l'incendio deve "
-    "comunque agire seguendo le procedure previste in azienda, "
-    "compatibilmente con le proprie capacità e senza compromettere la "
-    "propria incolumità.",
+# IN CASO DI EMERGENZA con triangolo pericolo + telefono
+story.append(section_box("IN CASO DI EMERGENZA", SECTION_BG, SECTION_FG))
+story.append(Table(
+    [[
+        Icon("danger"),
+        Paragraph(
+            "Chiunque rilevi fatti anomali che possano far presumere un'imminente "
+            "\"situazione di pericolo\", che non possa essere prontamente eliminata "
+            "con interventi diretti (es. uso di estintore portatile in caso di "
+            "incendio) deve immediatamente chiamare il numero di emergenza interno.",
+            body
+        ),
+        Icon("phone"),
+        Paragraph("<b>NUMERO DI<br/>EMERGENZA</b><br/>Reception S2S",
+                  ParagraphStyle("Phone", parent=body, alignment=TA_CENTER,
+                                 fontSize=9, leading=11)),
+    ]],
+    colWidths=[16*mm, 110*mm, 16*mm, 32*mm],
+    style=TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BOX", (2, 0), (3, 0), 0.6, EMERGENCY_RED),
+        ("LEFTPADDING", (0, 0), (-1, -1), 1),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+    ])
 ))
+story.append(Spacer(1, 4 * mm))
 
-story.append(emergency_table(
-    "IN CASO DI INCENDIO",
-    "• Dare l'allarme verbalmente, il pulsante di emergenza più vicino.<br/>"
-    "• Utilizzare i mezzi antincendio disponibili per estinguere l'incendio "
-    "compatibilmente con le proprie capacità e senza compromettere la "
-    "propria incolumità.",
+# IN CASO DI INCENDIO
+story.append(section_box("IN CASO DI INCENDIO", SECTION_BG, SECTION_FG))
+story.append(Table(
+    [[
+        Icon("fire"),
+        Paragraph(
+            "• Dare l'allarme verbalmente o mediante il pulsante di emergenza "
+            "più vicino.<br/>"
+            "• Utilizzare i mezzi antincendio disponibili per estinguere "
+            "l'incendio compatibilmente con le proprie capacità e senza "
+            "compromettere la propria incolumità.",
+            body
+        ),
+        Icon("fire-extinguisher"),
+    ]],
+    colWidths=[16*mm, 142*mm, 16*mm],
+    style=TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE")])
 ))
+story.append(Spacer(1, 4 * mm))
 
-story.append(emergency_table(
-    "IN CASO DI EVACUAZIONE",
-    "<b>È VIETATO SERVIRSI DEGLI ASCENSORI.</b> Evitare di correre, spingersi "
-    "e urlare.<br/><br/>"
+# IN CASO DI EVACUAZIONE
+story.append(section_box("IN CASO DI EVACUAZIONE", SECTION_BG, SECTION_FG))
+story.append(Table(
+    [[
+        Icon("no-elevator"),
+        Paragraph(
+            "<b>È VIETATO SERVIRSI DEGLI ASCENSORI.</b> Evitare di correre, "
+            "spingersi e urlare.",
+            body
+        ),
+        Icon("evacuate-walk"),
+    ]],
+    colWidths=[16*mm, 142*mm, 16*mm],
+    style=TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE")])
+))
+story.append(Spacer(1, 2 * mm))
+story.append(Paragraph(
     "<b>Personale e visitatori/ospiti:</b><br/>"
-    "• Abbandonare regolarmente i locali seguendo i cartelli indicatori in "
-    "conformità alle istruzioni impartite dal Responsabile incaricato.<br/>"
+    "• Abbandonare regolarmente i locali seguendo i cartelli indicatori "
+    "in conformità alle istruzioni impartite dal Responsabile incaricato.<br/>"
     "• Il personale non in grado di muoversi autonomamente attenda con calma "
     "l'arrivo dei soccorritori incaricati.<br/><br/>"
-    "<b>Mezzi di spegnimento:</b><br/>"
-    "• Idrante ad acqua: non usare su impianti elettrici.<br/>"
-    "• Estintori portatili a CO₂ o polvere, anidride carbonica.<br/><br/>"
-    "<b>In caso di presenza di fumo:</b> portarsi un fazzoletto inumidito alla "
-    "via dell'aria e proseguire possibilmente lateralmente lungo il verso di "
-    "fuga.<br/>"
-    "Evitare di privarsi della ricerca di persone o di oggetti personali se "
-    "non richiesto dagli addetti alla emergenza.",
+    "<b>In caso di presenza di fumo</b> portarsi un fazzoletto inumidito "
+    "sulla via dell'aria e proseguire possibilmente lateralmente lungo il "
+    "verso di fuga. Evitare di privarsi della ricerca di persone o di "
+    "oggetti personali se non richiesto dagli addetti alla emergenza.",
+    body
 ))
 
-story.append(emergency_table(
-    "LEGENDA SIMBOLI (consultare la cartellonistica aziendale)",
-    "• <b>ESTINTORI</b> — segnaletica rossa.<br/>"
-    "• <b>IDRANTI UNI 45</b> — segnaletica rossa.<br/>"
-    "• <b>PULSANTE DI EMERGENZA</b> — segnaletica rossa.<br/>"
-    "• <b>QUADRO ELETTRICO</b> — segnaletica gialla.<br/>"
-    "• <b>VOSTRA POSIZIONE</b> — segnaletica blu/verde.<br/>"
-    "• <b>DIREZIONE DI ESODO</b> — segnaletica verde con freccia.<br/>"
-    "• <b>USCITA DI EMERGENZA</b> — segnaletica verde.<br/>"
-    "• <b>SCALA DI EMERGENZA</b> — segnaletica verde.<br/>"
-    "• <b>PUNTO DI RADUNO</b> — segnaletica verde.<br/>"
-    "• <b>CASSETTA DI PRIMO SOCCORSO</b> — segnaletica verde con croce bianca.",
+story.append(PageBreak())
+
+# === Pagina 5 — Legenda icone ===
+story.append(Spacer(1, 2 * mm))
+story.append(Paragraph("LEGENDA SIMBOLI DI SICUREZZA", section_h))
+story.append(Paragraph(
+    "Riferimento dei simboli presenti sulla cartellonistica aziendale "
+    "(planimetrie di evacuazione esposte ad ogni piano):",
+    ParagraphStyle("LegIntro", parent=body, alignment=TA_CENTER, spaceAfter=8),
 ))
 
+# Tabella legenda 2 colonne x 5 righe
+legenda_rows = [
+    [
+        icon_with_label("fire-extinguisher", "<b>ESTINTORI</b><br/>Segnaletica rossa"),
+        icon_with_label("exit-arrow", "<b>DIREZIONE DI ESODO</b><br/>Segnaletica verde con freccia"),
+    ],
+    [
+        icon_with_label("hydrant", "<b>IDRANTI UNI 45</b><br/>Segnaletica rossa"),
+        icon_with_label("emergency-exit", "<b>USCITA DI EMERGENZA</b><br/>Segnaletica verde"),
+    ],
+    [
+        icon_with_label("alarm-button", "<b>PULSANTE DI EMERGENZA</b><br/>Segnaletica rossa"),
+        icon_with_label("emergency-stairs", "<b>SCALA DI EMERGENZA</b><br/>Segnaletica verde"),
+    ],
+    [
+        icon_with_label("electric-panel", "<b>QUADRO ELETTRICO</b><br/>Segnaletica gialla"),
+        icon_with_label("meeting-point", "<b>PUNTO DI RADUNO</b><br/>Segnaletica verde"),
+    ],
+    [
+        icon_with_label("you-are-here", "<b>VOSTRA POSIZIONE</b><br/>Segnaletica blu"),
+        icon_with_label("first-aid", "<b>CASSETTA DI PRIMO SOCCORSO</b><br/>Segnaletica verde con croce bianca"),
+    ],
+]
+story.append(Table(
+    legenda_rows,
+    colWidths=[88*mm, 88*mm],
+    style=TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BOX", (0, 0), (-1, -1), 0.4, RULE_COLOR),
+        ("INNERGRID", (0, 0), (-1, -1), 0.3, RULE_COLOR),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ])
+))
+
+story.append(Spacer(1, 8 * mm))
 story.append(Paragraph(
     "<i>Per i dettagli grafici e i percorsi specifici di evacuazione fare "
     "riferimento alle planimetrie di sicurezza esposte ad ogni piano della "
-    "sede di Teverola.</i>",
+    f"sede di Teverola di {COMPANY_NAME}.</i>",
     ParagraphStyle("EmFoot", parent=body, alignment=TA_CENTER, fontSize=9,
                    textColor=BRAND_GREY, spaceBefore=6),
 ))
 
 
-# ─── Generazione PDF con totalPages a posteriori ───
-class CountingDoc(SimpleDocTemplate):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._totalPages = 1
+# ─── Generazione PDF (due passate per "Pagina N di TOT") ───
+def _build(file_path, total=None):
+    doc = SimpleDocTemplate(
+        str(file_path), pagesize=A4,
+        leftMargin=18 * mm, rightMargin=18 * mm,
+        topMargin=36 * mm, bottomMargin=22 * mm,
+        title=f"{COMPANY_SHORT} — Brochure accesso immobile",
+        author=COMPANY_NAME,
+    )
 
-    def afterFlowable(self, flowable):
-        pass
+    def _on_page(canvas, doc_):
+        if total is not None:
+            doc_._totalPages = total
+        draw_page_header_footer(canvas, doc_)
+
+    holder = {"n": 1}
+    if total is None:
+        def _on_page_count(canvas, doc_):
+            holder["n"] = doc_.page
+            draw_page_header_footer(canvas, doc_)
+        doc.build(copy.deepcopy(story), onFirstPage=_on_page_count, onLaterPages=_on_page_count)
+        return holder["n"]
+    else:
+        doc.build(story, onFirstPage=_on_page, onLaterPages=_on_page)
+        return total
 
 
-# Strategia per pagina N di TOT: due passate
-from reportlab.platypus.doctemplate import LayoutError
-
-# Prima passata per contare pagine
-first_pass_path = OUTPUT.with_suffix(".__count.pdf")
-doc = SimpleDocTemplate(
-    str(first_pass_path),
-    pagesize=A4,
-    leftMargin=18 * mm,
-    rightMargin=18 * mm,
-    topMargin=34 * mm,    # spazio per header
-    bottomMargin=22 * mm, # spazio per footer
-    title=f"{COMPANY_SHORT} — Brochure accesso immobile",
-    author=COMPANY_NAME,
-)
-# Hack: usa una funzione che memorizza il numero di pagine totali
-total_pages_holder = {"n": 1}
-
-def _on_page(canvas, doc):
-    draw_page_header_footer(canvas, doc)
-
-def _count_pages(canvas, doc):
-    total_pages_holder["n"] = doc.page
-
-# Build prima passata (silenziosa, conta)
-import copy
-story_copy = list(story)
-doc.build(copy.deepcopy(story_copy), onFirstPage=_count_pages, onLaterPages=_count_pages)
-
-total = total_pages_holder["n"]
-
-# Seconda passata: usa total per il rendering finale
-def _render_page(canvas, doc):
-    doc._totalPages = total
-    draw_page_header_footer(canvas, doc)
-
-doc2 = SimpleDocTemplate(
-    str(OUTPUT),
-    pagesize=A4,
-    leftMargin=18 * mm,
-    rightMargin=18 * mm,
-    topMargin=34 * mm,
-    bottomMargin=22 * mm,
-    title=f"{COMPANY_SHORT} — Brochure accesso immobile",
-    author=COMPANY_NAME,
-)
-doc2.build(story, onFirstPage=_render_page, onLaterPages=_render_page)
-
-# Cleanup
+tmp = OUTPUT.with_suffix(".__count.pdf")
+total = _build(tmp, total=None)
+_build(OUTPUT, total=total)
 try:
-    first_pass_path.unlink(missing_ok=True)
+    tmp.unlink(missing_ok=True)
 except Exception:
     pass
 
