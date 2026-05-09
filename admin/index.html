@@ -1523,6 +1523,25 @@
     /* ── GUEST VIEW ── */
     .view { display: none; }
     .view.active { display: block; }
+    /* Feedback visivo all'attivazione di una view: brillio + leggera traslazione
+       dall'alto (~250ms). Comunica subito "ho cambiato pagina" anche se l'utente
+       era scrollato in basso. */
+    .view.view-flash {
+      animation: view-flash-anim 0.45s ease-out;
+    }
+    @keyframes view-flash-anim {
+      0%   { opacity: 0.4; transform: translateY(-6px); }
+      60%  { opacity: 1;   transform: translateY(0); }
+      100% { opacity: 1;   transform: translateY(0); }
+    }
+    /* Tab attiva: bordo + ombra accentuati per un feedback "sei qui" più forte.
+       Utile soprattutto su touchscreen dove non c'è hover. */
+    .header-tabs .btn.active-tab {
+      background: #fff;
+      color: #4c51bf;
+      box-shadow: 0 4px 14px rgba(76, 81, 191, 0.3);
+      transform: translateY(-1px);
+    }
 
     .guest-actions {
       display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
@@ -2844,6 +2863,11 @@
     // ── VIEW SWITCH ───────────────────────────────────
     function switchView(v) {
       currentView = v;
+      // Scrolla all'inizio della pagina ad ogni cambio tab, così l'utente vede subito
+      // il contenuto della nuova view (filtri, stat cards, toolbar) invece di restare
+      // alla profondità di scroll della view precedente. Senza questo le tab "in cima"
+      // sembrano non rispondere se si è scrollati nella tabella.
+      try { window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }); } catch (_) { window.scrollTo(0, 0); }
       document.getElementById('view-visitors').classList.toggle('active', v === 'visitors');
       document.getElementById('view-guests').classList.toggle('active', v === 'guests');
       const evView = document.getElementById('view-events');
@@ -2864,6 +2888,15 @@
       if (v === 'events') loadEvents();
       if (v === 'audit')  loadAuditLog();
       if (v === 'drafts') loadDrafts();
+      // Flash visuale sulla view appena attivata: feedback immediato che il click è andato
+      // a segno (oltre allo scroll-to-top). Soprattutto utile per chi è nuovo alla piattaforma.
+      const newView = document.querySelector('.view.active');
+      if (newView) {
+        newView.classList.remove('view-flash');
+        // Forza reflow per riavviare l'animazione anche se la classe è la stessa
+        void newView.offsetWidth;
+        newView.classList.add('view-flash');
+      }
     }
 
     // ── VISITORS DATA ─────────────────────────────────
