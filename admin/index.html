@@ -3330,7 +3330,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10f · audit-complete</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10g · all-fixes</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -3488,11 +3488,24 @@
       return res;
     }
 
+    function _stopAllPollTimers() {
+      try {
+        if (Array.isArray(pollTimers)) {
+          pollTimers.forEach(t => { try { clearInterval(t); } catch(_) {} });
+          pollTimers.length = 0;
+        }
+      } catch(_) {}
+    }
+
     function logout() {
+      _stopAllPollTimers();
       localStorage.removeItem('sb-access-token');
       localStorage.removeItem('sb-refresh-token');
       window.location.href = 'login.html';
     }
+    // Stop timers anche su navigazione fuori dalla pagina (pagehide è più
+    // affidabile di beforeunload su mobile/iOS).
+    window.addEventListener('pagehide', _stopAllPollTimers);
 
     // ── REFRESH UNIVERSALE (tasto "Aggiorna" in header) ───
     // Ricarica i dati della view corrente + cose globali (banner evento, agente, dropdown filtro evento)
@@ -4466,19 +4479,23 @@
       }
     }
 
-    // Auto-refresh contatori quando si è sulla tab Ospiti (silent: niente flicker, niente scroll jump)
-    setInterval(() => {
+    // Polling timers raccolti in un registro per cleanup pulito a logout/unload.
+    // Pre: setInterval globali leak-prone (mai cancellati), specie su SPA con
+    // page-stay lungo. La protezione esistente (currentView + visibilityState
+    // guard) impedisce le fetch inutili, ma il timer JS gira comunque.
+    // Post: registro pollTimers + cleanup esplicito a logout()/unload.
+    const pollTimers = [];
+    pollTimers.push(setInterval(() => {
       if (currentView === 'guests' && document.visibilityState !== 'hidden') {
         loadGuestList(true);
       }
-    }, 10000);
+    }, 10000));
 
-    // Auto-refresh stats e tabella quando si è sulla tab Visitatori (silent)
-    setInterval(() => {
+    pollTimers.push(setInterval(() => {
       if (currentView === 'visitors' && document.visibilityState !== 'hidden') {
         loadData(true);
       }
-    }, 10000);
+    }, 10000));
 
     // ── AGENT STATUS INDICATOR ───────────────────────────────
     // Legge agent_status.last_heartbeat e aggiorna il pill nell'header.
@@ -4518,7 +4535,7 @@
       document.getElementById('agent-status-text').textContent = text;
     }
     // Aggiorna ogni 5s (lieve)
-    setInterval(refreshAgentStatus, 5000);
+    pollTimers.push(setInterval(refreshAgentStatus, 5000));
 
     // ── EMAIL QUEUE STATUS INDICATOR ─────────────────────────
     // Mostra un pill nell'header con il numero di email QR ancora in coda.
@@ -4558,7 +4575,7 @@
         pill.style.display = 'none'; // best-effort, fail silenzioso
       }
     }
-    setInterval(refreshEmailQueueStatus, 10000);
+    pollTimers.push(setInterval(refreshEmailQueueStatus, 10000));
 
     // ── EVENTI ───────────────────────────────────────
     let eventsData = [];
@@ -4780,7 +4797,7 @@
         banner.style.display = 'none';
       }
     }
-    setInterval(refreshActiveEventBanner, 15000);
+    pollTimers.push(setInterval(refreshActiveEventBanner, 15000));
 
     function fmtItDate(iso) {
       if (!iso) return '';
@@ -7650,9 +7667,18 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         updated_by: CURRENT_USER_EMAIL || null
       };
       try {
-        const res = await api(`${SUPABASE_URL}/rest/v1/guest_drafts?id=eq.${activeDraft.id}`, {
+        // Optimistic concurrency control: filtro la PATCH per id E updated_at
+        // memorizzato a load time. Se nel frattempo un'altra segretaria ha
+        // editato lo stesso draft, il suo PATCH avrà incrementato updated_at
+        // → la mia PATCH non matcha più nessuna riga (returns []) → blocco
+        // l'overwrite e avviso l'utente di ricaricare.
+        const cachedUpdatedAt = activeDraft.updated_at;
+        const filterUrl = cachedUpdatedAt
+          ? `${SUPABASE_URL}/rest/v1/guest_drafts?id=eq.${activeDraft.id}&updated_at=eq.${encodeURIComponent(cachedUpdatedAt)}`
+          : `${SUPABASE_URL}/rest/v1/guest_drafts?id=eq.${activeDraft.id}`;
+        const res = await api(filterUrl, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
           body: JSON.stringify(payload)
         });
         if (seq !== draftSaveSeq) return; // un save più recente è in volo
@@ -7660,9 +7686,23 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           const b = res ? await res.json().catch(() => ({})) : {};
           throw new Error(b.message || `${res?.status}`);
         }
-        activeDraft.name     = payload.name;
-        activeDraft.event_id = payload.event_id;
-        activeDraft.rows     = JSON.parse(JSON.stringify(activeRows));
+        const updatedRows = await res.json().catch(() => []);
+        if (cachedUpdatedAt && (!Array.isArray(updatedRows) || updatedRows.length === 0)) {
+          // Conflitto: 0 righe modificate = un altro operatore ha modificato il draft.
+          // NON sovrascrivo. Avviso l'utente e gli faccio ricaricare la sua copia.
+          markDraftError('Conflitto: il draft è stato modificato da un altro operatore');
+          if (confirm('⚠️ Un altro operatore ha modificato questo draft mentre lo stavi editando.\n\nLe tue modifiche NON sono state salvate per evitare di sovrascrivere il suo lavoro.\n\nVuoi ricaricare il draft per vedere lo stato attuale? (Le tue modifiche non salvate andranno perse)')) {
+            await openDraftEditor(activeDraft.id);
+          }
+          return;
+        }
+        activeDraft.name       = payload.name;
+        activeDraft.event_id   = payload.event_id;
+        activeDraft.rows       = JSON.parse(JSON.stringify(activeRows));
+        // Aggiorna updated_at locale dalla risposta server (per il prossimo check)
+        if (Array.isArray(updatedRows) && updatedRows[0] && updatedRows[0].updated_at) {
+          activeDraft.updated_at = updatedRows[0].updated_at;
+        }
         markDraftSaved();
       } catch (err) {
         markDraftError(err.message);

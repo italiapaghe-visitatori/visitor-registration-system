@@ -14,6 +14,7 @@ Debug in foreground:
 import configparser
 import json
 import logging
+import logging.handlers
 import os
 import smtplib
 import ssl
@@ -135,11 +136,18 @@ if SMTP_ENABLED:
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
+# Log rotation: 10 MB max per file, mantieni 5 backup (totale max ~50 MB).
+# Senza rotation, zucchetti_agent.log cresce indefinitamente: con polling 5s
+# su 30 giorni = ~17k cicli/giorno = file di centinaia di MB → riempie il
+# disco del PC S2S in qualche mese.
+_log_path = os.path.join(_dir, "zucchetti_agent.log")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler(os.path.join(_dir, "zucchetti_agent.log"), encoding="utf-8"),
+        logging.handlers.RotatingFileHandler(
+            _log_path, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+        ),
         logging.StreamHandler(sys.stdout),
     ],
 )
@@ -1158,28 +1166,56 @@ def process_pool_walkin_recreate():
 
 
 # ── M365 GRAPH (Modern Authentication via OAuth client_credentials) ──────────
-_m365_token_cache = {"token": None, "expires_at": 0}
+_m365_token_cache = {"token": None, "expires_at": 0, "next_retry_at": 0, "consecutive_failures": 0}
 
 def _m365_get_token():
     """Ottiene un access token M365 via client_credentials flow.
-    Cache in memoria (token validità ~1h, refresh 5 min prima della scadenza)."""
+
+    Resilienza:
+    - Cache in memoria (token validità ~1h, refresh 5 min prima della scadenza).
+    - Se il token endpoint fallisce, NON spamma retry: salta il prossimo tentativo
+      con backoff esponenziale (60s, 120s, 240s, max 600s). Senza, l'email_queue
+      worker tentava 5 email/ciclo × 12 cicli/min = 60 errori/min nel log,
+      saturando il file e bloccando le altre operazioni.
+    - Token cache invalidata (None) su errore così non torna un token già scaduto.
+    """
     now = time.time()
+    # Cache valida → torna subito
     if _m365_token_cache["token"] and _m365_token_cache["expires_at"] > now + 60:
         return _m365_token_cache["token"]
-    r = requests.post(
-        f"https://login.microsoftonline.com/{M365_TENANT_ID}/oauth2/v2.0/token",
-        data={
-            "grant_type":    "client_credentials",
-            "client_id":     M365_CLIENT_ID,
-            "client_secret": M365_CLIENT_SEC,
-            "scope":         "https://graph.microsoft.com/.default",
-        },
-        timeout=15,
-    )
-    r.raise_for_status()
-    j = r.json()
-    _m365_token_cache["token"]      = j["access_token"]
-    _m365_token_cache["expires_at"] = now + int(j.get("expires_in", 3600)) - 300
+    # Backoff: se ho fallito di recente, aspetta prima di riprovare
+    if _m365_token_cache["next_retry_at"] > now:
+        wait_s = int(_m365_token_cache["next_retry_at"] - now)
+        raise RuntimeError(f"M365 token: backoff attivo, riprovo tra {wait_s}s (failures consecutivi: {_m365_token_cache['consecutive_failures']})")
+    try:
+        r = requests.post(
+            f"https://login.microsoftonline.com/{M365_TENANT_ID}/oauth2/v2.0/token",
+            data={
+                "grant_type":    "client_credentials",
+                "client_id":     M365_CLIENT_ID,
+                "client_secret": M365_CLIENT_SEC,
+                "scope":         "https://graph.microsoft.com/.default",
+            },
+            timeout=15,
+        )
+        r.raise_for_status()
+        j = r.json()
+    except Exception as e:
+        # Token request fallita: invalida cache, calcola next_retry con exp backoff
+        _m365_token_cache["token"] = None
+        _m365_token_cache["consecutive_failures"] += 1
+        backoff_s = min(60 * (2 ** (_m365_token_cache["consecutive_failures"] - 1)), 600)
+        _m365_token_cache["next_retry_at"] = now + backoff_s
+        log.warning(
+            f"M365 token request fallita ({type(e).__name__}: {e}). "
+            f"Backoff {backoff_s}s (failures consecutivi: {_m365_token_cache['consecutive_failures']})"
+        )
+        raise
+    # Successo: reset backoff
+    _m365_token_cache["token"]                 = j["access_token"]
+    _m365_token_cache["expires_at"]            = now + int(j.get("expires_in", 3600)) - 300
+    _m365_token_cache["next_retry_at"]         = 0
+    _m365_token_cache["consecutive_failures"]  = 0
     return _m365_token_cache["token"]
 
 
