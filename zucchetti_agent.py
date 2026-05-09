@@ -70,12 +70,27 @@ def axs_acquire():
     return _axs_pool.getconn()
 
 def axs_release(conn) -> None:
-    """Restituisce la connessione al pool. Best-effort: errori silenziosi (la
-    connessione potrebbe essere già morta, in tal caso il pool la sostituisce)."""
+    """Restituisce la connessione al pool, con detection di stato sporco.
+
+    Se la connessione ha una transazione aperta (PostgreSQL transaction_status
+    INTRANS o INERROR) o è chiusa, NON la rimette nel pool (così non finisce
+    a un altro caller in stato corrotto). La discardiamo con close=True.
+    psycopg2.SimpleConnectionPool ricrea automaticamente una nuova conn al
+    prossimo getconn.
+
+    Best-effort: errori silenziosi (la connessione potrebbe essere già morta).
+    """
     if conn is None or _axs_pool is None:
         return
     try:
-        _axs_pool.putconn(conn)
+        # conn.closed: 0 = aperta. != 0 = chiusa o broken.
+        # transaction_status: 0=IDLE, 1=ACTIVE, 2=INTRANS, 3=INERROR, 4=UNKNOWN.
+        # Vogliamo restituire al pool solo conn IDLE+aperta; altre vanno scartate.
+        is_dirty = (conn.closed != 0) or (conn.info.transaction_status != 0)
+    except Exception:
+        is_dirty = True
+    try:
+        _axs_pool.putconn(conn, close=is_dirty)
     except Exception:
         try: conn.close()
         except Exception: pass

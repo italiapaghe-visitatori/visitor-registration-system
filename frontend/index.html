@@ -1268,7 +1268,9 @@
 
         <div class="form-group" id="email-group">
           <label for="email">Email</label>
-          <input type="email" id="email" name="email" autocomplete="email" placeholder="esempio@email.com">
+          <input type="email" id="email" name="email" autocomplete="email" placeholder="esempio@email.com"
+                 oninvalid="this.setCustomValidity('Inserisci un\'email valida (es. nome@esempio.it)')"
+                 oninput="this.setCustomValidity('')">
         </div>
 
         <div class="form-group" id="company-group">
@@ -1313,7 +1315,9 @@
 
         <div class="form-group" id="badge-number-group">
           <label for="badge_number">Numero Badge</label>
-          <input type="text" id="badge_number" name="badge_number" autocomplete="off" placeholder="Badge assegnato in portineria" inputmode="numeric" pattern="\d{3,12}" maxlength="12" title="Solo numeri, da 3 a 12 cifre">
+          <input type="text" id="badge_number" name="badge_number" autocomplete="off" placeholder="Badge assegnato in portineria" inputmode="numeric" pattern="\d{3,12}" maxlength="12" title="Solo numeri, da 3 a 12 cifre"
+                 oninvalid="this.setCustomValidity('Inserisci solo numeri (da 3 a 12 cifre, es. 241026)')"
+                 oninput="this.setCustomValidity('')">
         </div>
 
         <div class="form-group" id="phone-group">
@@ -2332,6 +2336,11 @@
     // contemporanee, con rischio di doppia registrazione lato Supabase
     // (visitor_movements duplicati nonostante la migration v5b).
     let _kioskSubmitting = false;
+    // Reset esplicito su pageshow (anche bfcache restore): se l'utente naviga
+    // back/forward o usa il kiosk dopo timeout, il flag potrebbe essere
+    // rimasto true da un submit precedente interrotto. Senza questo reset,
+    // tutte le registrazioni successive verrebbero ignorate silenziosamente.
+    window.addEventListener('pageshow', () => { _kioskSubmitting = false; });
 
     document.getElementById('visitor-form').addEventListener('submit', async e => {
       e.preventDefault();

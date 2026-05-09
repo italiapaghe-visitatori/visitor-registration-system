@@ -3330,7 +3330,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10h · regression-fix</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10i · final-pass</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -4211,15 +4211,15 @@
           const isEntry = m.direction === 'entry';
           const icon = isEntry ? '↓' : '↑';
           const label = isEntry ? 'Ingresso' : 'Uscita';
-          return `<div class="movement-row ${m.direction}">
+          return `<div class="movement-row ${esc(m.direction || '')}">
             <div class="movement-icon">${icon}</div>
-            <div class="movement-time">${tsStr}</div>
-            <div class="movement-label">${label}${m.badge_number ? ` — badge ${m.badge_number}` : ''}</div>
-            <div class="movement-source">${m.source || ''}</div>
+            <div class="movement-time">${esc(tsStr)}</div>
+            <div class="movement-label">${label}${m.badge_number ? ` — badge ${esc(m.badge_number)}` : ''}</div>
+            <div class="movement-source">${esc(m.source || '')}</div>
           </div>`;
         }).join('');
       } catch (err) {
-        cont.innerHTML = `<div class="movements-empty">Errore: ${err.message}</div>`;
+        cont.innerHTML = `<div class="movements-empty">Errore: ${esc(err.message || '')}</div>`;
       }
     }
 
@@ -5019,6 +5019,27 @@
 
     async function closeActiveEvent() {
       if (!activeEvent) { alert('Nessun evento attivo da chiudere.'); return; }
+      // Pre-check: ci sono visitor ancora "dentro" (entrati ma non usciti)?
+      // Se sì, avvisiamo l'admin che chiudendo li archiviamo e i loro badge
+      // smetteranno di funzionare al tornello → non potranno uscire normalmente.
+      let visitorsStillInside = [];
+      try {
+        const r = await api(`${SUPABASE_URL}/rest/v1/visitors?select=id,first_name,last_name&event_id=eq.${activeEvent.id}&entry_time=not.is.null&exit_time=is.null&xatlas_status=eq.active`);
+        if (r && r.ok) visitorsStillInside = await r.json();
+      } catch (_) { /* best-effort, non bloccare */ }
+      if (visitorsStillInside.length > 0) {
+        const sample = visitorsStillInside.slice(0, 5).map(v => `${v.first_name || ''} ${v.last_name || ''}`.trim()).filter(Boolean).join(', ');
+        const more = visitorsStillInside.length > 5 ? ` (+${visitorsStillInside.length - 5} altri)` : '';
+        const ok = confirm(
+          `⚠️ ATTENZIONE: ci sono ${visitorsStillInside.length} visitatori ancora DENTRO (entrati ma non usciti):\n\n${sample}${more}\n\n` +
+          `Se chiudi l'evento adesso:\n` +
+          `- I loro badge verranno disattivati al prossimo ciclo agente (~30 sec)\n` +
+          `- NON potranno uscire dal tornello con il loro badge → bloccati fuori\n` +
+          `- Dovrai liberarli manualmente dal tornello\n\n` +
+          `Sei SICURO di voler chiudere comunque?`
+        );
+        if (!ok) return;
+      }
       if (!confirm(`Chiudere "${activeEvent.name}"?\n\nTutti i visitatori dell'evento verranno archiviati (xatlas_status = checked_out) e i loro badge liberati al prossimo ciclo agente. Operazione irreversibile.`)) return;
       try {
         // Archivia massivamente i visitor dell'evento
