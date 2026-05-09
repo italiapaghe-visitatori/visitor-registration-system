@@ -1827,6 +1827,20 @@
        Pre-assegnazione/Audit la tabella di Visitatori restava sopra). */
     .view { display: none !important; }
     .view.active { display: flex !important; flex-direction: column; }
+    /* MAXIMUM STRENGTH: catch-all per coprire qualsiasi caso anomalo
+       (race condition, cache parziale, style inline da bookmarklet, estensioni).
+       Una view senza class "active" deve essere INVISIBILE, NON CLICCABILE,
+       FUORI DAL FLUSSO DEL LAYOUT. Queste 4 proprietà combinate sono
+       impossibili da bypassare senza modifica esplicita del CSS. */
+    .view:not(.active) {
+      display:        none      !important;
+      visibility:     hidden    !important;
+      position:       absolute  !important;
+      pointer-events: none      !important;
+      height:         0         !important;
+      max-height:     0         !important;
+      overflow:       hidden    !important;
+    }
     /* Riordina le sezioni di ogni view: PRIMA azioni/filtri (parte operativa),
        POI stat cards (dashboard di riepilogo), DOPO tabella (visualizzazione).
        Così cliccando una tab in cima atterri SUBITO sui controlli — niente
@@ -3265,7 +3279,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10a · acquisizione</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10b · view-isolation</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -3481,7 +3495,43 @@
         void newView.offsetWidth;
         newView.classList.add('view-flash');
       }
+      // SAFETY NET: enforce single-active-view invariant. Se per qualche bug
+      // residuo (race condition, mutazione esterna, polling concorrente) restano
+      // 2 view "active" simultaneamente, qui correggiamo: tutte tranne quella
+      // appena richiesta perdono la classe.
+      const allViews = document.querySelectorAll('.view.active');
+      if (allViews.length > 1) {
+        const targetId = 'view-' + v;
+        allViews.forEach(el => {
+          if (el.id !== targetId) el.classList.remove('active');
+        });
+        console.warn('[admin] safety: rimossa active da view extra:',
+                     [...allViews].map(e => e.id).filter(id => id !== targetId));
+      }
     }
+
+    // SAFETY NET 2: MutationObserver runtime. Se a runtime qualcun altro
+    // (polling, fetch async, agent injection) aggiunge .active a una seconda
+    // view, lo rileviamo e ripuliamo immediatamente.
+    function _initViewObserver() {
+      const allViewEls = document.querySelectorAll('.view');
+      if (!allViewEls.length) return;
+      const obs = new MutationObserver(mutations => {
+        const active = [...document.querySelectorAll('.view.active')];
+        if (active.length <= 1) return;
+        // Più di una active → mantieni solo quella che match currentView
+        const targetId = 'view-' + (window.currentView || 'visitors');
+        active.forEach(el => {
+          if (el.id !== targetId) el.classList.remove('active');
+        });
+        console.warn('[admin] MutationObserver: rimossa active da view extra:',
+                     active.map(e => e.id).filter(id => id !== targetId));
+      });
+      allViewEls.forEach(el => obs.observe(el, { attributes: true, attributeFilter: ['class'] }));
+    }
+    document.addEventListener('DOMContentLoaded', _initViewObserver);
+    // Anche se DOMContentLoaded già fired (script in fondo), inizializza al volo:
+    if (document.readyState !== 'loading') _initViewObserver();
 
     // ── VISITORS DATA ─────────────────────────────────
     let showArchived = false;
