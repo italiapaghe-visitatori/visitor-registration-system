@@ -25,3 +25,6 @@ npm-debug.log*
 # Agente Zucchetti — credenziali locali
 agent_config.ini
 zucchetti_agent.log
+
+# Superpowers brainstorming workspace (sessioni mockup, locali)
+.superpowers/
