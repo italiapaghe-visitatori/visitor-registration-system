@@ -38,7 +38,7 @@ ADDRESS_FULL = (
 EMAIL_PRIVACY = "privacy@s2s.it"
 EMAIL_DPO = "dpo@s2s.it"
 
-DOC_REV = "Rev.1_20260509"
+DOC_REV = "Rev.2_20260509"
 DOC_ALLEGATO = "Allegato 01_PEI"
 
 # Colori
@@ -113,7 +113,7 @@ def draw_page_header_footer(canvas, doc):
     canvas.setFont("Helvetica", 8.5)
     canvas.setFillColor(BRAND_GREY)
     canvas.drawString(text_x, header_bottom + 11 * mm,
-                      "Brochure informativa per l'accesso all'immobile")
+                      "Brochure informativa per l'accesso alla struttura")
     # Indirizzo su due righe per non sovrapporsi al box
     canvas.drawString(text_x, header_bottom + 7 * mm, ADDRESS_LINE_1)
     canvas.drawString(text_x, header_bottom + 3 * mm, ADDRESS_LINE_2)
@@ -453,7 +453,7 @@ story.append(Table(
     style=TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE")])
 ))
 story.append(Paragraph(
-    "Le segnaliamo che le aree di accesso all'immobile (hall di ingresso) "
+    "Le segnaliamo che le aree di accesso alla struttura (hall di ingresso) "
     "e ai piani (sbarchi ascensori) sono soggette a videosorveglianza come "
     "indicato dalla relativa cartellonistica.",
     body,
