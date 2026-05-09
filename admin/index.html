@@ -1168,6 +1168,36 @@
     .consent-yes { color: #38a169; font-weight: 700; }
     .consent-no  { color: #e53e3e; font-weight: 700; }
 
+    /* Sezione consensi nei dettagli visitor: blocco riassuntivo con icona,
+       label e timestamp di ciascun consenso (GDPR + Norme di accesso). */
+    .consent-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .consent-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #f7f9fc;
+      border: 1px solid #edf0f5;
+      font-size: 13px;
+    }
+    .consent-row.ok    { background: #f0fff4; border-color: #c6f6d5; }
+    .consent-row.ko    { background: #fff5f5; border-color: #feb2b2; }
+    .consent-row .consent-icon { font-size: 18px; }
+    .consent-row .consent-text { flex: 1; }
+    .consent-row .consent-meta { font-size: 11px; color: #718096; margin-top: 2px; }
+    .consent-row .consent-link {
+      font-size: 12px;
+      color: #4c51bf;
+      text-decoration: underline;
+      white-space: nowrap;
+    }
+
     /* ── PRE-ASSEGNAZIONE BADGE: editor draft ── */
     .dre-save-status {
       font-size: 12px;
@@ -1717,6 +1747,12 @@
             <input type="text" id="det-document-id" placeholder="Es. AB1234567" autocomplete="off" oninput="this.value = this.value.toUpperCase()" style="text-transform: uppercase;">
           </div>
         </div>
+      </div>
+
+      <hr class="divider">
+      <p class="section-heading">📜 Consensi (audit/legal)</p>
+      <div id="det-consents" class="consent-summary">
+        <!-- popolato da openDetailsModal: GDPR + Norme di accesso (PDF brochure S2S) -->
       </div>
 
       <hr class="divider">
@@ -2734,7 +2770,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-09d</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-09e</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -3344,7 +3380,10 @@
       const headers = ['Nome','Cognome','Azienda','Email','Tipo Documento','Numero Documento',
                        'Data visita','Ingresso (tornello)','Uscita (tornello)',
                        'Persona da visitare','Motivo visita','N° badge','Stato badge','Tipo',
-                       'Evento','Data evento','Consenso privacy'];
+                       'Evento','Data evento','Consenso GDPR',
+                       'Norme accesso (accettate)','Norme accesso (versione)',
+                       'Norme accesso (timestamp)','PDF aperto'];
+      function fmtDt(iso) { if (!iso) return ''; try { return new Date(iso).toLocaleString('it-IT'); } catch (_) { return iso; } }
       const rows = currentData.map(r => [
         val(r.first_name), val(r.last_name), val(r.company), val(r.email),
         val(r.document_type), val(r.document_id),
@@ -3353,7 +3392,11 @@
         val(r.xatlas_status) || 'nessuno',
         r.guest_id ? 'Atteso' : 'Walk-in',
         val(r.event_name), fmtDate(r.event_date),
-        r.data_consent ? 'Sì' : 'No'
+        r.data_consent ? 'Sì' : 'No',
+        r.access_rules_consent ? 'Sì' : 'No',
+        val(r.access_rules_version),
+        fmtDt(r.access_rules_at),
+        r.access_rules_opened ? 'Sì' : 'No'
       ]);
       const csv = [headers, ...rows].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
@@ -3476,6 +3519,42 @@
       const docIdEl   = document.getElementById('det-document-id');
       if (docTypeEl) docTypeEl.value = row.document_type || '';
       if (docIdEl)   docIdEl.value   = row.document_id   || '';
+
+      // Sezione Consensi (audit/legal): GDPR + Norme di accesso (PDF brochure S2S)
+      const consentsEl = document.getElementById('det-consents');
+      if (consentsEl) {
+        const fmtDt = iso => {
+          if (!iso) return '';
+          try { return new Date(iso).toLocaleString('it-IT'); } catch (_) { return iso; }
+        };
+        const gdpr = !!row.data_consent;
+        const rules = !!row.access_rules_consent;
+        const opened = !!row.access_rules_opened;
+        const rulesAt = row.access_rules_at;
+        const rulesVer = row.access_rules_version;
+        consentsEl.innerHTML = `
+          <div class="consent-row ${gdpr ? 'ok' : 'ko'}">
+            <span class="consent-icon">${gdpr ? '✅' : '❌'}</span>
+            <div class="consent-text">
+              <div><strong>Consenso Privacy GDPR</strong> (Reg. UE 2016/679)</div>
+              <div class="consent-meta">${gdpr ? 'Acconsentito' : 'NON acconsentito'}</div>
+            </div>
+          </div>
+          <div class="consent-row ${rules ? 'ok' : 'ko'}">
+            <span class="consent-icon">${rules ? '✅' : '❌'}</span>
+            <div class="consent-text">
+              <div><strong>Norme di accesso all'immobile</strong> (badge, videosorveglianza, sicurezza, emergenza)</div>
+              <div class="consent-meta">
+                ${rules ? 'Accettato' : 'NON accettato'}
+                ${rulesAt ? ' &middot; ' + esc(fmtDt(rulesAt)) : ''}
+                ${rulesVer ? ' &middot; versione ' + esc(rulesVer) : ''}
+                ${opened ? ' &middot; PDF aperto dall\'ospite' : (rules ? ' &middot; PDF non aperto (accettato senza consultare)' : '')}
+              </div>
+            </div>
+            <a href="../assets/S2S_Brochure_Accesso_Immobile.pdf" target="_blank" rel="noopener" class="consent-link">📄 Apri PDF</a>
+          </div>
+        `;
+      }
 
       // Carica storico timbrature da visitor_movements
       loadMovementsForVisitor(row.id);

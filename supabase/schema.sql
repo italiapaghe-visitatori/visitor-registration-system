@@ -423,3 +423,26 @@ DROP TRIGGER IF EXISTS guest_drafts_updated_at ON guest_drafts;
 CREATE TRIGGER guest_drafts_updated_at
   BEFORE UPDATE ON guest_drafts
   FOR EACH ROW EXECUTE FUNCTION guest_drafts_touch_updated_at();
+
+-- =====================================================
+-- MIGRATION v9 — Consenso "Norme di accesso all'immobile" (PDF brochure S2S)
+-- =====================================================
+-- Traccia separatamente l'accettazione delle norme di accesso (badge,
+-- videosorveglianza, sicurezza, emergenza) dal consenso GDPR. Per audit/legal
+-- è importante avere evidenza che l'ospite abbia ESPLICITAMENTE preso visione
+-- del PDF e accettato le condizioni: due colonne per i due consensi distinti.
+
+ALTER TABLE visitors
+  ADD COLUMN IF NOT EXISTS access_rules_consent  BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS access_rules_at       TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS access_rules_version  TEXT,
+  ADD COLUMN IF NOT EXISTS access_rules_opened   BOOLEAN DEFAULT FALSE;
+
+-- access_rules_consent: TRUE se l'ospite ha spuntato il checkbox del PDF
+-- access_rules_at:      timestamp dell'accettazione
+-- access_rules_version: versione del PDF accettata (es. "Rev.1_20260509"), permette
+--                       di sapere quale brochure ha letto se cambia in futuro
+-- access_rules_opened:  TRUE se l'ospite ha cliccato il link al PDF (apertura
+--                       tracciata via JS, evidenza ulteriore per audit)
+
+CREATE INDEX IF NOT EXISTS visitors_access_rules_idx ON visitors(access_rules_consent);
