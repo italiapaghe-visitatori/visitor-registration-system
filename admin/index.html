@@ -1934,6 +1934,114 @@
       .stats-bar.stats-4 { grid-template-columns: 1fr 1fr; }
       #user-email { display: none; }
     }
+
+    #event-overview-panel {
+      display: none;
+      background: #fff;
+      border: 2px solid #c3dafe;
+      border-radius: 12px;
+      margin: 14px 28px;
+      box-shadow: 0 2px 12px rgba(76, 81, 191, 0.10);
+      overflow: hidden;
+    }
+    body[data-view]:not([data-view="visitors"]):not([data-view=""]):not([data-view="login"]) #event-overview-panel.has-event {
+      display: block;
+    }
+    #event-overview-panel .eop-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #ebf4ff 0%, #e0e7ff 100%);
+      border-bottom: 1px solid #c3dafe;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      flex-wrap: wrap;
+    }
+    #event-overview-panel .eop-title {
+      font-weight: 700;
+      color: #4c51bf;
+      font-size: 14px;
+      flex: 1;
+      min-width: 200px;
+    }
+    #event-overview-panel .eop-title strong {
+      color: #2d3748;
+    }
+    #event-overview-panel .eop-stats {
+      font-size: 12px;
+      color: #4a5568;
+      font-variant-numeric: tabular-nums;
+    }
+    #event-overview-panel .eop-stats strong {
+      color: #4c51bf;
+      font-weight: 700;
+    }
+    #event-overview-panel .eop-toggle-btn {
+      background: #fff;
+      border: 1px solid #c3dafe;
+      color: #4c51bf;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    #event-overview-panel .eop-toggle-btn:hover {
+      background: #ebf4ff;
+      border-color: #4c51bf;
+    }
+    #event-overview-panel[data-collapsed="true"] .eop-table-wrap {
+      display: none;
+    }
+    #event-overview-panel .eop-table-wrap {
+      max-height: 420px;
+      overflow-y: auto;
+    }
+    #event-overview-panel .eop-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    #event-overview-panel .eop-table thead th {
+      position: sticky;
+      top: 0;
+      background: #f7fafc;
+      padding: 8px 14px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: #4a5568;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #edf0f5;
+      white-space: nowrap;
+    }
+    #event-overview-panel .eop-table tbody td {
+      padding: 8px 14px;
+      border-bottom: 1px solid #f0f2f5;
+      font-size: 13px;
+      color: #2d3748;
+      vertical-align: middle;
+    }
+    #event-overview-panel .eop-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    #event-overview-panel .eop-table tbody tr:hover {
+      background: #fafbff;
+    }
+    #event-overview-panel .eop-empty {
+      padding: 30px;
+      text-align: center;
+      color: #a0aec0;
+      font-size: 13px;
+      font-style: italic;
+    }
+    .eop-visitor-name { line-height: 1.3; }
+    .eop-visitor-name strong { font-size: 13px; color: #1a202c; }
+    .eop-visitor-name .eop-fn { font-size: 12px; color: #4a5568; }
   </style>
 </head>
 <body class="auth-pending">
@@ -3270,6 +3378,34 @@
       </div>
     </div>
 
+    <div id="event-overview-panel" data-collapsed="false">
+      <div class="eop-header">
+        <span class="eop-title">👥 Panoramica Visitatori — <strong id="eop-event-name">—</strong></span>
+        <span class="eop-stats">
+          <strong id="eop-stat-total">0</strong> totali ·
+          <strong id="eop-stat-inside">0</strong> dentro ·
+          <strong id="eop-stat-waiting">0</strong> attesi
+        </span>
+        <button type="button" id="eop-toggle" class="eop-toggle-btn"
+                title="Riduci/espandi il pannello panoramica. La preferenza viene salvata.">▼ Riduci</button>
+      </div>
+      <div class="eop-table-wrap">
+        <table class="eop-table">
+          <thead>
+            <tr>
+              <th>Visitatore</th>
+              <th>Azienda</th>
+              <th>📄 Documento</th>
+              <th>Tipo</th>
+              <th>Badge</th>
+            </tr>
+          </thead>
+          <tbody id="eop-table-body"></tbody>
+        </table>
+        <div id="eop-empty" class="eop-empty" style="display:none">Nessun visitatore registrato per questo evento.</div>
+      </div>
+    </div>
+
   </div>
 
   <footer class="admin-footer">
@@ -3279,7 +3415,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10b · view-isolation</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10c · event-overview-panel</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -3349,11 +3485,14 @@
       // Auth ok → mostra body (rimuove anti-flash) e disarma il safety timer
       clearTimeout(safetyTimer);
       document.body.classList.remove('auth-pending');
+      document.body.dataset.view = 'visitors';
 
       loadData();
       refreshAgentStatus();
       refreshActiveEventBanner();
       populateEventFilter();
+      loadEventOverview();
+      startEventOverviewPolling();
     });
 
     // Errore JS non catchato durante il caricamento iniziale → mostra il body
@@ -3456,6 +3595,7 @@
     // ── VIEW SWITCH ───────────────────────────────────
     function switchView(v) {
       currentView = v;
+      document.body.dataset.view = v;
       // Scrolla all'inizio della pagina ad ogni cambio tab, così l'utente vede subito
       // il contenuto della nuova view (filtri, stat cards, toolbar) invece di restare
       // alla profondità di scroll della view precedente. Senza questo le tab "in cima"
@@ -3486,6 +3626,7 @@
       if (v === 'audit')  loadAuditLog();
       if (v === 'drafts') loadDrafts();
       if (v === 'acquire') loadAcquireSessions();
+      loadEventOverview();
       // Flash visuale sulla view appena attivata: feedback immediato che il click è andato
       // a segno (oltre allo scroll-to-top). Soprattutto utile per chi è nuovo alla piattaforma.
       const newView = document.querySelector('.view.active');
@@ -3662,6 +3803,110 @@
         }
       }
     }
+
+    // ── PANNELLO PANORAMICA VISITATORI EVENTO ─────────────────
+    let _eopPollTimer = null;
+
+    async function loadEventOverview() {
+      const panel = document.getElementById('event-overview-panel');
+      if (!panel) return;
+      if (currentView === 'visitors') {
+        panel.classList.remove('has-event');
+        return;
+      }
+      if (!activeEvent || !activeEvent.id) {
+        panel.classList.remove('has-event');
+        return;
+      }
+      panel.classList.add('has-event');
+      const evNameEl = document.getElementById('eop-event-name');
+      if (evNameEl) evNameEl.textContent = activeEvent.name || '—';
+      try {
+        const url = `${SUPABASE_URL}/rest/v1/visitors?select=id,first_name,last_name,company,document_type,document_id,xatlas_status,badge_number,entry_time,exit_time,guest_id,signature&event_id=eq.${encodeURIComponent(activeEvent.id)}&xatlas_status=in.(pending,active)&order=last_name.asc.nullslast,first_name.asc.nullslast&limit=200`;
+        const res = await api(url);
+        if (!res || !res.ok) return;
+        const rows = await res.json();
+        renderEventOverview(rows);
+      } catch (_) { /* silent */ }
+    }
+
+    function renderEventOverview(rows) {
+      const tbody = document.getElementById('eop-table-body');
+      const empty = document.getElementById('eop-empty');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      if (!rows || rows.length === 0) {
+        if (empty) empty.style.display = '';
+        document.getElementById('eop-stat-total').textContent   = 0;
+        document.getElementById('eop-stat-inside').textContent  = 0;
+        document.getElementById('eop-stat-waiting').textContent = 0;
+        return;
+      }
+      if (empty) empty.style.display = 'none';
+      let total = 0, inside = 0, waiting = 0;
+      rows.forEach(r => {
+        total++;
+        const isInside = !!r.entry_time && !r.exit_time && r.xatlas_status !== 'checked_out';
+        if (isInside) inside++;
+        else waiting++;
+
+        const tr = document.createElement('tr');
+        const nameHtml = `<div class="eop-visitor-name"><strong>${esc(r.last_name || '')}</strong> <span class="eop-fn">${esc(r.first_name || '')}</span></div>`;
+        const docHtml  = r.document_id ? `<span class="doc-type">${esc(r.document_type || 'DOC')}</span> ${esc(r.document_id)}` : '<span class="empty-dash">—</span>';
+        let tipoHtml;
+        if (r.xatlas_status === 'checked_out') tipoHtml = '<span class="gtype gtype-concluso">Concluso</span>';
+        else if (r.guest_id)                   tipoHtml = '<span class="gtype gtype-atteso">Atteso</span>';
+        else                                   tipoHtml = '<span class="gtype gtype-walkin">Walk-in</span>';
+        let badgeHtml;
+        if (!r.badge_number)                    badgeHtml = '<span class="empty-dash">—</span>';
+        else if (r.xatlas_status === 'pending') badgeHtml = `<strong>${esc(r.badge_number)}</strong> <span class="xstatus xstatus-pending">PENDING</span>`;
+        else if (r.xatlas_status === 'active')  badgeHtml = `<strong>${esc(r.badge_number)}</strong> <span class="xstatus xstatus-active">ACTIVE</span>`;
+        else                                    badgeHtml = `<strong>${esc(r.badge_number)}</strong>`;
+
+        tr.innerHTML = `
+          <td>${nameHtml}</td>
+          <td>${esc(r.company || '') || '<span class="empty-dash">—</span>'}</td>
+          <td>${docHtml}</td>
+          <td>${tipoHtml}</td>
+          <td>${badgeHtml}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('eop-stat-total').textContent   = total;
+      document.getElementById('eop-stat-inside').textContent  = inside;
+      document.getElementById('eop-stat-waiting').textContent = waiting;
+    }
+
+    function startEventOverviewPolling() {
+      if (_eopPollTimer) return;
+      _eopPollTimer = setInterval(() => {
+        if (document.visibilityState === 'hidden') return;
+        if (currentView === 'visitors') return;
+        loadEventOverview();
+      }, 10000);
+    }
+    function stopEventOverviewPolling() {
+      if (_eopPollTimer) { clearInterval(_eopPollTimer); _eopPollTimer = null; }
+    }
+
+    function _initEopToggle() {
+      const btn = document.getElementById('eop-toggle');
+      const panel = document.getElementById('event-overview-panel');
+      if (!btn || !panel || btn._eopInited) return;
+      btn._eopInited = true;
+      const collapsed = localStorage.getItem('eop_collapsed') === '1';
+      panel.dataset.collapsed = collapsed ? 'true' : 'false';
+      btn.textContent = collapsed ? '▲ Espandi' : '▼ Riduci';
+      btn.addEventListener('click', () => {
+        const isCollapsed = panel.dataset.collapsed === 'true';
+        const newState = !isCollapsed;
+        panel.dataset.collapsed = newState ? 'true' : 'false';
+        btn.textContent = newState ? '▲ Espandi' : '▼ Riduci';
+        try { localStorage.setItem('eop_collapsed', newState ? '1' : '0'); } catch (_) {}
+      });
+    }
+    document.addEventListener('DOMContentLoaded', _initEopToggle);
+    if (document.readyState !== 'loading') _initEopToggle();
 
     function applyFilters() { currentPage = 0; loadData(); }
 
