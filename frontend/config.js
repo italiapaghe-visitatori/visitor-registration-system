@@ -35,7 +35,13 @@ const CONFIG = {
     department: { enabled: false, label: 'Reparto/Ufficio', required: false },
     vehiclePlate: { enabled: false, label: 'Targa Veicolo', required: false },
     signature: { enabled: true, label: 'Firma del Visitatore', required: true },
-    dataConsent: { enabled: true, label: 'Acconsento al trattamento dei dati personali ai sensi del Regolamento UE 2016/679 (GDPR)', required: true }
+    dataConsent: {
+      enabled: true,
+      // Label HTML — include link al PDF Norme di accesso. event.stopPropagation()
+      // evita che cliccando sul link si flippi il checkbox.
+      label: 'Acconsento al trattamento dei dati personali ai sensi del Regolamento UE 2016/679 (GDPR) e dichiaro di aver letto e accettato le <a href="../assets/S2S_Brochure_Accesso_Immobile.pdf" target="_blank" rel="noopener" class="consent-link" onclick="event.stopPropagation()">📄 Norme di accesso all\'immobile</a> (badge, videosorveglianza, sicurezza, emergenza).',
+      required: true
+    }
   },
   
   // ===== MOTIVI VISITA (Alphabetical order + extra coerenti) =====

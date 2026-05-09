@@ -351,6 +351,17 @@
 
     .consent-box:hover { border-color: var(--primary); }
 
+    /* Link al PDF "Norme di accesso" dentro il checkbox di consenso.
+       Stoppa la propagazione del click così non flippa il checkbox quando
+       l'utente apre il PDF. */
+    .consent-link {
+      color: var(--primary);
+      font-weight: 700;
+      text-decoration: underline;
+      white-space: nowrap;
+    }
+    .consent-link:hover { color: #4a36b0; }
+
     .consent-box input[type=checkbox] {
       position: absolute;
       opacity: 0;
@@ -1360,11 +1371,11 @@
         </div>
 
         <div class="consent-wrap" id="consent-group">
-          <p class="section-label">Consenso privacy <span class="req">*</span></p>
+          <p class="section-label">Consenso privacy e norme di accesso <span class="req">*</span></p>
           <label class="consent-box" for="data_consent" id="consent-box">
             <input type="checkbox" id="data_consent" name="data_consent">
             <span class="chk"></span>
-            <span id="consent-label">Acconsento al trattamento dei dati personali ai sensi del Regolamento UE 2016/679 (GDPR)</span>
+            <span id="consent-label">Acconsento al trattamento dei dati personali ai sensi del Regolamento UE 2016/679 (GDPR) e dichiaro di aver letto e accettato le <a href="../assets/S2S_Brochure_Accesso_Immobile.pdf" target="_blank" rel="noopener" class="consent-link" onclick="event.stopPropagation()">📄 Norme di accesso all'immobile</a> (badge, videosorveglianza, sicurezza, emergenza).</span>
           </label>
         </div>
 
@@ -1443,7 +1454,9 @@
       if (!consentField?.enabled) {
         consentGroup.style.display = 'none';
       } else if (consentField.label) {
-        document.getElementById('consent-label').textContent = consentField.label;
+        // innerHTML (non textContent) per supportare il link <a> al PDF Norme di accesso.
+        // config.js è file statico controllato dal team, quindi non c'è rischio XSS dinamico.
+        document.getElementById('consent-label').innerHTML = consentField.label;
       }
 
       // Visit reasons
