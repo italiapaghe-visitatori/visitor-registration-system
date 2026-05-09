@@ -1379,7 +1379,7 @@
           <label class="consent-box" for="data_consent" id="consent-box">
             <input type="checkbox" id="data_consent" name="data_consent">
             <span class="chk"></span>
-            <span id="consent-label">Acconsento al trattamento dei dati personali ai sensi del Regolamento UE 2016/679 (GDPR) e dichiaro di aver letto e accettato le <a href="../assets/S2S_Brochure_Accesso_Immobile.pdf" target="_blank" rel="noopener" class="consent-link" onclick="event.stopPropagation()">📄 Norme di accesso all'immobile</a> (badge, videosorveglianza, sicurezza, emergenza).</span>
+            <span id="consent-label">Acconsento al trattamento dei dati personali ai sensi del Regolamento UE 2016/679 (GDPR) e dichiaro di aver letto e accettato le <a href="../assets/S2S_Brochure_Accesso_Immobile.pdf" target="_blank" rel="noopener" class="consent-link" onclick="event.stopPropagation()">📄 Norme di accesso alla struttura</a> (badge, videosorveglianza, sicurezza, emergenza).</span>
           </label>
         </div>
 
@@ -1607,7 +1607,7 @@
     const SUPABASE_URL      = CONFIG.supabase.url;
     const SUPABASE_ANON_KEY = CONFIG.supabase.anonKey;
 
-    // Versione corrente del PDF "Norme di accesso all'immobile" (Brochure S2S).
+    // Versione corrente del PDF "Norme di accesso alla struttura" (Brochure S2S).
     // Memorizzata su visitors.access_rules_version al momento della firma per audit:
     // se il PDF cambia in futuro sappiamo quale revisione l'ospite ha letto/accettato.
     const ACCESS_RULES_VERSION = 'Rev.1_20260509';
@@ -2380,7 +2380,7 @@
         department:       document.getElementById('department').value.trim() || null,
         vehicle_plate:    document.getElementById('vehicle_plate').value.trim().toUpperCase() || null,
         data_consent:     consentEl.checked,
-        // Norme di accesso all'immobile (PDF brochure S2S): consenso separato dal GDPR
+        // Norme di accesso alla struttura (PDF brochure S2S): consenso separato dal GDPR
         // per audit/legal. Il checkbox unico copre entrambi i consensi (l'ospite spunta
         // un solo box ma confermando dichiara di aver letto il PDF + accettato GDPR).
         access_rules_consent: consentEl.checked,
