@@ -863,7 +863,7 @@
     }
 
     /* ── CONTAINER ── */
-    .container { max-width: 1600px; margin: 0 auto; padding: 14px 28px; }
+    .container { max-width: 1600px; margin: 0 auto; padding: 14px 28px; display: flex; flex-direction: column; }
 
     /* ── ERROR BANNER ── */
     .error-banner {
@@ -1876,6 +1876,33 @@
     #drafts-editor-view > #dre-validation { order: 3; }
     #drafts-list-view > .stats-bar,
     #drafts-editor-view > .stats-bar { order: 4; margin-top: 16px; margin-bottom: 0; }
+
+    /* ── PANORAMICA VISITATORI: view-visitors appare IN FONDO in tutte le tab
+       non-Visitatori (Ospiti Attesi, Eventi, Pre-asseg, Acquisizione, Audit).
+       Override delle 7 proprietà !important di .view:not(.active) tramite
+       selettore più specifico (id #view-visitors batte la classe .view).
+       Sulla tab Visitatori dedicata, la view occupa tutta la pagina via .active. */
+    body[data-view]:not([data-view="visitors"]):not([data-view="login"]):not([data-view=""]) #view-visitors {
+      display:        flex      !important;
+      flex-direction: column    !important;
+      visibility:     visible   !important;
+      position:       static    !important;
+      pointer-events: auto      !important;
+      height:         auto      !important;
+      max-height:     none      !important;
+      overflow:       visible   !important;
+      order:          100       !important;
+      border-top:     3px solid #c3dafe;
+      margin-top:     28px;
+      padding-top:    20px;
+    }
+    /* Su Ospiti Attesi: stats cards in cima al contenuto (1-4-3-2 da specifica utente).
+       Override del default che le metterebbe in fondo (order:4). */
+    body[data-view="guests"] #view-guests.active > .stats-bar {
+      order:        -1   !important;
+      margin-top:   0    !important;
+      margin-bottom: 16px !important;
+    }
     /* Feedback visivo all'attivazione di una view: brillio + leggera traslazione
        dall'alto (~250ms). Comunica subito "ho cambiato pagina" anche se l'utente
        era scrollato in basso. */
@@ -3279,7 +3306,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10b · view-isolation</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10c · panoramica-bottom</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -3349,6 +3376,7 @@
       // Auth ok → mostra body (rimuove anti-flash) e disarma il safety timer
       clearTimeout(safetyTimer);
       document.body.classList.remove('auth-pending');
+      document.body.dataset.view = 'visitors';
 
       loadData();
       refreshAgentStatus();
@@ -3456,6 +3484,7 @@
     // ── VIEW SWITCH ───────────────────────────────────
     function switchView(v) {
       currentView = v;
+      document.body.dataset.view = v;
       // Scrolla all'inizio della pagina ad ogni cambio tab, così l'utente vede subito
       // il contenuto della nuova view (filtri, stat cards, toolbar) invece di restare
       // alla profondità di scroll della view precedente. Senza questo le tab "in cima"
