@@ -655,6 +655,11 @@
       border-left: 4px solid transparent;
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
+    .btn-retry-xatlas { margin-left: 12px; padding: 4px 10px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; }
+    .sig-preview-wrap { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 16px; }
+    .sig-preview-img { max-width: 100%; max-height: 180px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; display: block; }
+    .sig-preview-meta { font-size: 11px; color: #718096; margin-top: 8px; font-style: italic; }
+    .sig-preview-empty { padding: 18px; text-align: center; color: #a0aec0; font-size: 13px; font-style: italic; }
     .movements-timeline .movement-row.entry { border-left-color: #48bb78; }
     .movements-timeline .movement-row.exit  { border-left-color: #fc8181; }
     .movements-timeline .movement-icon {
@@ -2081,6 +2086,12 @@
       </div>
 
       <hr class="divider">
+      <p class="section-heading">✍️ Firma autografa</p>
+      <div id="det-signature-wrap" class="sig-preview-wrap">
+        <!-- popolato da openDetailsModal: <img src="${signature}"> oppure messaggio "non firmato" -->
+      </div>
+
+      <hr class="divider">
       <p class="section-heading">📋 Storico timbrature (prova legale)</p>
       <div id="det-movements" class="movements-timeline">
         <div class="movements-loading">Caricamento timbrature...</div>
@@ -2639,19 +2650,19 @@
         <div class="filters-grid">
           <div class="filter-group">
             <label>Data inizio</label>
-            <input type="date" id="f-date-start" title="Data inizio filtro">
+            <input type="date" id="f-date-start" title="Data inizio filtro" onchange="applyFilters()">
           </div>
           <div class="filter-group">
             <label>Data fine</label>
-            <input type="date" id="f-date-end" title="Data fine filtro">
+            <input type="date" id="f-date-end" title="Data fine filtro" onchange="applyFilters()">
           </div>
           <div class="filter-group">
             <label>Nome</label>
-            <input type="text" id="f-name" placeholder="Cerca...">
+            <input type="text" id="f-name" placeholder="Cerca..." oninput="debouncedApplyFilters()">
           </div>
           <div class="filter-group">
             <label>Cognome</label>
-            <input type="text" id="f-lastname" placeholder="Cerca...">
+            <input type="text" id="f-lastname" placeholder="Cerca..." oninput="debouncedApplyFilters()">
           </div>
           <div class="filter-group">
             <label>🎫 Evento</label>
@@ -2662,7 +2673,7 @@
           </div>
           <div class="filter-group">
             <label>Motivo</label>
-            <select id="f-reason" title="Filtra per motivo visita">
+            <select id="f-reason" title="Filtra per motivo visita" onchange="applyFilters()">
               <option value="">Tutti</option>
               <option value="Appuntamento di lavoro">Appuntamento di lavoro</option>
               <option value="Colloquio">Colloquio</option>
@@ -3330,7 +3341,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10k · top-legal-proof</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10l · operator-fluidity</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -3675,7 +3686,15 @@
           opt.textContent = `${prefix}${ev.name} (${date})${ev.closed_at ? ' — storico' : ''}`;
           sel.appendChild(opt);
         });
-        if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+        if (cur && [...sel.options].some(o => o.value === cur)) {
+          sel.value = cur;
+        } else if (!cur && activeEvent && activeEvent.id && [...sel.options].some(o => o.value === activeEvent.id)) {
+          // Auto-pre-filter: se nessuna selezione utente E c'è un evento attivo, preseleziona
+          // l'evento attivo nel dropdown filtro. Riduce drasticamente il rumore visivo durante
+          // l'evento (la segretaria vede SOLO i visitori del giorno, non lo storico misto).
+          sel.value = activeEvent.id;
+          if (typeof currentPage !== 'undefined') currentPage = 0;
+        }
       } catch (_) { /* silent */ }
     }
 
@@ -3731,6 +3750,14 @@
     }
 
     function applyFilters() { currentPage = 0; loadData(); }
+
+    // Debounced version per i filtri text che reagiscono on-input (Nome, Cognome).
+    // 300ms = sweet spot: typing fluido, ma non spara 1 fetch per carattere.
+    let _filterDebounceTimer = null;
+    function debouncedApplyFilters() {
+      if (_filterDebounceTimer) clearTimeout(_filterDebounceTimer);
+      _filterDebounceTimer = setTimeout(() => { applyFilters(); }, 300);
+    }
 
     function resetFilters() {
       ['f-date-start','f-date-end','f-name','f-lastname'].forEach(id => { document.getElementById(id).value = ''; });
@@ -4110,7 +4137,7 @@
       document.getElementById('details-visitor-name').textContent =
         `${row.first_name} ${row.last_name} — ${row.visit_date ? row.visit_date.split('-').reverse().join('/') : ''}`;
 
-      // Status box
+      // Status box (con bottone retry XAtlas se badge pending da troppo tempo)
       const statusBox = document.getElementById('details-status-box');
       const s = row.xatlas_status;
       if (!s) {
@@ -4118,7 +4145,14 @@
         statusBox.textContent = 'Nessun badge assegnato — premi "Associa Badge" nella tabella per attivare il tornello.';
       } else if (s === 'pending') {
         statusBox.className = 'modal-status-box status-pending';
-        statusBox.textContent = `Badge ${row.badge_number} — In attesa di attivazione sul tornello...`;
+        // Se il badge è in pending da > 30s, l'agente dovrebbe averlo già processato.
+        // Probabile problema: agente fermo, errore XAtlas, o conflict di card.
+        // Mostriamo un bottone "Forza retry" che azzera xatlas_status e lo rimette
+        // a 'pending' al prossimo ciclo (l'agente lo riprocessa subito).
+        const ageSec = row.created_at ? Math.floor((Date.now() - new Date(row.created_at).getTime()) / 1000) : 0;
+        const stuck = ageSec > 30;
+        statusBox.innerHTML = `Badge ${esc(row.badge_number || '')} — In attesa di attivazione sul tornello${ageSec ? ' (' + ageSec + 's fa)' : ''}…
+          ${stuck ? `<button type="button" class="btn btn-warning btn-retry-xatlas" onclick="forceRetryXatlas('${row.id}')" title="Resetta xatlas_status del visitor e forza un nuovo tentativo di attivazione al prossimo ciclo agente (~5s).">🔄 Forza retry agente</button>` : ''}`;
       } else if (s === 'active') {
         statusBox.className = 'modal-status-box status-active';
         statusBox.textContent = `Badge ${row.badge_number} — Attivo sul tornello. Entrato alle ${row.entry_time ? row.entry_time.slice(0,5) : '—'}.`;
@@ -4215,6 +4249,20 @@
         }
       }
 
+      // Visualizza la firma autografa del visitor (prova grafologica per audit legale).
+      // Se manca (record stub pre-attivato non ancora firmato dall'ospite al kiosk),
+      // mostriamo un placeholder esplicito.
+      const sigWrap = document.getElementById('det-signature-wrap');
+      if (sigWrap) {
+        if (row.signature && typeof row.signature === 'string' && row.signature.startsWith('data:image')) {
+          sigWrap.innerHTML = `<img src="${esc(row.signature)}" alt="Firma autografa visitatore" class="sig-preview-img">
+            <div class="sig-preview-meta">Firma raccolta al momento della registrazione (kiosk/QR self-service).
+            ${row.consent_at ? 'Timestamp: ' + esc(new Date(row.consent_at).toLocaleString('it-IT')) : ''}</div>`;
+        } else {
+          sigWrap.innerHTML = '<div class="sig-preview-empty">⚠️ Firma non disponibile (record pre-attivato, ospite non ancora passato al kiosk).</div>';
+        }
+      }
+
       // Carica storico timbrature da visitor_movements
       loadMovementsForVisitor(row.id);
 
@@ -4248,6 +4296,37 @@
         }).join('');
       } catch (err) {
         cont.innerHTML = `<div class="movements-empty">Errore: ${esc(err.message || '')}</div>`;
+      }
+    }
+
+    // Force retry XAtlas: chiamato dal bottone nel detail modal quando un badge
+    // è "stuck" in pending. Resetta xatlas_status azzerandolo e poi rimettendolo
+    // a 'pending' → al prossimo polling (5s) l'agente lo riprocessa da capo.
+    async function forceRetryXatlas(visitorId) {
+      if (!visitorId) return;
+      try {
+        // Step 1: azzera lo status (l'agente non lo prenderà più in 'pending' loop)
+        await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(visitorId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ xatlas_status: null, xatlas_user_id: null })
+        });
+        // Step 2: rimetti pending — al prossimo ciclo agente (5s) verrà processato
+        await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(visitorId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ xatlas_status: 'pending' })
+        });
+        auditLog('force_retry_xatlas', 'visitor', visitorId, null);
+        alert('Retry forzato. L\'agente riprocessa il visitor entro 5 secondi.');
+        // Aggiorna il modal con dati freschi
+        const r = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(visitorId)}&select=*&limit=1`);
+        if (r && r.ok) {
+          const arr = await r.json();
+          if (arr[0]) openDetailsModal(arr[0]);
+        }
+      } catch (e) {
+        alert('Errore force retry: ' + e.message);
       }
     }
 
@@ -4809,6 +4888,7 @@
     async function refreshActiveEventBanner() {
       const banner = document.getElementById('active-event-banner');
       if (!banner) return;
+      const prevActiveId = activeEvent ? activeEvent.id : null;
       try {
         const res = await api(`${SUPABASE_URL}/rest/v1/events?is_active=eq.true&select=*&limit=1`);
         if (!res || !res.ok) { banner.style.display = 'none'; activeEvent = null; return; }
@@ -4821,6 +4901,14 @@
           : `${fmtItDate(activeEvent.event_start_date)} → ${fmtItDate(activeEvent.event_end_date)}`;
         document.getElementById('aeb-date').textContent = range;
         banner.style.display = 'flex';
+        // Se l'evento attivo è cambiato (o appena scoperto), ripopola il filtro evento
+        // della tab Visitatori così la segretaria vede subito SOLO i visitatori del
+        // giorno invece di tutto lo storico misto.
+        if (activeEvent.id !== prevActiveId) {
+          populateEventFilter().then(() => {
+            if (currentView === 'visitors') loadData();
+          });
+        }
       } catch (_) {
         banner.style.display = 'none';
       }
@@ -5463,11 +5551,40 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       const id = btn.dataset.id;
       const row = currentData.find(r => String(r.id) === String(id));
       if (!row) return;
-      const name = `${row.first_name} ${row.last_name}`;
-      if (!confirm(`Concludere la visita di ${name}?\n\nIl visitatore verrà archiviato e il badge ${row.badge_number || ''} verrà liberato dall'agente al prossimo ciclo (~5 sec).`)) return;
 
+      // 2-step confirm UX-friendly (no popup browser per 96 uscite):
+      // Primo click → bottone diventa "✓ Conferma" verde per 4 secondi.
+      // Secondo click entro 4s → procede. Altrimenti torna a stato originale.
+      // Senza popup nativo, scorrimento del flusso fluido per la segretaria.
+      if (btn.dataset.confirming !== '1') {
+        const orig = btn.innerHTML;
+        const origClass = btn.className;
+        btn.dataset.confirming = '1';
+        btn.innerHTML = '✓ Conferma?';
+        btn.style.background = '#48bb78';
+        btn.style.color = '#fff';
+        btn.style.minWidth = '90px';
+        btn.title = `Click di nuovo per concludere ${row.first_name} ${row.last_name} (badge ${row.badge_number || '—'})`;
+        // Reset timer: se non clicca entro 4s, torna allo stato iniziale
+        const resetTimer = setTimeout(() => {
+          btn.dataset.confirming = '';
+          btn.innerHTML = orig;
+          btn.className = origClass;
+          btn.style.background = '';
+          btn.style.color = '';
+          btn.style.minWidth = '';
+          btn.title = 'Concludi visita (archivia + libera badge)';
+        }, 4000);
+        btn.dataset.resetTimerId = resetTimer;
+        return;
+      }
+      // Secondo click: cancella il reset timer e procedi
+      if (btn.dataset.resetTimerId) {
+        clearTimeout(parseInt(btn.dataset.resetTimerId, 10));
+      }
+      btn.dataset.confirming = '';
       btn.disabled = true;
-      btn.textContent = '...';
+      btn.innerHTML = '...';
 
       const nowTime = new Date().toTimeString().slice(0,5);
       try {
