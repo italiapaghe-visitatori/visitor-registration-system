@@ -2179,7 +2179,7 @@
       <div class="modal-fields">
         <div class="modal-field badge-highlight">
           <label>N° badge fisico da assegnare in anticipo</label>
-          <input type="text" id="pre-assign-badge-input" placeholder="Es. 241026" autocomplete="off" inputmode="numeric">
+          <input type="text" id="pre-assign-badge-input" placeholder="Es. 241026" autocomplete="off" inputmode="numeric" pattern="\d{3,12}" maxlength="12" title="Solo numeri, da 3 a 12 cifre">
         </div>
         <div class="modal-info-box">
           Il badge verrà attivato immediatamente al tornello (entro 30s).<br>
@@ -2201,7 +2201,7 @@
       <div class="modal-fields">
         <div class="modal-field badge-highlight">
           <label>N° badge fisico da consegnare al visitatore</label>
-          <input type="text" id="badge-number-input" placeholder="Es. 259548" autocomplete="off" inputmode="numeric">
+          <input type="text" id="badge-number-input" placeholder="Es. 259548" autocomplete="off" inputmode="numeric" pattern="\d{3,12}" maxlength="12" title="Solo numeri, da 3 a 12 cifre">
         </div>
         <div class="modal-info-box">
           Dopo aver salvato, l'agente attiverà il badge sul tornello entro <strong>10 secondi</strong>.<br>
@@ -2567,6 +2567,9 @@
       <div class="header-utility">
         <span id="agent-status" class="agent-status unknown" title="Stato agente XAtlas">
           <span class="dot"></span><span id="agent-status-text">Agente: …</span>
+        </span>
+        <span id="email-queue-status" class="agent-status" style="display:none" title="Email QR in coda">
+          <span id="email-queue-text">📧 0</span>
         </span>
         <span id="user-email"></span>
         <button type="button" class="btn btn-light" onclick="document.getElementById('users-modal').classList.add('active')" title="Gestione utenti">👤 Utenti</button>
@@ -3327,7 +3330,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10d · panoramica-snella</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10e · hardening</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -3401,6 +3404,7 @@
 
       loadData();
       refreshAgentStatus();
+      refreshEmailQueueStatus();
       refreshActiveEventBanner();
       populateEventFilter();
     });
@@ -4019,10 +4023,24 @@
       setTimeout(() => document.getElementById('badge-number-input').focus(), 100);
     }
 
+    // Validazione numero badge: solo cifre, 3-12 caratteri (formato 125kHz EM
+    // accettato dal lettore HDWR e dall'agente). Centralizzata qui per uso da
+    // tutti i form di assegnazione badge (badge-modal, pre-assign, walk-in,
+    // fill-badges, ecc.). Senza questo, l'admin poteva digitare "AB12" o "-5"
+    // → Supabase accettava ma l'agente fallisce e il visitor resta orfano
+    // (xatlas_status='pending' per sempre).
+    function validateBadgeNumber(badgeNum) {
+      if (!badgeNum) return 'Inserisci il numero badge.';
+      if (!/^\d+$/.test(badgeNum)) return 'Il badge deve contenere solo cifre (no lettere o simboli).';
+      if (badgeNum.length < 3 || badgeNum.length > 12) return 'Il badge deve avere da 3 a 12 cifre.';
+      return null;
+    }
+
     async function saveBadgeAssignment() {
       if (!badgeCurrentId) return;
       const badgeNum = document.getElementById('badge-number-input').value.trim();
-      if (!badgeNum) { alert('Inserisci il numero badge.'); return; }
+      const validationErr = validateBadgeNumber(badgeNum);
+      if (validationErr) { alert(validationErr); return; }
 
       const saveBtn = document.querySelector('#badge-modal .btn-save');
       saveBtn.disabled = true;
@@ -4501,6 +4519,46 @@
     }
     // Aggiorna ogni 5s (lieve)
     setInterval(refreshAgentStatus, 5000);
+
+    // ── EMAIL QUEUE STATUS INDICATOR ─────────────────────────
+    // Mostra un pill nell'header con il numero di email QR ancora in coda.
+    // Verde nascosto = 0 pending, Giallo = pending recenti (<5 min),
+    // Rosso = pending vecchie (>5 min) → segretaria deve indagare. Click apre
+    // una modalina con dettaglio (nome ospite, ora di accodamento, errore).
+    async function refreshEmailQueueStatus() {
+      const pill = document.getElementById('email-queue-status');
+      const txt  = document.getElementById('email-queue-text');
+      if (!pill || !txt) return;
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/email_queue?select=id,created_at,attempts,error&status=eq.pending&order=created_at.asc`);
+        if (!res || !res.ok) { pill.style.display = 'none'; return; }
+        const rows = await res.json();
+        const n = rows.length;
+        if (n === 0) {
+          pill.style.display = 'none';
+          return;
+        }
+        pill.style.display = '';
+        // Determina età della pending più vecchia
+        const oldestAge = (Date.now() - new Date(rows[0].created_at).getTime()) / 1000;
+        let cls, label, tooltip;
+        if (oldestAge < 300) { // < 5 min
+          cls = 'warn';
+          label = `📧 ${n} in coda`;
+          tooltip = `${n} email QR pending. Più vecchia: ${Math.floor(oldestAge)}s fa. L'agente le processerà nei prossimi 5 sec.`;
+        } else { // >= 5 min = STUCK
+          cls = 'offline';
+          label = `📧 ${n} bloccate (>${Math.floor(oldestAge/60)}min)`;
+          tooltip = `${n} email QR bloccate da oltre ${Math.floor(oldestAge/60)} minuti. Probabilmente l'agente è fermo o M365 ha un problema. Click per dettagli.`;
+        }
+        pill.className = 'agent-status ' + cls;
+        pill.title = tooltip;
+        txt.textContent = label;
+      } catch (_) {
+        pill.style.display = 'none'; // best-effort, fail silenzioso
+      }
+    }
+    setInterval(refreshEmailQueueStatus, 10000);
 
     // ── EVENTI ───────────────────────────────────────
     let eventsData = [];
@@ -6473,7 +6531,8 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     async function savePreAssign() {
       if (!preAssignGuestId) return;
       const badgeNum = document.getElementById('pre-assign-badge-input').value.trim();
-      if (!badgeNum) { alert('Inserisci il numero badge.'); return; }
+      const validationErr = validateBadgeNumber(badgeNum);
+      if (validationErr) { alert(validationErr); return; }
 
       const guest = guestData.find(g => String(g.id) === String(preAssignGuestId));
       if (!guest) return;
