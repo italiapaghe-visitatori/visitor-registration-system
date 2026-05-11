@@ -361,7 +361,9 @@
     <li><a href="#cosa-e">Cos'è questo sistema</a></li>
     <li><a href="#accesso">Come si accede</a></li>
     <li><a href="#autorizza-tablet">Autorizzare un tablet aziendale</a></li>
-    <li><a href="#mattina">La mattina dell'evento</a></li>
+    <li><a href="#pianificazione">Pianificare un evento — settimana per settimana</a></li>
+    <li><a href="#giorno-x">Il giorno dell'evento — setup del desk</a></li>
+    <li><a href="#mattina">Apertura mattina — check 5 minuti</a></li>
     <li><a href="#header">La barra in alto: cosa significa</a></li>
     <li><a href="#tab-visitatori">Tab Visitatori</a></li>
     <li><a href="#tab-ospiti">Tab Ospiti Attesi</a></li>
@@ -556,9 +558,242 @@
 
 </section>
 
-<!-- ============ 4 ============ -->
+<!-- ============ Pianificazione settimanale ============ -->
+<section id="pianificazione">
+  <h2>Pianificare un evento — settimana per settimana</h2>
+  <p class="lead">Per un evento con 80-100 partecipanti il segreto è preparare tutto nei giorni prima. Il giorno dell'evento devi solo accogliere gli ospiti, non fare lavoro tecnico.</p>
+
+  <p>Questa è la sequenza consigliata per un evento del <strong>venerdì</strong>. Adatta i giorni se l'evento cade in un'altra data.</p>
+
+  <h3>🗓️ Domenica / Lunedì — Crea l'evento e importa la lista</h3>
+  <p><strong>Chi:</strong> tu (amministratrice). <strong>Tempo:</strong> ~30 minuti.</p>
+
+  <ol class="steps">
+    <li>Login admin → tab <strong>🎫 Eventi</strong> → click <strong>+ Nuovo Evento</strong>.</li>
+    <li>Compila:
+      <ul>
+        <li><em>Nome</em> — es. "Convegno Call Reference 15 maggio"</li>
+        <li><em>Data inizio</em> — la data del primo giorno dell'evento (es. 15/05/2026)</li>
+        <li><em>Data fine</em> — l'ultimo giorno (se 1 giorno solo, metti la stessa data)</li>
+        <li><em>QR attivo dal</em> — opzionale. Da quando vuoi che i QR siano utilizzabili dai partecipanti (di solito 1-2 giorni prima)</li>
+      </ul>
+    </li>
+    <li>Salva → l'evento appare nella tabella.</li>
+    <li>Click <strong>▶ Avvia</strong> per renderlo l'evento attivo (il banner arancione in cima alla pagina lo conferma).</li>
+    <li>Tab <strong>Ospiti Attesi</strong> → <strong>📥 Importa CSV/Excel</strong> → carica il file con la lista dei 96 partecipanti.</li>
+    <li>Verifica che la card "TOTALE OSPITI" mostri il numero giusto (es. 96).</li>
+  </ol>
+
+  <div class="callout tip">Non hai un file CSV pronto? Scarica il template dalla tab Ospiti Attesi → bottone <strong>📄 Template</strong>. È un Excel vuoto con le colonne corrette: Nome, Cognome, Email, Azienda, Persona da Visitare, Motivo Visita, Data Prevista, Numero Badge.</div>
+
+  <h3>🗓️ Lunedì - Martedì — Preassegnazione dei badge (lavoro in 3)</h3>
+  <p><strong>Chi:</strong> 3 collaboratrici in parallelo, ognuna col proprio login. <strong>Tempo:</strong> ~6 minuti a testa = ~30 min totali.</p>
+
+  <p><strong>Step iniziale (1 sola persona, 5 min):</strong> creare il pool con i 96 badge fisici disponibili.</p>
+  <ol class="steps">
+    <li>Tab <strong>🔍 Acquisizione</strong> → <strong>+ Nuova sessione di scan</strong>.</li>
+    <li>Dai un nome alla sessione (es. "Pool badge convegno 15 maggio").</li>
+    <li>Nel campo input, digita uno alla volta i numeri dei badge fisici a disposizione (es. 999001, 999002, … fino a 999096) seguiti da Invio.</li>
+    <li>Vedi crescere il contatore: "96 scansionati".</li>
+    <li>Click <strong>Chiudi sessione</strong> — i 96 badge sono ora nel pool, disponibili per essere assegnati.</li>
+  </ol>
+
+  <p><strong>Step parallelo (3 collaboratrici insieme):</strong> ogni collaboratrice si occupa di un range alfabetico di cognomi.</p>
+
+  <table class="simple">
+    <tr><th>Collaboratrice</th><th>Range cognomi</th><th>~ righe</th></tr>
+    <tr><td>#1 (es. Anna)</td><td>A — G</td><td>~32</td></tr>
+    <tr><td>#2 (es. Maria)</td><td>H — O</td><td>~32</td></tr>
+    <tr><td>#3 (es. Lucia)</td><td>P — Z</td><td>~32</td></tr>
+  </table>
+
+  <p>Ognuna fa così:</p>
+  <ol class="steps">
+    <li>Login admin con il proprio account email + password.</li>
+    <li>Tab <strong>Ospiti Attesi</strong> → click <strong>📝 Compila</strong>.</li>
+    <li>Si apre una griglia con tutti gli ospiti.</li>
+    <li>Filtra per il proprio range (es. scrive "A" nella ricerca cognome per vedere solo cognomi che iniziano per A, poi B, ecc.).</li>
+    <li>Per ogni riga del suo range scrive il numero badge nella colonna "Numero Badge" (es. 999001 ad Anna Bianchi).</li>
+    <li>Auto-save attivo: non serve cliccare salva, viene salvato dopo ogni edit.</li>
+  </ol>
+
+  <div class="callout warn">Se 2 collaboratrici provano a modificare la STESSA riga contemporaneamente, il sistema mostra "⚠️ Un altro operatore ha modificato questo draft". Basta ricaricare la pagina e riprovare. Per evitarlo, rispettate la divisione A-G / H-O / P-Z.</div>
+
+  <h3>🗓️ Mercoledì — Test del lettore RFID (se è arrivato)</h3>
+  <p><strong>Chi:</strong> tu. <strong>Tempo:</strong> 5 minuti.</p>
+
+  <ol class="steps">
+    <li>Collega il lettore HDWR HD-RD80 al PC della reception via USB.</li>
+    <li>Apri Notepad / Blocco note.</li>
+    <li>Passa un badge fisico vicino al lettore.</li>
+    <li>Sul Notepad deve apparire il numero del badge + Invio (es. <code>999001</code>).</li>
+    <li>Confronta: il numero scritto è uguale al numero stampato sul badge fisico? Se sì, il lettore funziona.</li>
+  </ol>
+
+  <div class="callout info">A questo punto i badge sono già pre-assegnati a tutti gli ospiti (fatto Lun-Mar). Il lettore lo userai SOLO il giorno dell'evento per registrare eventuali walk-in (visitatori non in lista).</div>
+
+  <h3>🗓️ Giovedì sera — Invio email QR a tutti i partecipanti</h3>
+  <p><strong>Chi:</strong> tu. <strong>Tempo:</strong> 5 minuti.</p>
+
+  <ol class="steps">
+    <li>Tab <strong>Ospiti Attesi</strong>.</li>
+    <li>Click <strong>📧 Invia QR a tutti</strong>.</li>
+    <li>Conferma: il sistema mette in coda 96 email personali (ogni ospite riceve il SUO QR univoco).</li>
+    <li>Guarda nell'header in cima alla pagina: deve apparire <span class="pill pill-yellow">📧 96 in coda</span> che cala progressivamente a 0 (le email vengono spedite ogni 10 secondi).</li>
+    <li>Dopo ~15 minuti dovrebbero essere tutte partite. Se restano in coda > 5 minuti, il pallino diventa rosso: chiama il responsabile tecnico.</li>
+  </ol>
+
+  <div class="callout tip">Test rapido: chiedi a 1 collaboratrice di aprire la SUA email personale (mettila come ospite "test" in lista) e clicca il QR. Deve aprire una pagina pre-compilata col suo nome. Se firma, simulate l'arrivo. Cancella il record di test dopo.</div>
+
+  <h3>🗓️ Venerdì — Il giorno dell'evento</h3>
+  <p>Vedi la sezione successiva "Il giorno dell'evento — setup del desk".</p>
+</section>
+
+<!-- ============ Giorno-X setup ============ -->
+<section id="giorno-x">
+  <h2>Il giorno dell'evento — setup del desk</h2>
+  <p class="lead">Come organizzare fisicamente il banco di accoglienza con 2 stazioni in parallelo per gestire fino a 100 ospiti in 30-40 minuti.</p>
+
+  <h3>📦 Cosa preparare la sera prima</h3>
+  <ul>
+    <li><strong>2 tablet</strong> aziendali autorizzati al kiosk (vedi sezione 3), caricati al 100%.</li>
+    <li><strong>2 PC</strong> con browser aperto sulla pagina admin (uno per stazione).</li>
+    <li><strong>96 badge fisici</strong> divisi in 2 vassoi:
+      <ul>
+        <li>Vassoio 1: cognomi A-M ordinati alfabeticamente</li>
+        <li>Vassoio 2: cognomi N-Z ordinati alfabeticamente</li>
+      </ul>
+    </li>
+    <li><strong>Mini-etichette adesive</strong> stampate sui badge (tab Ospiti Attesi → <strong>🏷️ Miniature</strong>) → ogni badge ha già il nome dell'ospite. Risparmia tempo nel cercare a colpo d'occhio.</li>
+    <li><strong>Tablet di scorta</strong> (1 o 2) carichi e già autorizzati, nel cassetto. Se si rompe uno, lo sostituisci in 10 secondi.</li>
+    <li><strong>Documento di backup cartaceo</strong>: stampa la lista degli ospiti con accanto il numero badge. Se la rete cade, hai sempre il foglio.</li>
+    <li><strong>Cartelli grandi all'ingresso</strong>: "Cognomi A-M qui ←" / "Cognomi N-Z qui →". Aiuta gli ospiti a smistarsi da soli.</li>
+  </ul>
+
+  <h3>🏢 Layout del banco</h3>
+
+  <div class="mockup">
+    <div class="mockup-body" style="font-family:monospace;white-space:pre;font-size:11px;text-align:center;padding:18px;line-height:1.4">
+                ↓ ENTRATA OSPITI ↓
+
+       ╔═══════════════════════════════════╗
+       ║   CARTELLO BIANCO MOLTO GRANDE:    ║
+       ║   "Cognomi A-M ←  |  Cognomi N-Z →" ║
+       ╚═══════════════════════════════════╝
+
+         ↓ corsia A-M             corsia N-Z ↓
+
+  ┌────────────────────┐      ┌────────────────────┐
+  │   STAZIONE 1       │      │   STAZIONE 2       │
+  │     A - M          │      │     N - Z          │
+  │                    │      │                    │
+  │  🖥 PC con admin   │      │  🖥 PC con admin   │
+  │  📱 Tablet kiosk   │      │  📱 Tablet kiosk   │
+  │  📦 Vassoio badge  │      │  📦 Vassoio badge  │
+  │     A-M ordinato   │      │     N-Z ordinato   │
+  │                    │      │                    │
+  │  👩 Collaboratrice 1│      │  👩 Collaboratrice 2│
+  └────────────────────┘      └────────────────────┘
+
+              ↓ tornello aperto ↓
+                  TORNELLO Zucchetti
+                       ↓
+                    INTERNO
+    </div>
+  </div>
+
+  <div class="callout tip">Una 3ª persona "scorta" all'ingresso (1 metro prima del cartello) può chiedere "cognome inizia per A o per N?" e indicare la corsia giusta. Aiuta moltissimo a smaltire la fila iniziale.</div>
+
+  <h3>👤 Come gestire un ospite singolo — 6 passi</h3>
+
+  <ol class="steps">
+    <li><strong>L'ospite si presenta</strong> al desk: "Buongiorno, sono Mario Rossi di Esempio Srl".</li>
+    <li><strong>La collaboratrice apre il PC admin</strong> → tab Visitatori → scrive "Rossi" nel filtro Cognome. La tabella filtra automaticamente.</li>
+    <li><strong>Legge lo stato sulla riga di Mario Rossi</strong>:
+      <ul>
+        <li>Se vede badge <span class="tag tag-active">999001 ACTIVE</span> con tipo <span class="tag tag-active">Atteso</span> → ha già firmato dal cellulare, il badge è attivo. Procedi al punto 4.</li>
+        <li>Se NON vede Mario nella tabella visitors (compare solo in Ospiti Attesi) → NON ha ancora firmato. Salta al punto "Se non ha firmato dal cellulare" qui sotto.</li>
+      </ul>
+    </li>
+    <li><strong>Verifica il documento</strong>: "Posso vedere un documento di identità, per favore?" → controlla che il nome scritto sulla carta corrisponda a quello che ha dichiarato. Questo è un check umano, il sistema NON lo fa per te.</li>
+    <li><strong>Prendi il badge 999001 dal vassoio</strong> (ordinato alfabeticamente, quindi lo trovi rapidamente) e consegnaglielo.</li>
+    <li><strong>Indica il tornello</strong>: "Può passare al tornello, buona giornata!" — l'ospite passa il badge, il tornello apre, entra. La sua riga in admin cambia in "Dentro ora".</li>
+  </ol>
+
+  <h3>📝 Se l'ospite NON ha firmato dal cellulare</h3>
+  <ol class="steps">
+    <li>"Mi accompagni al tablet, in 1 minuto registriamo la sua visita."</li>
+    <li>Indica il tablet kiosk del desk. Sul tablet appare già il form vuoto.</li>
+    <li>L'ospite scrive: nome, cognome, azienda, motivo visita, documento.</li>
+    <li>Spunta i 2 consensi (Privacy GDPR + Norme di accesso struttura).</li>
+    <li>Firma col dito nello spazio firma.</li>
+    <li>Click <strong>Registra Visita</strong>.</li>
+    <li>Tu nel frattempo prendi il badge che aveva pre-assegnato dal vassoio (lo vedi in Ospiti Attesi colonna Stato: "🎫 Badge 999001 pronto").</li>
+    <li>Aspetti 10 secondi che il badge passi da PENDING ad ACTIVE in admin.</li>
+    <li>Glielo consegni e lo indirizzi al tornello.</li>
+  </ol>
+
+  <h3>🆘 Se l'ospite NON è in lista (walk-in imprevisto)</h3>
+  <ol class="steps">
+    <li>Tab Visitatori → click <strong>👤 Walk-in dal pool</strong> in alto.</li>
+    <li>Si apre una finestra. Scrivi: nome, cognome, azienda, motivo, persona da visitare.</li>
+    <li>Il sistema seleziona automaticamente il prossimo badge libero dal pool (es. 999097 se hai badge extra non assegnati, oppure uno restituito da chi è uscito).</li>
+    <li>Click <strong>Registra walk-in</strong>.</li>
+    <li>Verifica documento.</li>
+    <li>Consegna il badge mostrato nella finestra.</li>
+    <li>Indica il tablet per la firma dei consensi (è obbligatoria per legge anche per i walk-in).</li>
+  </ol>
+
+  <h3>🔄 Se il tornello non legge un badge</h3>
+  <ol class="steps">
+    <li>Chiedi all'ospite di restare un attimo, gli dici "verifico subito".</li>
+    <li>In admin → tab Visitatori → cerca il cognome.</li>
+    <li>Click <strong>ℹ️</strong> sull'icona accanto alla sua riga.</li>
+    <li>Nel pannello che si apre, se vedi il bottone giallo <strong>🔄 Forza retry agente</strong>, cliccalo.</li>
+    <li>Aspetta 5 secondi → il badge passa ad ACTIVE.</li>
+    <li>L'ospite riprova al tornello → ora apre.</li>
+  </ol>
+
+  <h3>📊 Cosa monitorare durante l'evento</h3>
+  <p>Tieni un PC sotto controllo (può essere uno dei 2 del desk, o un terzo dedicato) con la tab <strong>Ospiti Attesi</strong> aperta. Guarda le 4 card in cima:</p>
+
+  <ul>
+    <li><strong>Totale ospiti</strong>: rimane uguale (96), è la dimensione della tua lista.</li>
+    <li><strong>Da arrivare</strong>: parte da 96 e cala mano a mano. Se a metà evento è ancora a 50, hai un ritmo lento → rinforza il desk.</li>
+    <li><strong>Dentro ora</strong>: sale fino al massimo (es. 90 di 96), poi cala quando iniziano le uscite.</li>
+    <li><strong>Usciti</strong>: parte da 0 e sale verso fine evento.</li>
+  </ul>
+
+  <p>Sulla barra in alto monitora anche:</p>
+  <ul>
+    <li><span class="pill pill-green">● Agente: connesso</span> sempre verde. Se diventa giallo o rosso → vai alla sezione Risoluzione problemi.</li>
+    <li><span class="pill pill-yellow">📧 N in coda</span> appare solo se ci sono email QR ancora da spedire. Durante l'evento questo numero dovrebbe restare a 0.</li>
+  </ul>
+
+  <h3>⏱️ Stima dei tempi (per pianificare il personale)</h3>
+
+  <table class="simple">
+    <tr><th>Scenario</th><th>Tempo a stazione</th><th>Smaltimento 96 ospiti</th></tr>
+    <tr><td>Ospite con QR già firmato (70% dei casi attesi)</td><td>~30-45 sec</td><td>~22 min su 2 stazioni</td></tr>
+    <tr><td>Ospite senza QR, firma al tablet (30% attesi)</td><td>~90-120 sec</td><td>~25 min su 2 stazioni</td></tr>
+    <tr><td>Walk-in non in lista (occasionale)</td><td>~2 min</td><td>variabile</td></tr>
+    <tr><td><strong>Tempo totale realistico se tutti arrivano alle 9:00</strong></td><td></td><td><strong>~40 minuti</strong></td></tr>
+  </table>
+
+  <div class="callout tip">Con 96 ospiti tutti contemporaneamente alle 9:00 ne hai dentro tutti entro le 9:40. Se gli arrivi sono scaglionati (9:00-10:30), la coda è sempre breve e basta 1 stazione attiva con 2 collaboratrici per stazione.</div>
+
+  <h3>🍀 Trucchi pratici last-minute</h3>
+  <ul>
+    <li>Manda un'email di promemoria la mattina dell'evento alle 7:00 a tutti i partecipanti: <em>"Buongiorno, oggi è l'evento. Trova il tuo QR personale qui sotto e portalo allo smartphone. Documenti d'identità richiesto all'ingresso."</em></li>
+    <li>Stampa un foglio A4 grande "ELENCO PARTECIPANTI" col nome+badge di tutti, plastificalo e tienilo al desk. È il piano di emergenza assoluto se la rete cade.</li>
+    <li>Prevedi 1-2 caffè / bottigliette d'acqua per le collaboratrici al desk. 40 minuti intensivi richiedono concentrazione.</li>
+    <li>Spegni il telefono personale o mettilo in silenzioso durante la fase di accoglienza. Una telefonata distrattiva ti fa perdere il filo.</li>
+  </ul>
+</section>
+
+<!-- ============ Apertura mattina ============ -->
 <section id="mattina">
-  <h2>La mattina dell'evento — 5 minuti di controllo</h2>
+  <h2>Apertura mattina — check 5 minuti</h2>
   <p class="lead">Prima dell'arrivo del primo visitatore, fai questi 5 controlli in ordine.</p>
 
   <ol class="steps">
