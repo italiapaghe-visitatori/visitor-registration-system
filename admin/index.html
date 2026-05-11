@@ -1087,6 +1087,14 @@
     .filter-group select:focus { outline: none; border-color: #667eea; background-color: #fff; }
 
     .filter-actions { display: flex; gap: 8px; align-items: flex-end; }
+    .filter-actions-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch; }
+    .filter-actions-row .btn { white-space: nowrap; }
+    /* Su griglia stretta (1 colonna), la colonna "Azioni" occupa tutta la larghezza
+       così i 3 bottoni stanno comodi in riga. Su grid larga, restano compatti. */
+    .filter-group.filter-actions { grid-column: 1 / -1; }
+    @media (min-width: 900px) {
+      .filter-group.filter-actions { grid-column: auto; }
+    }
 
     /* ── TABLE ── */
     .table-wrap {
@@ -2823,12 +2831,12 @@
           </div>
           <div class="filter-group filter-actions">
             <label>&nbsp;</label>
-            <button type="button" class="btn btn-primary" onclick="applyFilters()" title="Applica i filtri inseriti (data inizio/fine, nome, cognome, evento, motivo) alla query Supabase e ricarica la tabella visitatori.">🔍 Filtra</button>
-            <button type="button" class="btn btn-secondary" onclick="resetFilters()" title="Cancella tutti i filtri e ricarica la lista completa dei visitatori (rispetta toggle archivio).">↺ Reset</button>
+            <div class="filter-actions-row">
+              <button type="button" class="btn btn-primary" onclick="applyFilters()" title="Applica i filtri inseriti (data inizio/fine, nome, cognome, evento, motivo) alla query Supabase e ricarica la tabella visitatori.">🔍 Filtra</button>
+              <button type="button" class="btn btn-secondary" onclick="resetFilters()" title="Cancella tutti i filtri e ricarica la lista completa dei visitatori (rispetta toggle archivio).">↺ Reset</button>
+              <button type="button" class="btn btn-secondary btn-archive" id="btn-toggle-archived" onclick="toggleArchived()" title="Commuta tra visitatori attivi (xatlas_status pending/active) e archivio (xatlas_status='checked_out').">📦 Vai all'Archivio</button>
+            </div>
           </div>
-        </div>
-        <div class="filters-secondary">
-          <button type="button" class="btn btn-secondary btn-archive" id="btn-toggle-archived" onclick="toggleArchived()" title="Commuta tra visitatori attivi (xatlas_status pending/active) e archivio (xatlas_status='checked_out').">📦 Vai all'Archivio</button>
         </div>
       </div>
 
