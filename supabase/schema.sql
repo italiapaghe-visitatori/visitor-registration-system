@@ -573,3 +573,43 @@ ALTER TABLE guest_list
 -- dalla policy anon_select_guest_list esistente, che fa SELECT *). L'UPDATE
 -- è invece riservato all'admin autenticato (policy admin_update_guest_list
 -- esistente). Nessuna nuova policy richiesta.
+
+-- =====================================================
+-- MIGRATION v15 — Vista app_users per gestione operatori
+-- =====================================================
+-- L'admin modale "Gestione operatori" deve poter listare gli utenti che
+-- accedono al sistema, vedere ultimo accesso e stato. La tabella auth.users
+-- non è esposta via PostgREST per default (schema privato Supabase).
+-- Creiamo una VIEW pubblica in schema public con i campi rilevanti, con
+-- SECURITY DEFINER (eredita diritti postgres) così gli utenti authenticated
+-- possono leggerla via REST API.
+--
+-- Campi esposti (solo lettura):
+--   id                  — UUID utente
+--   email               — email account
+--   created_at          — quando è stato creato l'account
+--   email_confirmed_at  — quando ha confermato l'invito (NULL = invito pending)
+--   last_sign_in_at     — ultimo login (NULL = mai entrato)
+--   display_name        — nome visualizzato (da raw_user_meta_data o email)
+--
+-- Niente password, niente token, niente metadati sensibili.
+
+CREATE OR REPLACE VIEW public.app_users
+WITH (security_invoker = false) AS
+SELECT
+  u.id,
+  u.email,
+  u.created_at,
+  u.email_confirmed_at,
+  u.last_sign_in_at,
+  COALESCE(u.raw_user_meta_data->>'display_name', split_part(u.email, '@', 1)) AS display_name,
+  CASE
+    WHEN u.email_confirmed_at IS NULL THEN 'invited'
+    WHEN u.last_sign_in_at IS NULL THEN 'confirmed'
+    ELSE 'active'
+  END AS status
+FROM auth.users u
+ORDER BY u.created_at DESC;
+
+GRANT SELECT ON public.app_users TO authenticated;
+REVOKE ALL ON public.app_users FROM anon;

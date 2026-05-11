@@ -1906,6 +1906,48 @@
       color: #fff; border-radius: 9px; font-size: 15px; font-weight: 700; text-decoration: none;
     }
 
+    /* ── GESTIONE OPERATORI MODAL ───────────────────────── */
+    #users-modal .modal { max-width: 760px; }
+    .users-tabs { display: flex; gap: 6px; border-bottom: 2px solid #edf0f5; margin: 8px 0 18px; }
+    .users-tab {
+      flex: 1; padding: 10px 14px; background: none; border: none; border-bottom: 3px solid transparent;
+      font-size: 14px; font-weight: 600; color: #718096; cursor: pointer; transition: all 0.18s;
+      font-family: inherit; margin-bottom: -2px;
+    }
+    .users-tab:hover { color: #4a5568; }
+    .users-tab.active { color: #667eea; border-bottom-color: #667eea; }
+    .users-pane { display: none; }
+    .users-pane.active { display: block; }
+    .users-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .users-count { font-size: 13px; color: #4a5568; font-weight: 600; }
+    .btn-link-small { background: none; border: none; color: #667eea; font-size: 12px; cursor: pointer; font-weight: 600; font-family: inherit; padding: 4px 8px; border-radius: 6px; }
+    .btn-link-small:hover { background: #f0f4ff; }
+    .users-table-wrap { max-height: 360px; overflow-y: auto; border: 1px solid #edf0f5; border-radius: 10px; }
+    .users-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .users-table thead th {
+      position: sticky; top: 0; background: #f7fafc; padding: 10px 12px; text-align: left;
+      font-size: 11px; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.5px;
+      border-bottom: 1px solid #edf0f5;
+    }
+    .users-table tbody td { padding: 10px 12px; border-bottom: 1px solid #f0f4f8; vertical-align: middle; }
+    .users-table tbody tr:hover { background: #fafbfd; }
+    .users-table tbody tr:last-child td { border-bottom: none; }
+    .users-empty { text-align: center; color: #a0aec0; padding: 28px !important; font-style: italic; }
+    .user-status { padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; display: inline-block; }
+    .user-status-active    { background: #c6f6d5; color: #22543d; }
+    .user-status-invited   { background: #feebc8; color: #7b341e; }
+    .user-status-confirmed { background: #bee3f8; color: #2c5282; }
+    .user-display-name { font-weight: 700; color: #1a202c; }
+    .user-row-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+    .btn-user-action { padding: 4px 9px; font-size: 11px; border-radius: 6px; border: 1.5px solid #e8ecf4; background: #fff; color: #4a5568; cursor: pointer; font-weight: 600; font-family: inherit; white-space: nowrap; }
+    .btn-user-action:hover { border-color: #667eea; color: #667eea; }
+    .btn-user-action.danger { border-color: #fbd5d5; color: #c53030; }
+    .btn-user-action.danger:hover { background: #fff5f5; border-color: #e53e3e; }
+    .invite-status { margin-top: 12px; padding: 12px; border-radius: 8px; font-size: 13.5px; display: none; }
+    .invite-status.ok    { display: block; background: #f0fff4; border: 1.5px solid #c6f6d5; color: #22543d; }
+    .invite-status.err   { display: block; background: #fff5f5; border: 1.5px solid #fc8181; color: #742a2a; }
+    .invite-status.info  { display: block; background: #ebf8ff; border: 1.5px solid #bee3f8; color: #2c5282; }
+
     .sig-cell img { max-width: 80px; height: auto; border: 1px solid #e2e8f0; border-radius: 4px; display: block; }
 
     /* ── GUEST VIEW ── */
@@ -2685,21 +2727,66 @@
 
   <!-- MODALE GESTIONE UTENTI -->
   <div class="modal-overlay" id="users-modal">
-    <div class="modal">
-      <h2>Gestione Utenti Admin</h2>
-      <p class="modal-sub">Aggiungi o rimuovi account per i desk di registrazione</p>
-      <div class="modal-info-box">
-        <strong>Come creare un nuovo utente:</strong><br>
-        1. Clicca il pulsante qui sotto per aprire il pannello Supabase<br>
-        2. Clicca <strong>"Add user" → "Create new user"</strong><br>
-        3. Inserisci email e password del nuovo operatore<br>
-        4. Clicca <strong>"Create user"</strong>
+    <div class="modal modal-wide">
+      <h2>👥 Gestione Operatori</h2>
+      <p class="modal-sub">Lista operatori che possono accedere all'admin + invito di nuovi via email</p>
+
+      <!-- TAB switcher -->
+      <div class="users-tabs">
+        <button type="button" class="users-tab active" data-tab="list" onclick="switchUsersTab('list')">📋 Operatori attivi</button>
+        <button type="button" class="users-tab" data-tab="invite" onclick="switchUsersTab('invite')">✉️ Invita nuovo operatore</button>
       </div>
-      <div class="modal-actions">
-        <a href="https://supabase.com/dashboard/project/sebhatzxsxuafsmbdtsx/auth/users" target="_blank" rel="noopener" class="btn-supabase-link">
-          Apri pannello utenti Supabase
-        </a>
-        <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi la modale.">Chiudi</button>
+
+      <!-- TAB LIST: operatori esistenti -->
+      <div class="users-pane active" id="users-pane-list">
+        <div class="users-toolbar">
+          <span class="users-count" id="users-count">Caricamento…</span>
+          <button type="button" class="btn-link-small" onclick="loadOperators()">🔄 Aggiorna</button>
+        </div>
+        <div class="users-table-wrap">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>Operatore</th>
+                <th>Email</th>
+                <th>Stato</th>
+                <th>Ultimo accesso</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="5" class="users-empty">Caricamento…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB INVITE: invita nuovo -->
+      <div class="users-pane" id="users-pane-invite">
+        <div class="modal-info-box">
+          <strong>Come funziona l'invito:</strong> inserisci l'email dell'operatore e clicca Invita. Supabase manda
+          un'email con un link sicuro: l'operatore lo apre, sceglie LEI la sua password, e può accedere subito.
+          Tu non vedi mai la password (più sicuro).
+        </div>
+        <div class="modal-fields">
+          <div class="modal-field">
+            <label>Email dell'operatore <span class="req">*</span></label>
+            <input type="email" id="invite-email" placeholder="mariarossi@s2s.it" autocomplete="off">
+          </div>
+          <div class="modal-field">
+            <label>Nome visualizzato (opzionale)</label>
+            <input type="text" id="invite-name" placeholder="Maria Rossi" autocomplete="off">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-save" onclick="inviteOperator()" id="invite-btn">✉️ Invita operatore</button>
+          <a href="https://supabase.com/dashboard/project/sebhatzxsxuafsmbdtsx/auth/users" target="_blank" rel="noopener" class="btn-supabase-link" title="Pannello completo Supabase per gestire utenti, password, ban, MFA, eccetera.">🔧 Apri dashboard Supabase</a>
+        </div>
+        <div class="invite-status" id="invite-status"></div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:18px">
+        <button type="button" class="btn-cancel" onclick="closeModal()">Chiudi</button>
       </div>
     </div>
   </div>
@@ -2720,7 +2807,7 @@
           <span id="email-queue-text">📧 0</span>
         </span>
         <span id="user-email"></span>
-        <button type="button" class="btn btn-light" onclick="document.getElementById('users-modal').classList.add('active')" title="Gestione utenti">👤 Utenti</button>
+        <button type="button" class="btn btn-light" onclick="openUsersModal()" title="Gestione operatori admin: lista, invito via email, reset password">👤 Operatori</button>
         <button type="button" class="btn btn-light" onclick="exportCSV()" title="Esporta CSV visitatori">📊 CSV</button>
         <button type="button" class="btn btn-light" onclick="refreshCurrentView()" title="Ricarica dati della tab attiva">🔄</button>
         <button type="button" class="btn btn-danger" onclick="logout()" title="Logout: cancella la sessione corrente e torna alla pagina di login. Richiederà nuovamente le credenziali per rientrare.">Esci</button>
@@ -3487,7 +3574,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-11h · no-more-walkin</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-11i · operatori-mgmt</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -3712,6 +3799,203 @@
       localStorage.removeItem('sb-refresh-token');
       localStorage.removeItem('vrs_admin_last_activity');
       window.location.href = 'login.html';
+    }
+
+    // ── GESTIONE OPERATORI ────────────────────────────
+    // Strategia: la lista la leggiamo da una vista public.app_users (migration v15).
+    // L'invito tenta prima una Edge Function (invite-operator) che usa service_role
+    // server-side; se la function non è deployata, mostra istruzioni per fare
+    // l'invite manualmente dal dashboard Supabase. Reset password usa l'API
+    // pubblica resetPasswordForEmail (sempre disponibile).
+    function switchUsersTab(tab) {
+      document.querySelectorAll('.users-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+      document.querySelectorAll('.users-pane').forEach(p => p.classList.toggle('active', p.id === `users-pane-${tab}`));
+      if (tab === 'list') loadOperators();
+      // Reset stato invito
+      const st = document.getElementById('invite-status');
+      if (st) { st.className = 'invite-status'; st.textContent = ''; }
+    }
+    function openUsersModal() {
+      document.getElementById('users-modal').classList.add('active');
+      switchUsersTab('list');
+    }
+    async function loadOperators() {
+      const tbody = document.getElementById('users-tbody');
+      const countEl = document.getElementById('users-count');
+      tbody.innerHTML = '<tr><td colspan="5" class="users-empty">Caricamento…</td></tr>';
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/app_users?select=*`);
+        if (!res || !res.ok) {
+          // Vista non disponibile → migration v15 non applicata
+          if (res && res.status === 404) {
+            tbody.innerHTML = `<tr><td colspan="5" class="users-empty">
+              ⚠️ Vista <code>app_users</code> non trovata. Applica la migration v15 dal SQL Editor di Supabase:
+              <code style="display:block;margin-top:8px;font-family:monospace;font-size:11px;text-align:left;padding:8px;background:#f7fafc;border-radius:6px">
+              CREATE OR REPLACE VIEW public.app_users WITH (security_invoker = false) AS<br>
+              SELECT id, email, created_at, email_confirmed_at, last_sign_in_at,<br>
+              &nbsp;&nbsp;COALESCE(raw_user_meta_data-&gt;&gt;'display_name', split_part(email,'@',1)) AS display_name,<br>
+              &nbsp;&nbsp;CASE WHEN email_confirmed_at IS NULL THEN 'invited'<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN last_sign_in_at IS NULL THEN 'confirmed' ELSE 'active' END AS status<br>
+              FROM auth.users ORDER BY created_at DESC;<br>
+              GRANT SELECT ON public.app_users TO authenticated;
+              </code></td></tr>`;
+            countEl.textContent = 'Migration v15 da applicare';
+            return;
+          }
+          throw new Error(`HTTP ${res?.status}`);
+        }
+        const users = await res.json();
+        if (users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="users-empty">Nessun operatore. Invita il primo dalla tab Invita →</td></tr>';
+          countEl.textContent = '0 operatori';
+          return;
+        }
+        countEl.textContent = `${users.length} operatori`;
+        tbody.innerHTML = '';
+        users.forEach(u => {
+          const tr = document.createElement('tr');
+          const statusLabel = { active: 'Attivo', invited: 'Invitato', confirmed: 'Mai loggato' }[u.status] || u.status;
+          const lastSign = u.last_sign_in_at
+            ? new Date(u.last_sign_in_at).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+            : '<span style="color:#cbd5e0">—</span>';
+          const isMe = (u.email === CURRENT_USER_EMAIL);
+          tr.innerHTML = `
+            <td><span class="user-display-name">${esc(u.display_name)}</span>${isMe ? ' <span style="color:#48bb78;font-size:10px;font-weight:700">(TU)</span>' : ''}</td>
+            <td>${esc(u.email)}</td>
+            <td><span class="user-status user-status-${esc(u.status)}">${statusLabel}</span></td>
+            <td>${lastSign}</td>
+            <td class="user-row-actions">
+              ${u.status === 'invited'
+                ? `<button type="button" class="btn-user-action" onclick="resendInvite('${esc(u.email)}')" title="Reinvia l'email di invito (il primo link potrebbe essere scaduto)">📧 Reinvia invito</button>`
+                : `<button type="button" class="btn-user-action" onclick="sendResetPassword('${esc(u.email)}')" title="Manda all'operatore un'email con link per reimpostare la password">🔑 Reset password</button>`}
+              ${isMe ? '' : '<button type="button" class="btn-user-action danger" onclick="openSupabaseUserPanel()" title="Per disabilitare/eliminare devi usare il dashboard Supabase (richiede service_role key non disponibile lato browser)">⚙️ Gestisci</button>'}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" class="users-empty">Errore caricamento: ${esc(err.message)}</td></tr>`;
+        countEl.textContent = 'Errore';
+      }
+    }
+
+    // Invita un nuovo operatore. Tenta Edge Function (deploy raccomandato);
+    // fallback: spiega come fare manualmente dal dashboard Supabase.
+    async function inviteOperator() {
+      const email = document.getElementById('invite-email').value.trim().toLowerCase();
+      const name  = document.getElementById('invite-name').value.trim();
+      const statusEl = document.getElementById('invite-status');
+      const btn = document.getElementById('invite-btn');
+      statusEl.className = 'invite-status';
+      statusEl.textContent = '';
+      if (!email || !email.includes('@')) {
+        statusEl.className = 'invite-status err';
+        statusEl.textContent = '❌ Inserisci un\'email valida.';
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Invio in corso…';
+      try {
+        // Tentativo via Edge Function (richiede deploy una tantum, vedi supabase/functions/invite-operator/README.md)
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/invite-operator`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('sb-access-token')}`,
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ email, display_name: name || null, redirect_to: `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, '')}login.html` })
+        });
+        if (res.ok) {
+          statusEl.className = 'invite-status ok';
+          statusEl.innerHTML = `✅ Invito inviato a <strong>${esc(email)}</strong>. L'operatore riceverà un'email con un link per impostare la password.`;
+          document.getElementById('invite-email').value = '';
+          document.getElementById('invite-name').value = '';
+          auditLog('operator_invite', 'auth.users', null, { email, display_name: name || null });
+          // Aggiorna lista
+          setTimeout(() => { switchUsersTab('list'); }, 1500);
+          return;
+        }
+        if (res.status === 404) {
+          // Edge function non deployata → fallback istruzioni manuali
+          showInviteFallback(email, name);
+          return;
+        }
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || body.message || `HTTP ${res.status}`);
+      } catch (err) {
+        // Network / function non raggiungibile → fallback
+        if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
+          showInviteFallback(email, name);
+        } else {
+          statusEl.className = 'invite-status err';
+          statusEl.textContent = `❌ Errore: ${err.message}`;
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✉️ Invita operatore';
+      }
+    }
+    function showInviteFallback(email, name) {
+      const statusEl = document.getElementById('invite-status');
+      statusEl.className = 'invite-status info';
+      statusEl.innerHTML = `
+        <strong>ℹ️ Invito automatico non disponibile</strong> (Edge Function non deployata).
+        Procedi manualmente dal dashboard Supabase:
+        <ol style="margin:8px 0 0 18px;padding:0;line-height:1.7">
+          <li>Click <strong>🔧 Apri dashboard Supabase</strong> qui sopra</li>
+          <li>In alto: bottone <strong>Add user</strong> → <strong>Send invitation</strong></li>
+          <li>Incolla l'email: <code style="background:#fff;padding:2px 6px;border-radius:4px;border:1px solid #cbd5e0">${esc(email)}</code> <button type="button" class="btn-link-small" onclick="copyToClipboard('${esc(email)}', this)">📋 Copia</button></li>
+          <li>Click <strong>Send invitation</strong> → Supabase manda l'email automaticamente</li>
+        </ol>
+        <div style="margin-top:8px;font-size:12px;color:#4a5568">
+          Per evitare questo passaggio manuale, deploya la Edge Function <code>invite-operator</code> da <code>supabase/functions/invite-operator/</code> (istruzioni nel README).
+        </div>`;
+    }
+    function copyToClipboard(text, btn) {
+      try {
+        navigator.clipboard.writeText(text);
+        if (btn) { btn.textContent = '✓ Copiato'; setTimeout(() => btn.textContent = '📋 Copia', 1500); }
+      } catch (_) { /* ignore */ }
+    }
+
+    async function sendResetPassword(email) {
+      if (!confirm(`Inviare email di reset password a ${email}?`)) return;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+          body: JSON.stringify({ email })
+        });
+        if (!res.ok) {
+          const b = await res.json().catch(()=>({}));
+          throw new Error(b.message || b.msg || `HTTP ${res.status}`);
+        }
+        alert(`✉️ Email di reset password inviata a ${email}.\nL'operatore riceverà un link per scegliere una nuova password.`);
+        auditLog('operator_reset_password', 'auth.users', null, { email });
+      } catch (err) {
+        alert('Errore invio reset: ' + err.message);
+      }
+    }
+    async function resendInvite(email) {
+      // Reinvia l'email di invito ri-chiamando lo stesso flusso resetPassword
+      // (Supabase invia un magic link che permette di settare password = stesso effetto)
+      if (!confirm(`Reinviare il link di invito a ${email}?`)) return;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+          body: JSON.stringify({ email })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        alert(`✉️ Email di re-invito inviata a ${email}.`);
+        auditLog('operator_resend_invite', 'auth.users', null, { email });
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    function openSupabaseUserPanel() {
+      window.open('https://supabase.com/dashboard/project/sebhatzxsxuafsmbdtsx/auth/users', '_blank', 'noopener');
     }
     // Stop timers anche su navigazione fuori dalla pagina (pagehide è più
     // affidabile di beforeunload su mobile/iOS).
