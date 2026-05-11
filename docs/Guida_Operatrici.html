@@ -1166,17 +1166,56 @@
 <!-- ============ 16 ============ -->
 <section id="chiudi-evento">
   <h2>Chiudere un evento — fine giornata</h2>
-  <p class="lead">A fine evento, lo chiudi per archiviare i visitatori e liberare i badge dal pool.</p>
+  <p class="lead">A fine evento lo chiudi per archiviare i visitatori e liberare i badge dal pool. <strong>Ma c'è una regola d'oro sul timing.</strong></p>
 
-  <ol class="steps">
-    <li>Vai in tab <strong>🎫 Eventi</strong>.</li>
-    <li>Trova l'evento attivo (🔴) e click <strong>🛑 Chiudi evento</strong> (puoi anche cliccare "Chiudi evento" sul banner arancione in cima alla pagina).</li>
-    <li><strong>ATTENZIONE</strong>: se ci sono ancora visitatori "Dentro ora", il sistema te lo dice e ti mostra i primi 5 nomi. Doppia conferma necessaria.</li>
-    <li>Conferma la chiusura.</li>
-    <li>Il sistema archivia tutti i visitor (xatlas_status → checked_out) e l'agente libera i badge dal pool nei prossimi 30 secondi.</li>
+  <h3>⏱ REGOLA D'ORO: chiudere 1 ora dopo l'orario di fine ufficiale</h3>
+
+  <div class="callout warn">
+    <strong>NON chiudere mai l'evento esattamente all'orario di fine ufficiale.</strong>
+    Aspetta sempre <strong>1 ora dopo</strong>, per dare buffer agli ospiti che escono in ritardo.
+  </div>
+
+  <table class="simple">
+    <tr><th>Orario fine evento dichiarato</th><th>Quando chiudere nell'admin</th></tr>
+    <tr><td>14:00 (mattina lavoro)</td><td><strong>15:00</strong></td></tr>
+    <tr><td>18:00 (pomeriggio)</td><td><strong>19:00</strong></td></tr>
+    <tr><td>22:00 (cena evento)</td><td><strong>23:00</strong> (o il mattino dopo se non c'è urgenza)</td></tr>
+  </table>
+
+  <h3>🤔 Perché aspettare 1 ora?</h3>
+
+  <p>Quando clicchi "Chiudi evento" nell'admin, il sistema fa 2 cose immediate:</p>
+  <ol>
+    <li>Marca tutti i visitatori dell'evento come "Concluso" (xatlas_status = checked_out)</li>
+    <li>L'agente Python entro 30 secondi disattiva i badge sui tornelli</li>
   </ol>
 
-  <div class="callout danger">Chiudere un evento è IRREVERSIBILE. I visitatori archiviati restano consultabili nello storico ma non possono essere "riattivati". Se per errore qualcuno è ancora dentro, il suo badge smetterà di funzionare al tornello (dovrà uscire da un'altra porta).</div>
+  <p>Se gli ospiti sono ancora dentro la struttura e provano a passare il tornello in uscita con il loro badge, il tornello dirà "badge non valido" e <strong>resteranno bloccati</strong>. Dovrai liberarli a mano (riprogrammare il tornello o farli uscire da un'altra porta). Brutta figura davanti agli ospiti.</p>
+
+  <p>L'evento dichiarato fino alle 18:00 di solito vede gli ultimi ospiti uscire fra le 18:00 e le 18:45 (saluti, drink, foto di gruppo). 1 ora di buffer è sufficiente per la maggior parte dei casi.</p>
+
+  <h3>📋 Procedura corretta</h3>
+
+  <ol class="steps">
+    <li>Aspetta che siano passate <strong>almeno 60 minuti</strong> dall'orario di fine ufficiale.</li>
+    <li>Controlla la card "Dentro ora" in tab Eventi: idealmente è a 0 (= tutti usciti).</li>
+    <li>Vai in tab <strong>🎫 Eventi</strong>.</li>
+    <li>Trova l'evento attivo (🔴) e click <strong>🛑 Chiudi evento</strong> (puoi anche cliccare "Chiudi evento" sul banner arancione in cima alla pagina).</li>
+    <li>Compare un dialog di conferma con il <strong>suggerimento timing</strong> in cima.</li>
+    <li>Se ci sono ancora visitatori "Dentro ora", il sistema te lo dice e ti mostra i primi 5 nomi. Doppia conferma obbligatoria.</li>
+    <li>Conferma la chiusura.</li>
+    <li>Il sistema archivia tutti i visitor (checked_out) e l'agente libera i badge nei prossimi 30 secondi.</li>
+  </ol>
+
+  <h3>🆘 Cosa fare se sei "in ritardo" — l'evento è finito da 2-3 ore</h3>
+
+  <p>Niente di grave. L'evento resta "attivo" finché non lo chiudi tu manualmente. Anche se sono passate 5 ore dalla fine ufficiale, puoi chiuderlo tranquillamente: i tornelli continuano a funzionare nel frattempo.</p>
+
+  <p>Anzi: se non sei sicura che tutti gli ospiti siano usciti, è meglio chiuderlo il <strong>mattino del giorno dopo</strong> alle 8:00. A quel punto è certo che siano tutti fuori.</p>
+
+  <div class="callout danger">Chiudere un evento è <strong>IRREVERSIBILE</strong>. I visitatori archiviati restano consultabili nello storico ma non possono essere "riattivati". Se per errore qualcuno è ancora dentro, il suo badge smetterà di funzionare al tornello.</div>
+
+  <div class="callout info">Banner permanente nella tab Eventi: c'è già un promemoria giallo che ti ricorda la regola "chiudi 1 ora dopo". Se lo vedi mentre lavori, è il sistema che ti aiuta a non sbagliare.</div>
 </section>
 
 <!-- ============ 17 ============ -->
