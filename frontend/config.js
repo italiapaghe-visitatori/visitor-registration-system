@@ -23,6 +23,7 @@ const CONFIG = {
     lastName: { enabled: true, label: 'Cognome', required: true },
     email: { enabled: true, label: 'Email', required: false },
     company: { enabled: true, label: 'Azienda', required: false },
+    jobTitle: { enabled: true, label: 'Mansione', required: false },
     visitDate: { enabled: false, label: 'Data Visita', required: false },
     entryTime: { enabled: false, label: 'Ora Ingresso', required: false },
     exitTime: { enabled: false, label: 'Ora Uscita', required: false },

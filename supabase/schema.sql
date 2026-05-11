@@ -516,3 +516,18 @@ ALTER TABLE visitors
   ADD COLUMN IF NOT EXISTS consent_user_agent    TEXT,
   ADD COLUMN IF NOT EXISTS access_rules_pdf_hash TEXT,
   ADD COLUMN IF NOT EXISTS access_rules_pdf_size INTEGER;
+
+-- =====================================================
+-- MIGRATION v12 — Mansione dell'ospite
+-- =====================================================
+-- Aggiunge il campo "mansione" (job title / ruolo professionale del visitatore)
+-- sia nella lista ospiti attesi (guest_list) sia nei record visitor effettivi.
+-- Visibile in tab Ospiti Attesi, walk-in modal admin, detail modal, kiosk form.
+-- Campo facoltativo dal punto di vista DB (NULL ammesso), validazione UI lato
+-- client se richiesto dalla configurazione fields.
+
+ALTER TABLE visitors
+  ADD COLUMN IF NOT EXISTS job_title TEXT;
+
+ALTER TABLE guest_list
+  ADD COLUMN IF NOT EXISTS job_title TEXT;

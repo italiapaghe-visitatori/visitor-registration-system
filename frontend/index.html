@@ -1278,6 +1278,11 @@
           <input type="text" id="company" name="company" autocomplete="organization" placeholder="Es. Rossi Srl">
         </div>
 
+        <div class="form-group" id="job-title-group">
+          <label for="job_title">Mansione</label>
+          <input type="text" id="job_title" name="job_title" autocomplete="organization-title" placeholder="Es. Ingegnere, Direttore Marketing">
+        </div>
+
         <p class="section-label">Documento di identità</p>
 
         <div class="form-row">
@@ -1986,6 +1991,7 @@
       set('last_name',        guest.last_name);
       set('email',            guest.email);
       set('company',          guest.company);
+      set('job_title',        guest.job_title);
       set('person_to_visit',  guest.person_to_visit);
       // Motivo visita: se l'ospite ha un motivo precompilato che esiste tra le opzioni, selezionalo
       const reasonSel = document.getElementById('visit_reason');
@@ -2012,7 +2018,7 @@
         // Tutti gli ospiti registrati (filtrati poi per chi non ha ancora passato il tornello)
         const gRes = await fetch(
           `${SUPABASE_URL}/rest/v1/guest_list` +
-          `?select=id,first_name,last_name,email,company,person_to_visit,visit_reason,expected_date` +
+          `?select=id,first_name,last_name,email,company,job_title,person_to_visit,visit_reason,expected_date` +
           `&order=last_name.asc`,
           { headers: hdrs }
         );
@@ -2218,6 +2224,7 @@
       lnEl.value                                       = g.last_name       || '';
       document.getElementById('email').value           = g.email           || '';
       document.getElementById('company').value         = g.company         || '';
+      document.getElementById('job_title').value       = g.job_title       || '';
       document.getElementById('person_to_visit').value = g.person_to_visit || '';
       if (g.visit_reason) {
         const sel = document.getElementById('visit_reason');
@@ -2249,6 +2256,7 @@
       document.getElementById('last_name').value                 = '';
       document.getElementById('email').value                     = '';
       document.getElementById('company').value                   = '';
+      document.getElementById('job_title').value                 = '';
       document.getElementById('person_to_visit').value           = '';
       document.getElementById('visit_reason').selectedIndex      = 0;
       updateAgreementName();
@@ -2303,6 +2311,7 @@
       check('documentType',  'document_type');
       check('documentId',    'document_id');
       check('personToVisit', 'person_to_visit');
+      check('jobTitle',      'job_title');
       check('badgeNumber',   'badge_number');
       check('phone',         'phone');
       check('department',    'department');
@@ -2414,6 +2423,7 @@
         last_name:        lastName,
         email:            emailVal,
         company:          document.getElementById('company').value.trim() || null,
+        job_title:        document.getElementById('job_title').value.trim() || null,
         person_to_visit:  document.getElementById('person_to_visit').value.trim() || null,
         visit_reason:     document.getElementById('visit_reason').value,
         document_type:    document.getElementById('document_type').value || null,

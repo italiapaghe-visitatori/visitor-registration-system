@@ -2051,6 +2051,10 @@
           <label>Azienda</label>
           <input type="text" id="det-company" readonly>
         </div>
+        <div class="modal-field">
+          <label>Mansione (modificabile)</label>
+          <input type="text" id="det-job-title" placeholder="Es. Ingegnere, Direttore Marketing">
+        </div>
       </div>
 
       <hr class="divider">
@@ -2434,9 +2438,13 @@
               <input type="text" id="wi-company" autocomplete="off" placeholder="Es. Rossi Srl">
             </div>
             <div class="modal-field">
-              <label>Persona da visitare</label>
-              <input type="text" id="wi-person" autocomplete="off">
+              <label>Mansione</label>
+              <input type="text" id="wi-job-title" autocomplete="off" placeholder="Es. Ingegnere, Direttore Marketing">
             </div>
+          </div>
+          <div class="modal-field">
+            <label>Persona da visitare</label>
+            <input type="text" id="wi-person" autocomplete="off">
           </div>
           <div class="modal-field">
             <label>Motivo visita</label>
@@ -2445,6 +2453,12 @@
           <div class="modal-field badge-highlight">
             <label>Badge dal pool (auto-selezionato)</label>
             <select id="wi-badge-select"></select>
+          </div>
+          <div class="modal-field" style="margin-top:8px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#9b2c2c;cursor:pointer">
+              <input type="checkbox" id="wi-bypass-doc">
+              <span>⚠️ <strong>Forza salvataggio senza documento identità</strong> (solo se l'ospite non ha documento al momento — responsabilità admin)</span>
+            </label>
           </div>
         </div>
         <div class="modal-actions">
@@ -3373,7 +3387,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10r · stats-top-all-fix</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-11a · mansione</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -4250,6 +4264,8 @@
       document.getElementById('det-last-name').value   = row.last_name  || '';
       document.getElementById('det-email').value       = row.email      || '';
       document.getElementById('det-company').value     = row.company    || '';
+      const detJobTitle = document.getElementById('det-job-title');
+      if (detJobTitle) detJobTitle.value = row.job_title || '';
       document.getElementById('det-visit-date').value  = row.visit_date || '';
       document.getElementById('det-entry-time').value  = row.entry_time ? row.entry_time.slice(0,5) : '';
       document.getElementById('det-exit-time').value   = row.exit_time  ? row.exit_time.slice(0,5)  : '';
@@ -4423,6 +4439,7 @@
 
       const patch = {
         person_to_visit: document.getElementById('det-person').value.trim() || null,
+        job_title:       document.getElementById('det-job-title')?.value.trim() || null,
         visit_reason:    document.getElementById('det-reason').value.trim() || null,
         document_type:   document.getElementById('det-document-type').value || null,
         document_id:     document.getElementById('det-document-id').value.trim().toUpperCase() || null,
@@ -6269,10 +6286,12 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         }
 
         // Reset form
-        ['wi-first-name','wi-last-name','wi-document-id','wi-company','wi-person'].forEach(id => {
+        ['wi-first-name','wi-last-name','wi-document-id','wi-company','wi-job-title','wi-person'].forEach(id => {
           const el = document.getElementById(id); if (el) el.value = '';
         });
         document.getElementById('wi-document-type').value = '';
+        const bypassEl = document.getElementById('wi-bypass-doc');
+        if (bypassEl) bypassEl.checked = false;
         document.getElementById('wi-guest-info').textContent = '';
 
         // Popola motivi visita (riusa CONFIG)
@@ -6371,9 +6390,19 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       const ln = document.getElementById('wi-last-name').value.trim();
       const docType = document.getElementById('wi-document-type').value;
       const docId   = document.getElementById('wi-document-id').value.trim().toUpperCase();
-      if (!fn || !ln || !docType || !docId) {
-        alert('Compila Nome, Cognome, Tipo documento, Numero documento (obbligatori).');
+      const bypassDoc = document.getElementById('wi-bypass-doc')?.checked || false;
+      if (!fn || !ln) {
+        alert('Compila Nome e Cognome (obbligatori).');
         return;
+      }
+      if ((!docType || !docId) && !bypassDoc) {
+        alert('Numero documento di identità obbligatorio.\n\nSe l\'ospite non ha il documento al momento, puoi spuntare "Forza salvataggio senza documento" sotto sua responsabilità.');
+        return;
+      }
+      // Se admin ha forzato bypass MA doc parzialmente compilato, chiede ulteriore conferma
+      if (bypassDoc && (!docType || !docId)) {
+        if (!confirm('⚠️ ATTENZIONE: stai registrando un walk-in SENZA documento di identità.\n\nQuesto sarà tracciato nell\'audit log a tuo nome. Sei sicuro?')) return;
+        auditLog('walkin_no_doc', 'visitor', null, { first_name: fn, last_name: ln, admin: CURRENT_USER_EMAIL });
       }
       const badgeSel = document.getElementById('wi-badge-select');
       if (!badgeSel.value) { alert('Nessun badge selezionato.'); return; }
@@ -6390,10 +6419,11 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         first_name:      fn,
         last_name:       ln,
         company:         document.getElementById('wi-company').value.trim() || null,
+        job_title:       document.getElementById('wi-job-title').value.trim() || null,
         person_to_visit: document.getElementById('wi-person').value.trim() || null,
         visit_reason:    document.getElementById('wi-reason').value || 'Visita',
-        document_type:   docType,
-        document_id:     docId,
+        document_type:   docType || null,
+        document_id:     docId   || null,
         visit_date:      today,
         badge_number:    badgeData.badge,
         xatlas_user_id:  badgeData.xatlas_user_id,
