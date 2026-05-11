@@ -2169,7 +2169,10 @@
         }
       }
       loadGuestList();
-      setInterval(loadGuestList, IS_QR_MODE ? 8000 : 60000);
+      // Polling più rapido in kiosk mode: quando l'operatore admin aggiunge un
+      // ospite (anche via "Aggiungi ospite" / "Passa firma"), il tablet kiosk
+      // lo vede in lista entro 8s, l'ospite può cliccare il suo nome e firmare.
+      setInterval(loadGuestList, 8000);
       // Bootstrap finito → mostra il body (anti-flash). Anche se non in QR mode
       // la classe è no-op (kiosk non ha qr-mode su <html>).
       document.body.classList.add('qr-ready');

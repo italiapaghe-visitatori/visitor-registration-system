@@ -1607,6 +1607,14 @@
     }
     .btn-badge-assign:hover { box-shadow: 0 3px 10px rgba(237,137,54,0.55); }
 
+    .btn-signature-handoff {
+      background: linear-gradient(135deg, #48bb78 0%, #2f855a 100%);
+      color: #fff; border: none; border-radius: 7px;
+      padding: 5px 10px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.18s; white-space: nowrap; margin-right: 4px;
+      box-shadow: 0 2px 6px rgba(72,187,120,0.4);
+    }
+    .btn-signature-handoff:hover { box-shadow: 0 3px 10px rgba(72,187,120,0.55); }
+
     .btn-conclude {
       background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
       color: #fff; border: none; border-radius: 7px;
@@ -1853,6 +1861,15 @@
     .handoff-qr-canvas { display: inline-block; padding: 12px; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .handoff-qr-canvas img, .handoff-qr-canvas canvas { display: block; }
     .handoff-qr-url { font-size: 11px; color: #718096; margin-top: 10px; word-break: break-all; }
+
+    .handoff-instr-panel { display: none; margin: 8px 0 20px; padding: 16px 18px; background: #f0fff4; border: 2px solid #c6f6d5; border-radius: 12px; }
+    .handoff-instr-panel.active { display: block; }
+    .handoff-instr-step { color: #22543d; font-size: 13.5px; margin-bottom: 6px; line-height: 1.5; }
+    .handoff-instr-link { display: flex; gap: 8px; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #c6f6d5; }
+    .handoff-instr-linkLabel { font-size: 11px; color: #4a5568; font-weight: 700; flex: 0 0 auto; }
+    .handoff-instr-link input { flex: 1; height: 30px; border: 1px solid #cbd5e0; border-radius: 6px; padding: 0 8px; font-size: 11px; color: #2d3748; background: #fff; font-family: monospace; }
+    .handoff-instr-copy { height: 30px; padding: 0 12px; border: none; border-radius: 6px; background: #38a169; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .handoff-instr-copy:hover { background: #2f855a; }
 
     .badge-highlight { background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%); border-radius: 10px; padding: 16px 16px; margin-bottom: 4px; }
     .badge-highlight label { color: rgba(255,255,255,0.9) !important; }
@@ -2594,23 +2611,36 @@
       <p class="modal-sub">L'ospite è in lista, ma serve la firma per completare la registrazione. Scegli come procedere:</p>
 
       <div class="handoff-options">
-        <button type="button" class="handoff-card handoff-tablet" onclick="handoffOpenTablet()">
+        <button type="button" class="handoff-card handoff-tablet" onclick="handoffTabletInstructions()">
           <div class="handoff-icon">📱</div>
-          <div class="handoff-title">Apri sul tablet kiosk</div>
-          <div class="handoff-desc">Carica la scheda pre-compilata in una nuova scheda. Passa il tablet all'ospite.</div>
+          <div class="handoff-title">Passa il tablet kiosk all'ospite</div>
+          <div class="handoff-desc">L'ospite apparirà sul tablet entro 8 secondi. Passa il tablet, l'ospite tocca il proprio nome e firma.</div>
         </button>
 
         <button type="button" class="handoff-card handoff-qr" onclick="handoffShowMobileQr()">
           <div class="handoff-icon">📲</div>
           <div class="handoff-title">QR per cellulare dell'ospite</div>
-          <div class="handoff-desc">Genera un QR: l'ospite lo scansiona e firma direttamente sul proprio cellulare.</div>
+          <div class="handoff-desc">L'ospite scansiona col proprio cellulare e firma direttamente sul mobile.</div>
         </button>
 
         <button type="button" class="handoff-card handoff-email" onclick="handoffSendEmail()" id="handoff-email-btn">
           <div class="handoff-icon">✉️</div>
           <div class="handoff-title">Invia email con QR personale</div>
-          <div class="handoff-desc">L'ospite riceve il link via email e firma quando può. Richiede email registrata.</div>
+          <div class="handoff-desc">Anche se l'ospite non ha ancora un'email registrata, te la chiede al volo. L'ospite firmerà più tardi.</div>
         </button>
+      </div>
+
+      <!-- Pannello istruzioni tablet (mostrato dopo click sull'opzione) -->
+      <div class="handoff-instr-panel" id="handoff-tablet-panel">
+        <div class="handoff-instr-step"><strong>1.</strong> Vai al tablet kiosk (lookup ospiti attesi)</div>
+        <div class="handoff-instr-step"><strong>2.</strong> L'ospite <span id="handoff-instr-name">—</span> apparirà in lista entro <strong>8 secondi</strong></div>
+        <div class="handoff-instr-step"><strong>3.</strong> L'ospite tocca il proprio nome → la scheda si auto-compila</div>
+        <div class="handoff-instr-step"><strong>4.</strong> L'ospite firma in fondo e conferma</div>
+        <div class="handoff-instr-link">
+          <span class="handoff-instr-linkLabel">Link diretto (avanzato):</span>
+          <input type="text" id="handoff-tablet-url" readonly onclick="this.select()">
+          <button type="button" class="handoff-instr-copy" onclick="handoffCopyTabletUrl(this)">Copia</button>
+        </div>
       </div>
 
       <!-- Pannello QR mobile (mostrato dopo click sull'opzione) -->
@@ -3533,7 +3563,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-11e · firma-handoff</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-11f · handoff-real-cases</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -6725,6 +6755,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           <td>${emailHtml}</td>
           <td>${statusHtml}</td>
           <td>
+            ${!arrived ? `<button type="button" class="btn-signature-handoff" data-id="${esc(g.id)}" onclick="reopenSignatureHandoff(this)" title="Riapre il dialog per passare la firma all'ospite (tablet kiosk, QR cellulare o email). Disponibile finché l'ospite non ha firmato.">✍️ Firma</button>` : ''}
             ${(!arrived && !preAssign) ? `<button type="button" class="btn-badge-assign" data-id="${esc(g.id)}" onclick="openPreAssignModal(this)" title="Apri modale per pre-assegnare un badge a questo ospite (creazione visitor stub xatlas_status='pending', l'agente attiverà il badge nei tornelli).">Pre-assegna Badge</button>` : ''}
             <button type="button" class="btn-delete" data-id="${esc(g.id)}" onclick="deleteGuest(this)" title="Rimuove questo ospite dalla guest_list. NON è permesso se ha già firmato il QR o ha un visitor pre-assegnato (audit/integrità).">Rimuovi</button>
           </td>
@@ -6827,25 +6858,35 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     }
 
     // ── SIGNATURE HANDOFF: passa firma all'ospite dopo "Aggiungi ospite" ──
+    // Strategia per casi reali (PC admin + tablet kiosk separati):
+    // - Tablet: polling 8s sul tablet kiosk → l'ospite appare in lookup, lo tocca, firma.
+    // - QR mobile: usa l'evento del guest, o fallback ad activeEvent (perché il
+    //   telefono dell'ospite NON è kiosk-autorizzato, serve sempre mode=qr).
+    // - Email: se manca email, prompt al volo; salva su guest_list + enqueue.
     let signatureHandoffGuest = null;
     function openSignatureHandoff(guest) {
       signatureHandoffGuest = guest;
       const nameEl = document.getElementById('sh-guest-name');
-      if (nameEl) nameEl.textContent = `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || 'l\'ospite';
-      // Pulisci pannello QR (potrebbe esserci uno residuo)
-      const qrPanel = document.getElementById('handoff-qr-panel');
+      const fullName = `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || 'l\'ospite';
+      if (nameEl) nameEl.textContent = fullName;
+      // Pulisci pannelli (potrebbero esserci residui dell'apertura precedente)
+      ['handoff-qr-panel', 'handoff-tablet-panel'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+      });
       const qrCanvas = document.getElementById('handoff-qr-canvas');
-      const qrUrl = document.getElementById('handoff-qr-url');
-      if (qrPanel) qrPanel.classList.remove('active');
       if (qrCanvas) qrCanvas.innerHTML = '';
+      const qrUrl = document.getElementById('handoff-qr-url');
       if (qrUrl) qrUrl.textContent = '';
-      // Disabilita "invia email" se manca email o evento
+      // Email button SEMPRE abilitato: se manca email, la chiediamo al volo.
+      // Disabilitiamo solo se manca un evento di riferimento (nemmeno activeEvent),
+      // perché senza event_id non possiamo costruire il QR personale.
       const emailBtn = document.getElementById('handoff-email-btn');
+      const hasEventRef = !!(guest.event_id || activeEvent?.id);
       if (emailBtn) {
-        const canEmail = !!(guest.email && guest.event_id);
-        emailBtn.disabled = !canEmail;
-        emailBtn.title = canEmail ? '' :
-          (!guest.email ? 'L\'ospite non ha un\'email registrata' : 'L\'ospite non è collegato a un evento');
+        emailBtn.disabled = !hasEventRef;
+        emailBtn.title = hasEventRef ? '' :
+          'Nessun evento attivo: il QR personale richiede un evento. Avvia un evento o ricollega l\'ospite a uno.';
       }
       document.getElementById('signature-handoff-modal').classList.add('active');
     }
@@ -6853,25 +6894,55 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       document.getElementById('signature-handoff-modal').classList.remove('active');
       signatureHandoffGuest = null;
     }
+    // Riapre il dialog handoff dalla tabella Ospiti Attesi (bottone "✍️ Firma")
+    function reopenSignatureHandoff(btn) {
+      const id = btn.dataset.id;
+      const guest = guestData.find(g => String(g.id) === String(id));
+      if (!guest) { alert('Ospite non trovato.'); return; }
+      openSignatureHandoff(guest);
+    }
     function buildPrefillKioskUrl(guestId) {
       return `${defaultFrontendBaseUrl()}?prefill_guest=${encodeURIComponent(guestId)}`;
     }
-    function handoffOpenTablet() {
+    // Restituisce l'event_id da usare per il QR/email: prima quello dell'ospite,
+    // fallback all'evento attivo (caso operatore che non ha spuntato attach-to-event).
+    function handoffResolveEventId(guest) {
+      return guest.event_id || activeEvent?.id || null;
+    }
+    function handoffTabletInstructions() {
       if (!signatureHandoffGuest) return;
-      const url = buildPrefillKioskUrl(signatureHandoffGuest.id);
-      window.open(url, '_blank', 'noopener');
-      auditLog('signature_handoff_tablet', 'guest_list', signatureHandoffGuest.id, { method: 'tablet_open' });
+      const guest = signatureHandoffGuest;
+      const nameEl = document.getElementById('handoff-instr-name');
+      const urlEl = document.getElementById('handoff-tablet-url');
+      const panel = document.getElementById('handoff-tablet-panel');
+      if (nameEl) nameEl.textContent = `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || 'l\'ospite';
+      if (urlEl) urlEl.value = buildPrefillKioskUrl(guest.id);
+      if (panel) panel.classList.add('active');
+      auditLog('signature_handoff_tablet', 'guest_list', guest.id, { method: 'tablet_lookup_polling' });
+    }
+    function handoffCopyTabletUrl(btn) {
+      const input = document.getElementById('handoff-tablet-url');
+      if (!input) return;
+      input.select();
+      try {
+        navigator.clipboard.writeText(input.value);
+        btn.textContent = '✓ Copiato';
+        setTimeout(() => { btn.textContent = 'Copia'; }, 1500);
+      } catch (_) {
+        document.execCommand('copy');
+        btn.textContent = '✓ Copiato';
+        setTimeout(() => { btn.textContent = 'Copia'; }, 1500);
+      }
     }
     function handoffShowMobileQr() {
       if (!signatureHandoffGuest) return;
       const guest = signatureHandoffGuest;
-      // Per il QR personale (mobile) serve event_id. Se manca, fallback a prefill kiosk.
-      let url;
-      if (guest.event_id) {
-        url = buildPersonalQrUrl(guest.event_id, guest.id);
-      } else {
-        url = buildPrefillKioskUrl(guest.id);
+      const eventId = handoffResolveEventId(guest);
+      if (!eventId) {
+        alert('Nessun evento attivo né collegato all\'ospite.\n\nIl QR personale richiede un evento di riferimento. Avvia un evento (tab Eventi) o usa "Passa il tablet kiosk".');
+        return;
       }
+      const url = buildPersonalQrUrl(eventId, guest.id);
       const wrap = document.getElementById('handoff-qr-canvas');
       const urlEl = document.getElementById('handoff-qr-url');
       const panel = document.getElementById('handoff-qr-panel');
@@ -6880,23 +6951,47 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       new QRCode(wrap, { text: url, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.H });
       if (urlEl) urlEl.textContent = url;
       if (panel) panel.classList.add('active');
-      auditLog('signature_handoff_mobile_qr', 'guest_list', guest.id, { method: 'mobile_qr', has_event: !!guest.event_id });
+      auditLog('signature_handoff_mobile_qr', 'guest_list', guest.id, {
+        method: 'mobile_qr', event_id: eventId, fallback: !guest.event_id
+      });
     }
     async function handoffSendEmail() {
       if (!signatureHandoffGuest) return;
       const guest = signatureHandoffGuest;
-      if (!guest.email || !guest.event_id) {
-        alert('Per inviare l\'email serve sia l\'email dell\'ospite che il collegamento a un evento.');
+      const eventId = handoffResolveEventId(guest);
+      if (!eventId) {
+        alert('Nessun evento attivo né collegato all\'ospite. Avvia un evento o ricollega l\'ospite.');
         return;
       }
-      // Recupera l'evento per costruire l'email
+      // Email mancante? Prompt al volo (con validazione minima)
+      let emailToUse = guest.email;
+      if (!emailToUse) {
+        emailToUse = prompt(`Inserisci l'email di ${guest.first_name || ''} ${guest.last_name || ''} per inviargli il QR personale:`, '');
+        if (emailToUse === null) return; // utente ha annullato
+        emailToUse = emailToUse.trim();
+        if (!emailToUse || !emailToUse.includes('@')) {
+          alert('Email non valida.');
+          return;
+        }
+        // Salva l'email su guest_list per riusarla in futuro
+        try {
+          await api(`${SUPABASE_URL}/rest/v1/guest_list?id=eq.${encodeURIComponent(guest.id)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ email: emailToUse })
+          });
+          guest.email = emailToUse;
+        } catch (_) { /* best-effort, continuo lo stesso */ }
+      }
       try {
-        const evRes = await api(`${SUPABASE_URL}/rest/v1/events?id=eq.${encodeURIComponent(guest.event_id)}&select=*`);
+        const evRes = await api(`${SUPABASE_URL}/rest/v1/events?id=eq.${encodeURIComponent(eventId)}&select=*`);
         const ev = evRes && evRes.ok ? (await evRes.json())[0] : null;
         if (!ev) { alert('Evento non trovato.'); return; }
-        await enqueueQrEmail(guest, ev);
-        alert(`✉️ Email accodata per ${guest.email}. L'agente Python la invierà al prossimo ciclo.`);
+        // Costruisco un oggetto guest con event_id risolto e email aggiornata
+        await enqueueQrEmail({ ...guest, email: emailToUse, event_id: eventId }, ev);
+        alert(`✉️ Email accodata per ${emailToUse}. L'agente Python la invierà al prossimo ciclo.`);
         closeSignatureHandoff();
+        loadGuestList();
       } catch (err) {
         alert('Errore invio email: ' + err.message);
       }
