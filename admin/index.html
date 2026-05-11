@@ -1927,6 +1927,18 @@
       margin-top:   0    !important;
       margin-bottom: 16px !important;
     }
+    /* Su Acquisizione: stessa logica anche nella sotto-vista lista sessioni. */
+    body[data-view="acquire"] #acq-list-view > .stats-bar {
+      order:        -1   !important;
+      margin-top:   0    !important;
+      margin-bottom: 16px !important;
+    }
+    /* Su Audit: stats cards in cima al contenuto. */
+    body[data-view="audit"] #view-audit.active > .stats-bar {
+      order:        -1   !important;
+      margin-top:   0    !important;
+      margin-bottom: 16px !important;
+    }
 
     /* SNELLA: quando view-visitors fa da panoramica (NON è la tab attiva
        Visitatori), nascondi filtri, stats card, paginazione e ricerca per
@@ -3360,7 +3372,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10p · stats-top-drafts</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10q · stats-top-all</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
