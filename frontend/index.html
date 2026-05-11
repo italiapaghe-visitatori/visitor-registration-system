@@ -834,6 +834,26 @@
       margin-top: 4px;
     }
 
+    /* Prefill kiosk: operatore admin ha appena aggiunto l'ospite e passa il tablet
+       per la firma. Salta la ricerca, mostra direttamente la scheda. */
+    html.prefill-mode #guest-lookup-wrap { display: none !important; }
+    .prefill-banner {
+      display: none;
+      padding: 14px 18px;
+      margin: 12px auto;
+      max-width: 720px;
+      background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+      color: #fff;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 4px 14px rgba(56,161,105,0.25);
+    }
+    html.prefill-mode .prefill-banner { display: block; }
+    .prefill-banner .pf-icon { font-size: 28px; line-height: 1; margin-bottom: 4px; }
+    .prefill-banner .pf-title { font-size: 17px; font-weight: 700; }
+    .prefill-banner .pf-sub { font-size: 13.5px; opacity: 0.95; margin-top: 4px; }
+    .prefill-banner .pf-name { font-weight: 700; }
+
     /* Schermata finale persistente "ritira badge alla reception" */
     #qr-success {
       display: none;
@@ -1223,6 +1243,13 @@
 
     <div class="card-body">
       <form id="visitor-form" novalidate>
+
+        <!-- BANNER PREFILL (operatore admin ha pre-compilato la scheda) -->
+        <div class="prefill-banner" id="prefill-banner">
+          <div class="pf-icon">✍️</div>
+          <div class="pf-title">Scheda pronta per <span class="pf-name" id="prefill-name">l'ospite</span></div>
+          <div class="pf-sub">Verifica i dati, firma in fondo e conferma la registrazione.</div>
+        </div>
 
         <!-- RICERCA OSPITI ATTESI -->
         <div id="guest-lookup-wrap">
@@ -1674,8 +1701,13 @@
     const QR_EVENT_ID = QS.get('event') || null;
     const QR_GUEST_ID = QS.get('guest') || null;  // QR personale per ospite specifico (privacy)
     const KIOSK_AUTHORIZE = QS.get('kiosk_authorize') || null;
+    // Prefill: l'admin ha appena aggiunto un ospite (o un walk-in stub) dall'admin
+    // e ora passa il tablet kiosk all'ospite per la firma. Saltiamo la ricerca per
+    // cognome e pre-carichiamo direttamente la scheda di questo ospite.
+    const PREFILL_GUEST_ID = QS.get('prefill_guest') || null;
     if (IS_QR_MODE) document.documentElement.classList.add('qr-mode');
     if (IS_QR_MODE && QR_GUEST_ID) document.documentElement.classList.add('qr-personal');
+    if (PREFILL_GUEST_ID && !IS_QR_MODE) document.documentElement.classList.add('prefill-mode');
 
     // ── PROTEZIONE ACCESSO PUBBLICO (anti-abuso URL GitHub Pages) ──────────
     // Se qualcuno digita l'URL del frontend senza ?mode=qr&event=... (es.
@@ -2119,6 +2151,22 @@
       } else {
         // KIOSK MODE: se c'è un evento attivo, lo usiamo per taggare le nuove registrazioni
         CURRENT_EVENT = await loadActiveEventForKiosk();
+        // Prefill da admin: l'operatore ha appena aggiunto un ospite e passa il tablet
+        // per la firma. Carica direttamente la sua scheda, salta la ricerca.
+        if (PREFILL_GUEST_ID) {
+          try {
+            const res = await fetch(
+              `${SUPABASE_URL}/rest/v1/guest_list?id=eq.${encodeURIComponent(PREFILL_GUEST_ID)}&select=*`,
+              { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+            );
+            const rows = res.ok ? await res.json() : [];
+            if (rows[0]) {
+              applyPersonalQrPrefill(rows[0]);
+              const banner = document.getElementById('prefill-name');
+              if (banner) banner.textContent = `${rows[0].first_name || ''} ${rows[0].last_name || ''}`.trim() || 'l\'ospite';
+            }
+          } catch (_) { /* fallback al flusso standard */ }
+        }
       }
       loadGuestList();
       setInterval(loadGuestList, IS_QR_MODE ? 8000 : 60000);
