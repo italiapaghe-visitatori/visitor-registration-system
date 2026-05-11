@@ -2294,9 +2294,15 @@
             <input type="text" id="ag-last-name" placeholder="Cognome">
           </div>
         </div>
-        <div class="modal-field">
-          <label>Email</label>
-          <input type="email" id="ag-email" placeholder="esempio@email.com">
+        <div class="modal-row-2">
+          <div class="modal-field">
+            <label>Email</label>
+            <input type="email" id="ag-email" placeholder="esempio@email.com">
+          </div>
+          <div class="modal-field">
+            <label>Telefono</label>
+            <input type="tel" id="ag-phone" placeholder="+39 333 1234567">
+          </div>
         </div>
         <div class="modal-row-2">
           <div class="modal-field">
@@ -2304,8 +2310,18 @@
             <input type="text" id="ag-company" placeholder="Nome azienda">
           </div>
           <div class="modal-field">
+            <label>Mansione</label>
+            <input type="text" id="ag-job-title" placeholder="Es. Ingegnere, Direttore Marketing">
+          </div>
+        </div>
+        <div class="modal-row-2">
+          <div class="modal-field">
             <label>Data prevista</label>
             <input type="date" id="ag-date">
+          </div>
+          <div class="modal-field">
+            <label>Reparto/Ufficio (interno S2S)</label>
+            <input type="text" id="ag-department" placeholder="Es. Marketing, HR, IT">
           </div>
         </div>
         <div class="modal-field">
@@ -2316,6 +2332,29 @@
           <label>Motivo visita</label>
           <select id="ag-reason" title="Motivo della visita"></select>
         </div>
+        <hr class="divider">
+        <p class="section-heading" style="font-size:13px;color:#718096;margin:8px 0 4px">📄 Documento e badge (opzionali — di solito catturati al kiosk)</p>
+        <div class="modal-row-2">
+          <div class="modal-field">
+            <label>Tipo documento</label>
+            <select id="ag-document-type">
+              <option value="">—</option>
+              <option value="CI">Carta d'identità</option>
+              <option value="Passaporto">Passaporto</option>
+              <option value="Patente">Patente</option>
+              <option value="Altro">Altro</option>
+            </select>
+          </div>
+          <div class="modal-field">
+            <label>Numero documento</label>
+            <input type="text" id="ag-document-id" placeholder="Es. AB1234567" oninput="this.value = this.value.toUpperCase()" style="text-transform:uppercase">
+          </div>
+        </div>
+        <div class="modal-field">
+          <label>Numero badge pre-assegnato</label>
+          <input type="text" id="ag-badge-number" placeholder="Solo numeri, da 3 a 12 cifre" inputmode="numeric" pattern="\d{3,12}" maxlength="12">
+        </div>
+        <hr class="divider">
         <div class="modal-field">
           <label>Note</label>
           <textarea id="ag-notes" placeholder="Note aggiuntive..."></textarea>
@@ -2825,7 +2864,7 @@
       <!-- Azioni -->
       <div class="toolbar-actions">
         <span class="toolbar-label">Ospiti</span>
-        <button type="button" class="btn btn-primary" onclick="openAddGuestModal()" title="Aggiungi un singolo ospite alla guest_list manualmente: nome, cognome, email, persona da visitare, motivo, data prevista. Si può collegare all'evento attivo.">➕ Aggiungi</button>
+        <button type="button" class="btn btn-primary" onclick="openAddGuestModal()" title="Aggiungi un singolo ospite alla guest_list manualmente: anagrafica completa (nome, cognome, email, telefono, azienda, mansione, reparto), dettagli visita (data, persona da visitare, motivo), documento + badge opzionali. Si può collegare all'evento attivo.">➕ Aggiungi</button>
 
         <span class="toolbar-divider"></span>
         <span class="toolbar-label">Import</span>
@@ -3413,7 +3452,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-11c · close-buffer-rule</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-11d · aggiungi-ospite-full</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -6618,8 +6657,9 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
 
     // ── ADD GUEST ─────────────────────────────────────
     function openAddGuestModal() {
-      ['ag-first-name','ag-last-name','ag-email','ag-company','ag-person','ag-reason','ag-notes'].forEach(id => {
-        document.getElementById(id).value = '';
+      ['ag-first-name','ag-last-name','ag-email','ag-phone','ag-company','ag-job-title','ag-department','ag-person','ag-reason','ag-notes','ag-document-type','ag-document-id','ag-badge-number'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
       });
       document.getElementById('ag-date').value = todayLocalIso();
       // Configura checkbox "Associa a evento attivo" in base alla presenza di evento
@@ -6650,16 +6690,31 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       saveBtn.disabled = true;
       saveBtn.textContent = 'Salvataggio...';
 
+      // Validazione opzionale: se badge inserito, verifico formato (3-12 cifre)
+      const badgeVal = document.getElementById('ag-badge-number').value.trim();
+      if (badgeVal && !/^\d{3,12}$/.test(badgeVal)) {
+        alert('Numero badge: solo cifre, da 3 a 12. Esempio: 999001');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Aggiungi ospite';
+        return;
+      }
+
       const attachToEvent = document.getElementById('ag-attach-event')?.checked;
       const payload = {
         first_name:      fn,
         last_name:       ln,
-        email:           document.getElementById('ag-email').value.trim()   || null,
-        company:         document.getElementById('ag-company').value.trim() || null,
-        expected_date:   document.getElementById('ag-date').value           || null,
-        person_to_visit: document.getElementById('ag-person').value.trim()  || null,
-        visit_reason:    document.getElementById('ag-reason').value.trim()  || null,
-        notes:           document.getElementById('ag-notes').value.trim()   || null,
+        email:           document.getElementById('ag-email').value.trim()           || null,
+        phone:           document.getElementById('ag-phone').value.trim()           || null,
+        company:         document.getElementById('ag-company').value.trim()         || null,
+        job_title:       document.getElementById('ag-job-title').value.trim()       || null,
+        expected_date:   document.getElementById('ag-date').value                   || null,
+        department:      document.getElementById('ag-department').value.trim()      || null,
+        person_to_visit: document.getElementById('ag-person').value.trim()          || null,
+        visit_reason:    document.getElementById('ag-reason').value.trim()          || null,
+        document_type:   document.getElementById('ag-document-type').value         || null,
+        document_id:     document.getElementById('ag-document-id').value.trim().toUpperCase() || null,
+        badge_number:    badgeVal || null,
+        notes:           document.getElementById('ag-notes').value.trim()           || null,
         event_id:        (attachToEvent && activeEvent) ? activeEvent.id : null,
       };
 

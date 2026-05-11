@@ -531,3 +531,24 @@ ALTER TABLE visitors
 
 ALTER TABLE guest_list
   ADD COLUMN IF NOT EXISTS job_title TEXT;
+
+-- =====================================================
+-- MIGRATION v13 — Campi anagrafica completi su guest_list
+-- =====================================================
+-- Allineamento dei campi disponibili tra il kiosk (form visitatore) e
+-- il modale "Aggiungi ospite" admin. Permette pre-popolazione opzionale
+-- di dati che oggi vengono inseriti solo al momento del kiosk.
+--
+-- Tutti i campi sono TEXT nullable (no breaking change):
+-- phone:         numero telefono (utile per chiamare se non arriva)
+-- department:    reparto interno S2S che visita
+-- badge_number:  numero badge pre-assegnato (alternativa a Compila/Pre-asseg)
+-- document_type: tipo documento (CI/Passaporto/Patente) noto in anticipo
+-- document_id:   numero documento noto in anticipo
+
+ALTER TABLE guest_list
+  ADD COLUMN IF NOT EXISTS phone         TEXT,
+  ADD COLUMN IF NOT EXISTS department    TEXT,
+  ADD COLUMN IF NOT EXISTS badge_number  TEXT,
+  ADD COLUMN IF NOT EXISTS document_type TEXT,
+  ADD COLUMN IF NOT EXISTS document_id   TEXT;
