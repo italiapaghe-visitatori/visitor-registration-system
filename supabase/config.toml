@@ -1,0 +1,20 @@
+# Config Supabase (sincronizzato via `supabase config push`)
+# Riferimento: https://supabase.com/docs/guides/cli/config
+
+project_id = "visitor-registration-system"
+
+[auth]
+# URL del frontend admin di produzione (usato come default redirect dopo invito/reset)
+site_url = "https://italiapaghe-visitatori.github.io/visitor-registration-system/admin/login.html"
+
+# Whitelist URL accettati come redirect dopo magic-link
+additional_redirect_urls = [
+  "https://italiapaghe-visitatori.github.io/visitor-registration-system/admin/login.html",
+  "https://italiapaghe-visitatori.github.io/visitor-registration-system/admin/index.html",
+  "https://italiapaghe-visitatori.github.io/visitor-registration-system/admin/",
+  "https://italiapaghe-visitatori.github.io/visitor-registration-system/",
+]
+
+[auth.email.template.invite]
+subject = "Sei stato invitato a Gestione Visitatori S2S"
+content_path = "./supabase/templates/invite.html"
