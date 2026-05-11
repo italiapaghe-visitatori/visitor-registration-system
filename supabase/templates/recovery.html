@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset password — Gestione Visitatori S2S</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a202c;">
+
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.06);margin-top:32px;margin-bottom:32px;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:linear-gradient(135deg,#4c51bf 0%,#764ba2 100%);padding:32px 36px;color:#ffffff;text-align:left;">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.85;margin-bottom:6px;">Service to Service Srl</div>
+      <h1 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-.3px;">🔑 Reset della password</h1>
+      <p style="margin:6px 0 0;font-size:14px;opacity:.92;">Hai richiesto di reimpostare la tua password</p>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="padding:36px 36px 8px;font-size:16px;line-height:1.65;color:#2d3748;">
+      <p style="margin:0 0 16px;">Ciao,</p>
+      <p style="margin:0 0 16px;">è stata richiesta la reimpostazione della password per il tuo account operatore di <strong>Gestione Visitatori</strong>.</p>
+      <p style="margin:0 0 4px;">Clicca il pulsante qui sotto per scegliere una <strong>nuova password</strong>:</p>
+    </td>
+  </tr>
+
+  <!-- CTA -->
+  <tr>
+    <td style="padding:20px 36px 8px;text-align:center;">
+      <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:linear-gradient(135deg,#4c51bf 0%,#764ba2 100%);color:#ffffff;text-decoration:none;padding:16px 38px;border-radius:10px;font-size:16px;font-weight:700;letter-spacing:.2px;box-shadow:0 4px 12px rgba(76,81,191,.32);">
+        🔐 Reimposta la password
+      </a>
+    </td>
+  </tr>
+
+  <!-- FALLBACK LINK -->
+  <tr>
+    <td style="padding:18px 36px 12px;text-align:center;font-size:12px;color:#718096;">
+      Se il pulsante non funziona, copia e incolla questo link nel browser:<br>
+      <a href="{{ .ConfirmationURL }}" style="color:#4c51bf;word-break:break-all;font-size:11px;">{{ .ConfirmationURL }}</a>
+    </td>
+  </tr>
+
+  <!-- INFO BOX -->
+  <tr>
+    <td style="padding:8px 36px 24px;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f0f3fb;border-radius:10px;border-left:4px solid #4c51bf;">
+        <tr>
+          <td style="padding:16px 18px;font-size:13.5px;color:#2d3748;line-height:1.55;">
+            <strong style="color:#4c51bf;display:block;margin-bottom:4px;">ℹ️ Cosa devi sapere</strong>
+            • Il link è valido per <strong>24 ore</strong><br>
+            • La nuova password la scegli <strong>tu</strong> (nessuno la conoscerà)<br>
+            • Deve essere lunga almeno <strong>8 caratteri</strong><br>
+            • Dopo il cambio entrerai direttamente nell'area riservata
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- SECURITY NOTE -->
+  <tr>
+    <td style="padding:0 36px 28px;font-size:13px;color:#718096;line-height:1.6;">
+      <p style="margin:0 0 8px;">🛡️ <strong>Non hai richiesto tu il reset?</strong></p>
+      <p style="margin:0;">Ignora questa email: nessuna modifica verrà fatta al tuo account. La password attuale resta valida. Se ricevi più richieste sospette, contatta subito l'amministratore.</p>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#f4f6fb;padding:22px 36px;text-align:center;font-size:12px;color:#718096;border-top:1px solid #e2e8f0;">
+      <p style="margin:0 0 6px;"><strong style="color:#4c51bf;">Service to Service Srl</strong></p>
+      <p style="margin:0 0 10px;">Sistema Gestione Visitatori · powered by Supabase</p>
+      <p style="margin:0;color:#a0aec0;">Per assistenza tecnica: <a href="mailto:tecnico.gelormini@gmail.com" style="color:#4c51bf;text-decoration:none;">tecnico.gelormini@gmail.com</a></p>
+    </td>
+  </tr>
+
+</table>
+
+</body>
+</html>

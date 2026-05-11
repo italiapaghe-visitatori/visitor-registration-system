@@ -613,3 +613,33 @@ ORDER BY u.created_at DESC;
 
 GRANT SELECT ON public.app_users TO authenticated;
 REVOKE ALL ON public.app_users FROM anon;
+
+-- MIGRATION v16 — Estensione app_users con banned_until + stato banned
+-- =====================================================================
+-- La Edge Function manage-operator imposta auth.users.banned_until per
+-- bloccare un operatore. La vista deve esporre questo campo e calcolare
+-- lo stato 'banned' di conseguenza, così l'UI può mostrare il pulsante
+-- "Sblocca" invece di "Blocca" e nascondere il "Reset password" su un
+-- account bloccato.
+
+CREATE OR REPLACE VIEW public.app_users
+WITH (security_invoker = false) AS
+SELECT
+  u.id,
+  u.email,
+  u.created_at,
+  u.email_confirmed_at,
+  u.last_sign_in_at,
+  u.banned_until,
+  COALESCE(u.raw_user_meta_data->>'display_name', split_part(u.email, '@', 1)) AS display_name,
+  CASE
+    WHEN u.banned_until IS NOT NULL AND u.banned_until > now() THEN 'banned'
+    WHEN u.email_confirmed_at IS NULL THEN 'invited'
+    WHEN u.last_sign_in_at IS NULL THEN 'confirmed'
+    ELSE 'active'
+  END AS status
+FROM auth.users u
+ORDER BY u.created_at DESC;
+
+GRANT SELECT ON public.app_users TO authenticated;
+REVOKE ALL ON public.app_users FROM anon;

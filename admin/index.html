@@ -1937,6 +1937,8 @@
     .user-status-active    { background: #c6f6d5; color: #22543d; }
     .user-status-invited   { background: #feebc8; color: #7b341e; }
     .user-status-confirmed { background: #bee3f8; color: #2c5282; }
+    .user-status-banned    { background: #fed7d7; color: #742a2a; }
+    .badge-super-admin     { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:10px; background:#fef3c7; color:#92400e; font-size:9.5px; font-weight:700; letter-spacing:.3px; vertical-align:middle; }
     .user-display-name { font-weight: 700; color: #1a202c; }
     .user-row-actions { display: flex; gap: 4px; flex-wrap: wrap; }
     .btn-user-action { padding: 4px 9px; font-size: 11px; border-radius: 6px; border: 1.5px solid #e8ecf4; background: #fff; color: #4a5568; cursor: pointer; font-weight: 600; font-family: inherit; white-space: nowrap; }
@@ -3802,11 +3804,18 @@
     }
 
     // ── GESTIONE OPERATORI ────────────────────────────
-    // Strategia: la lista la leggiamo da una vista public.app_users (migration v15).
+    // Strategia: la lista la leggiamo da una vista public.app_users (migration v15+v16).
     // L'invito tenta prima una Edge Function (invite-operator) che usa service_role
     // server-side; se la function non è deployata, mostra istruzioni per fare
     // l'invite manualmente dal dashboard Supabase. Reset password usa l'API
     // pubblica resetPasswordForEmail (sempre disponibile).
+    // Ban/Unban/Delete passano per Edge Function manage-operator (richiede deploy
+    // separato; whitelist super-admin protetta sia client-side che server-side).
+
+    // Email super-admin protette (case-insensitive). Deve coincidere col fallback
+    // della Edge Function manage-operator (env SUPER_ADMIN_EMAILS).
+    const SUPER_ADMIN_EMAILS = ['tecnico.gelormini@gmail.com'];
+    const isSuperAdmin = (email) => SUPER_ADMIN_EMAILS.includes((email || '').toLowerCase());
     function switchUsersTab(tab) {
       document.querySelectorAll('.users-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
       document.querySelectorAll('.users-pane').forEach(p => p.classList.toggle('active', p.id === `users-pane-${tab}`));
@@ -3854,21 +3863,41 @@
         tbody.innerHTML = '';
         users.forEach(u => {
           const tr = document.createElement('tr');
-          const statusLabel = { active: 'Attivo', invited: 'Invitato', confirmed: 'Mai loggato' }[u.status] || u.status;
+          const statusLabel = { active: 'Attivo', invited: 'Invitato', confirmed: 'Mai loggato', banned: 'Bloccato' }[u.status] || u.status;
           const lastSign = u.last_sign_in_at
             ? new Date(u.last_sign_in_at).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
             : '<span style="color:#cbd5e0">—</span>';
-          const isMe = (u.email === CURRENT_USER_EMAIL);
+          const isMe    = (u.email === CURRENT_USER_EMAIL);
+          const isSuper = isSuperAdmin(u.email);
+          const isBanned = u.status === 'banned';
+
+          // Bottoni "primari" (reset/reinvio)
+          let primaryBtn = '';
+          if (u.status === 'invited') {
+            primaryBtn = `<button type="button" class="btn-user-action" onclick="resendInvite('${esc(u.email)}')" title="Reinvia l'email di invito (il primo link potrebbe essere scaduto)">📧 Reinvia invito</button>`;
+          } else if (!isBanned) {
+            primaryBtn = `<button type="button" class="btn-user-action" onclick="sendResetPassword('${esc(u.email)}')" title="Manda all'operatore un'email con link per reimpostare la password">🔑 Reset password</button>`;
+          }
+
+          // Bottoni gestione (ban/unban/delete) — solo se NON sono io e NON è un super-admin
+          let manageBtns = '';
+          if (!isMe && !isSuper) {
+            if (isBanned) {
+              manageBtns += `<button type="button" class="btn-user-action" onclick="unbanOperator('${esc(u.email)}')" title="Riattiva l'account: l'operatore potrà di nuovo accedere">✅ Sblocca</button>`;
+            } else {
+              manageBtns += `<button type="button" class="btn-user-action" onclick="banOperator('${esc(u.email)}')" title="Blocca l'account: l'operatore NON può più accedere. Reversibile.">🚫 Blocca</button>`;
+            }
+            manageBtns += `<button type="button" class="btn-user-action danger" onclick="deleteOperator('${esc(u.email)}')" title="Elimina definitivamente l'account. IRREVERSIBILE.">🗑️ Elimina</button>`;
+          }
+
           tr.innerHTML = `
-            <td><span class="user-display-name">${esc(u.display_name)}</span>${isMe ? ' <span style="color:#48bb78;font-size:10px;font-weight:700">(TU)</span>' : ''}</td>
+            <td><span class="user-display-name">${esc(u.display_name)}</span>${isMe ? ' <span style="color:#48bb78;font-size:10px;font-weight:700">(TU)</span>' : ''}${isSuper ? ' <span class="badge-super-admin">SUPER-ADMIN</span>' : ''}</td>
             <td>${esc(u.email)}</td>
             <td><span class="user-status user-status-${esc(u.status)}">${statusLabel}</span></td>
             <td>${lastSign}</td>
             <td class="user-row-actions">
-              ${u.status === 'invited'
-                ? `<button type="button" class="btn-user-action" onclick="resendInvite('${esc(u.email)}')" title="Reinvia l'email di invito (il primo link potrebbe essere scaduto)">📧 Reinvia invito</button>`
-                : `<button type="button" class="btn-user-action" onclick="sendResetPassword('${esc(u.email)}')" title="Manda all'operatore un'email con link per reimpostare la password">🔑 Reset password</button>`}
-              ${isMe ? '' : '<button type="button" class="btn-user-action danger" onclick="openSupabaseUserPanel()" title="Per disabilitare/eliminare devi usare il dashboard Supabase (richiede service_role key non disponibile lato browser)">⚙️ Gestisci</button>'}
+              ${primaryBtn}
+              ${manageBtns}
             </td>
           `;
           tbody.appendChild(tr);
@@ -3996,6 +4025,64 @@
     }
     function openSupabaseUserPanel() {
       window.open('https://supabase.com/dashboard/project/sebhatzxsxuafsmbdtsx/auth/users', '_blank', 'noopener');
+    }
+
+    // ── BAN / UNBAN / DELETE OPERATORE ─────────────────
+    // Chiamano la Edge Function manage-operator (deploy: supabase functions deploy manage-operator).
+    // Protezioni server-side: super-admin + sé stessi sono sempre rifiutati.
+    async function callManageOperator(email, action) {
+      const token = localStorage.getItem('sb-access-token');
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-operator`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ email, action })
+      });
+      if (res.status === 404) {
+        throw new Error('Edge Function manage-operator non deployata. Lancia: supabase functions deploy manage-operator --no-verify-jwt');
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      return data;
+    }
+
+    async function banOperator(email) {
+      if (isSuperAdmin(email)) { alert(`${email} è un super-admin protetto.`); return; }
+      if (!confirm(`Bloccare l'accesso a ${email}?\n\nL'operatore non potrà più fare login. Reversibile: potrai sbloccarlo in qualunque momento.`)) return;
+      try {
+        await callManageOperator(email, 'ban');
+        auditLog('operator_ban', 'auth.users', null, { email });
+        alert(`🚫 Operatore bloccato: ${email}`);
+        loadOperators();
+      } catch (err) { alert('Errore blocco: ' + err.message); }
+    }
+
+    async function unbanOperator(email) {
+      if (!confirm(`Sbloccare ${email}? Riprenderà a poter accedere normalmente.`)) return;
+      try {
+        await callManageOperator(email, 'unban');
+        auditLog('operator_unban', 'auth.users', null, { email });
+        alert(`✅ Operatore sbloccato: ${email}`);
+        loadOperators();
+      } catch (err) { alert('Errore sblocco: ' + err.message); }
+    }
+
+    async function deleteOperator(email) {
+      if (isSuperAdmin(email)) { alert(`${email} è un super-admin protetto.`); return; }
+      // Doppia conferma per operazione irreversibile
+      const c1 = confirm(`⚠️ ELIMINARE DEFINITIVAMENTE l'operatore ${email}?\n\nL'azione è IRREVERSIBILE. L'account sarà rimosso da auth.users.`);
+      if (!c1) return;
+      const typed = prompt(`Per confermare l'eliminazione di ${email}, digita esattamente:\n\nELIMINA`);
+      if (typed !== 'ELIMINA') { alert('Eliminazione annullata.'); return; }
+      try {
+        await callManageOperator(email, 'delete');
+        auditLog('operator_delete', 'auth.users', null, { email });
+        alert(`🗑️ Operatore eliminato: ${email}`);
+        loadOperators();
+      } catch (err) { alert('Errore eliminazione: ' + err.message); }
     }
     // Stop timers anche su navigazione fuori dalla pagina (pagehide è più
     // affidabile di beforeunload su mobile/iOS).

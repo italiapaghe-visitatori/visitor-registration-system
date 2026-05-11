@@ -167,30 +167,59 @@
     <div class="logo-wrap">
       <img src="../assets/logo-S2S-def.gif" alt="Service to Service Srl" onerror="this.style.display='none'">
     </div>
-    <h1>Accesso Amministratore</h1>
-    <p class="subtitle">Inserisci le credenziali per accedere all'area riservata</p>
 
-    <form id="login-form">
-      <div class="form-group">
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" required autocomplete="email" placeholder="admin@azienda.it">
+    <!-- VISTA LOGIN (default) -->
+    <div id="view-login">
+      <h1>Accesso Amministratore</h1>
+      <p class="subtitle">Inserisci le credenziali per accedere all'area riservata</p>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required autocomplete="email" placeholder="admin@azienda.it">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+        </div>
+        <button type="submit" id="login-btn" class="btn-login">Accedi</button>
+      </form>
+
+      <div id="message" class="message"></div>
+
+      <div class="info-box">
+        <strong>Accesso protetto.</strong> Quest'area è riservata al personale autorizzato.
+        I dati sono trattati secondo il Regolamento UE 2016/679 (GDPR).
       </div>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+
+      <div class="links">
+        <a href="#" onclick="resetPassword(event)">Password dimenticata?</a>
       </div>
-      <button type="submit" id="login-btn" class="btn-login">Accedi</button>
-    </form>
-
-    <div id="message" class="message"></div>
-
-    <div class="info-box">
-      <strong>Accesso protetto.</strong> Quest'area è riservata al personale autorizzato.
-      I dati sono trattati secondo il Regolamento UE 2016/679 (GDPR).
     </div>
 
-    <div class="links">
-      <a href="#" onclick="resetPassword(event)">Password dimenticata?</a>
+    <!-- VISTA RESET / NUOVA PASSWORD (mostrata se atterri da magic-link) -->
+    <div id="view-reset" style="display:none">
+      <h1 id="reset-title">Imposta la tua password</h1>
+      <p class="subtitle" id="reset-subtitle">Scegli una password personale per accedere al sistema</p>
+
+      <form id="reset-form">
+        <div class="form-group">
+          <label for="new-password">Nuova password</label>
+          <input type="password" id="new-password" required minlength="8" autocomplete="new-password" placeholder="almeno 8 caratteri">
+        </div>
+        <div class="form-group">
+          <label for="new-password2">Conferma password</label>
+          <input type="password" id="new-password2" required minlength="8" autocomplete="new-password" placeholder="riscrivi la password">
+        </div>
+        <button type="submit" id="reset-btn" class="btn-login">Salva e accedi</button>
+      </form>
+
+      <div id="reset-message" class="message"></div>
+
+      <div class="info-box">
+        La password resta <strong>solo tua</strong>: nessuno (nemmeno l'amministratore) la conoscerà.
+        Deve essere lunga almeno <strong>8 caratteri</strong>.
+      </div>
     </div>
   </div>
 
@@ -219,33 +248,130 @@
       }
     })();
 
-    // Auto-redirect SOLO se sessione attiva E utente non scaduto per inattività.
-    // Se l'admin ha forzato logout per inactivity, l'auto-redirect deve essere
-    // skippato per costringere il rifare login manualmente.
-    (async function checkSession() {
-      // Skip auto-redirect se l'admin ci ha mandato qui per inattività
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('reason') === 'inactivity') return;
-
-      const refreshToken = localStorage.getItem('sb-refresh-token');
-      if (!refreshToken) return;
-      try {
-        const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-          body: JSON.stringify({ refresh_token: refreshToken })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          localStorage.setItem('sb-access-token',  data.access_token);
-          localStorage.setItem('sb-refresh-token', data.refresh_token);
-          // Setta il timestamp di "ultima attività" all'atto del refresh sessione
-          // così l'admin non scade subito se l'utente è appena tornato.
-          localStorage.setItem('vrs_admin_last_activity', String(Date.now()));
-          window.location.href = 'index.html';
-        }
-      } catch (_) { /* no active session */ }
+    // Rileva atterraggio da magic-link Supabase (invito o reset password).
+    // Supabase mette i token nell'hash: #access_token=...&refresh_token=...&type=recovery|invite|signup
+    // In quei casi NON facciamo auto-redirect a index.html: mostriamo invece
+    // il form "scegli nuova password".
+    const RECOVERY_TOKEN = (function parseRecoveryHash() {
+      if (!window.location.hash) return null;
+      const h = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const access  = h.get('access_token');
+      const refresh = h.get('refresh_token');
+      const type    = h.get('type');
+      if (access && (type === 'recovery' || type === 'invite' || type === 'signup')) {
+        // Pulisci subito l'hash dall'URL così non resta nei log/cronologia
+        try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (_) {}
+        return { access, refresh, type };
+      }
+      // Caso errore Supabase (link scaduto, token invalido, ecc.)
+      const err = h.get('error_description') || h.get('error');
+      if (err) return { error: decodeURIComponent(err.replace(/\+/g, ' ')) };
+      return null;
     })();
+
+    if (RECOVERY_TOKEN && RECOVERY_TOKEN.error) {
+      // Magic-link non valido / scaduto
+      document.getElementById('view-login').style.display = '';
+      const m = document.getElementById('message');
+      m.className = 'message error';
+      m.textContent = '⚠️ Link non valido o scaduto: ' + RECOVERY_TOKEN.error + '. Chiedi all\'amministratore di rinviarti l\'invito.';
+      m.style.display = 'block';
+    } else if (RECOVERY_TOKEN && RECOVERY_TOKEN.access) {
+      // Atterraggio da magic-link valido → mostra form nuova password
+      document.getElementById('view-login').style.display = 'none';
+      document.getElementById('view-reset').style.display = '';
+      // Personalizza titolo in base al tipo di flusso
+      if (RECOVERY_TOKEN.type === 'recovery') {
+        document.getElementById('reset-title').textContent = 'Reimposta la password';
+        document.getElementById('reset-subtitle').textContent = 'Hai richiesto il reset: scegli una nuova password';
+      } else {
+        document.getElementById('reset-title').textContent = 'Benvenuto/a! Imposta la tua password';
+        document.getElementById('reset-subtitle').textContent = 'Primo accesso al sistema: scegli la password personale';
+      }
+      // Salva temporaneamente il token per la chiamata PUT /auth/v1/user
+      sessionStorage.setItem('vrs_recovery_access',  RECOVERY_TOKEN.access);
+      if (RECOVERY_TOKEN.refresh) sessionStorage.setItem('vrs_recovery_refresh', RECOVERY_TOKEN.refresh);
+    } else {
+      // Flow normale: auto-redirect se sessione attiva E utente non scaduto per inattività.
+      (async function checkSession() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('reason') === 'inactivity') return;
+
+        const refreshToken = localStorage.getItem('sb-refresh-token');
+        if (!refreshToken) return;
+        try {
+          const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+            body: JSON.stringify({ refresh_token: refreshToken })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem('sb-access-token',  data.access_token);
+            localStorage.setItem('sb-refresh-token', data.refresh_token);
+            localStorage.setItem('vrs_admin_last_activity', String(Date.now()));
+            window.location.href = 'index.html';
+          }
+        } catch (_) { /* no active session */ }
+      })();
+    }
+
+    // Submit del form "Scegli/Reimposta password"
+    document.getElementById('reset-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = document.getElementById('reset-btn');
+      const msg = document.getElementById('reset-message');
+      const pw1 = document.getElementById('new-password').value;
+      const pw2 = document.getElementById('new-password2').value;
+
+      msg.style.display = 'none';
+      if (pw1.length < 8) {
+        msg.className = 'message error'; msg.textContent = 'La password deve essere lunga almeno 8 caratteri.'; msg.style.display = 'block'; return;
+      }
+      if (pw1 !== pw2) {
+        msg.className = 'message error'; msg.textContent = 'Le due password non coincidono.'; msg.style.display = 'block'; return;
+      }
+
+      const access = sessionStorage.getItem('vrs_recovery_access');
+      if (!access) {
+        msg.className = 'message error'; msg.textContent = 'Sessione scaduta. Richiedi un nuovo link all\'amministratore.'; msg.style.display = 'block'; return;
+      }
+
+      btn.disabled = true; btn.textContent = 'Salvataggio...';
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${access}`
+          },
+          body: JSON.stringify({ password: pw1 })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.msg || data.error_description || 'Errore aggiornamento password');
+
+        // Promuovi il token di recovery a sessione "vera" così l'utente entra subito
+        localStorage.setItem('sb-access-token', access);
+        const refresh = sessionStorage.getItem('vrs_recovery_refresh');
+        if (refresh) localStorage.setItem('sb-refresh-token', refresh);
+        localStorage.setItem('vrs_admin_last_activity', String(Date.now()));
+        sessionStorage.removeItem('vrs_recovery_access');
+        sessionStorage.removeItem('vrs_recovery_refresh');
+
+        msg.className = 'message success';
+        msg.textContent = '✅ Password salvata. Ingresso nell\'area riservata...';
+        msg.style.display = 'block';
+        setTimeout(() => window.location.href = 'index.html', 1200);
+      } catch (err) {
+        msg.className = 'message error';
+        msg.textContent = '❌ ' + err.message;
+        msg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Salva e accedi';
+      }
+    });
 
     document.getElementById('login-form').addEventListener('submit', async e => {
       e.preventDefault();
