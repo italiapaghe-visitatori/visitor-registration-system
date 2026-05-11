@@ -47,6 +47,13 @@ Deno.serve(async (req) => {
   const caller = await userRes.json();
   if (!caller?.email) return json({ error: "Token has no email" }, 401);
 
+  // 1bis. Solo super-admin può gestire (ban/unban/delete) operatori
+  const superAdmins = (Deno.env.get("SUPER_ADMIN_EMAILS") || DEFAULT_SUPER_ADMINS.join(","))
+    .split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
+  if (!superAdmins.includes(caller.email.toLowerCase())) {
+    return json({ error: "Solo gli amministratori principali possono bloccare/eliminare operatori" }, 403);
+  }
+
   // 2. Parse body
   let body: { email?: string; action?: string };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
@@ -59,8 +66,6 @@ Deno.serve(async (req) => {
   if (targetEmail === caller.email.toLowerCase()) {
     return json({ error: "Non puoi modificare il tuo stesso account" }, 403);
   }
-  const superAdmins = (Deno.env.get("SUPER_ADMIN_EMAILS") || DEFAULT_SUPER_ADMINS.join(","))
-    .split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
   if (superAdmins.includes(targetEmail)) {
     return json({ error: `${targetEmail} è un super-admin protetto e non può essere modificato` }, 403);
   }

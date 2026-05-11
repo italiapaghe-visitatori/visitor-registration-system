@@ -3817,6 +3817,11 @@
     const SUPER_ADMIN_EMAILS = ['tecnico.gelormini@gmail.com'];
     const isSuperAdmin = (email) => SUPER_ADMIN_EMAILS.includes((email || '').toLowerCase());
     function switchUsersTab(tab) {
+      // Solo super-admin può aprire la tab Invita
+      if (tab === 'invite' && !isSuperAdmin(CURRENT_USER_EMAIL)) {
+        alert('Solo gli amministratori principali possono invitare nuovi operatori.');
+        tab = 'list';
+      }
       document.querySelectorAll('.users-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
       document.querySelectorAll('.users-pane').forEach(p => p.classList.toggle('active', p.id === `users-pane-${tab}`));
       if (tab === 'list') loadOperators();
@@ -3826,6 +3831,9 @@
     }
     function openUsersModal() {
       document.getElementById('users-modal').classList.add('active');
+      // Nascondi tab "Invita" se l'utente loggato NON è super-admin
+      const inviteTabBtn = document.querySelector('.users-tab[data-tab="invite"]');
+      if (inviteTabBtn) inviteTabBtn.style.display = isSuperAdmin(CURRENT_USER_EMAIL) ? '' : 'none';
       switchUsersTab('list');
     }
     async function loadOperators() {
@@ -3853,13 +3861,22 @@
           }
           throw new Error(`HTTP ${res?.status}`);
         }
-        const users = await res.json();
+        let users = await res.json();
+        // Filtro permessi: gli operatori non super-admin vedono solo se stessi.
+        // Anche se la vista app_users è leggibile da tutti gli authenticated,
+        // la UI nasconde gli altri operatori per chiarezza + minimizzazione.
+        // Sicurezza vera: le azioni invite/ban/delete sono rifiutate server-side.
+        if (!isSuperAdmin(CURRENT_USER_EMAIL)) {
+          users = users.filter(u => (u.email || '').toLowerCase() === (CURRENT_USER_EMAIL || '').toLowerCase());
+        }
         if (users.length === 0) {
           tbody.innerHTML = '<tr><td colspan="5" class="users-empty">Nessun operatore. Invita il primo dalla tab Invita →</td></tr>';
           countEl.textContent = '0 operatori';
           return;
         }
-        countEl.textContent = `${users.length} operatori`;
+        countEl.textContent = isSuperAdmin(CURRENT_USER_EMAIL)
+          ? `${users.length} operatori`
+          : 'Il tuo account';
         tbody.innerHTML = '';
         users.forEach(u => {
           const tr = document.createElement('tr');

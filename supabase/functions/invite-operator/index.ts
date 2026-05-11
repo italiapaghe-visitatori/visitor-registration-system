@@ -16,6 +16,13 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Fallback se SUPER_ADMIN_EMAILS env non è impostata
+const DEFAULT_SUPER_ADMINS = ["tecnico.gelormini@gmail.com"];
+function getSuperAdmins(): string[] {
+  return (Deno.env.get("SUPER_ADMIN_EMAILS") || DEFAULT_SUPER_ADMINS.join(","))
+    .split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") {
@@ -42,6 +49,12 @@ Deno.serve(async (req) => {
   if (!userRes.ok) return json({ error: "Invalid or expired token" }, 401);
   const caller = await userRes.json();
   if (!caller?.email) return json({ error: "Token has no email" }, 401);
+
+  // 1bis. Solo super-admin può invitare nuovi operatori
+  const superAdmins = getSuperAdmins();
+  if (!superAdmins.includes(caller.email.toLowerCase())) {
+    return json({ error: "Solo gli amministratori principali possono invitare nuovi operatori" }, 403);
+  }
 
   // 2. Parsing input
   let body: { email?: string; display_name?: string; redirect_to?: string };
