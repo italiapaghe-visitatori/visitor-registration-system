@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guida operativa — Gestione Visitatori S2S</title>
+<style>
+  :root {
+    --primary: #4c51bf;
+    --primary-dark: #2d3a8c;
+    --accent: #ed8936;
+    --bg: #f7fafc;
+    --card: #ffffff;
+    --text: #1a202c;
+    --muted: #4a5568;
+    --soft: #e2e8f0;
+    --ok: #38a169;
+    --warn: #d69e2e;
+    --danger: #e53e3e;
+    --info: #3182ce;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  .page-wrap {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+  /* SIDEBAR NAV */
+  aside.toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--card);
+    border-right: 1px solid var(--soft);
+    padding: 24px 18px;
+    font-size: 13.5px;
+  }
+  aside.toc h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  aside.toc ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: tocsec;
+  }
+  aside.toc li {
+    counter-increment: tocsec;
+    margin: 4px 0;
+  }
+  aside.toc a {
+    color: var(--text);
+    text-decoration: none;
+    display: block;
+    padding: 6px 8px;
+    border-radius: 6px;
+    transition: background .15s;
+  }
+  aside.toc a::before {
+    content: counter(tocsec) ". ";
+    color: var(--primary);
+    font-weight: 700;
+    margin-right: 4px;
+  }
+  aside.toc a:hover { background: var(--bg); }
+  /* MAIN CONTENT */
+  main {
+    padding: 36px 48px;
+    max-width: 880px;
+  }
+  header.brand {
+    background: linear-gradient(135deg, var(--primary), #764ba2);
+    color: #fff;
+    padding: 36px 48px;
+    grid-column: 1 / -1;
+    border-bottom: 4px solid var(--accent);
+  }
+  header.brand h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: -.3px; }
+  header.brand p { margin: 0; opacity: .92; font-size: 16px; }
+  .meta-pill {
+    display: inline-block;
+    background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.3);
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-size: 12px;
+    margin-top: 14px;
+  }
+  /* SECTIONS */
+  section {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 22px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    border: 1px solid var(--soft);
+  }
+  section h2 {
+    margin: 0 0 6px;
+    font-size: 22px;
+    color: var(--primary-dark);
+    counter-increment: sec;
+  }
+  section h2::before {
+    content: counter(sec) ". ";
+    color: var(--accent);
+  }
+  body { counter-reset: sec; }
+  section h3 { margin: 22px 0 6px; font-size: 17px; color: var(--text); }
+  section p { margin: 8px 0; color: var(--text); }
+  section ul { padding-left: 22px; margin: 6px 0; }
+  section li { margin: 4px 0; }
+  .lead {
+    font-size: 16.5px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  /* CALLOUTS */
+  .callout {
+    border-left: 4px solid var(--info);
+    background: #ebf8ff;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+    font-size: 14px;
+  }
+  .callout.tip      { border-color: var(--ok);   background: #f0fff4; }
+  .callout.warn     { border-color: var(--warn); background: #fffaf0; }
+  .callout.danger   { border-color: var(--danger); background: #fff5f5; }
+  .callout.tip::before    { content: "💡 SUGGERIMENTO — "; font-weight: 700; color: var(--ok); }
+  .callout.warn::before   { content: "⚠️ ATTENZIONE — "; font-weight: 700; color: var(--warn); }
+  .callout.danger::before { content: "🚫 IMPORTANTE — "; font-weight: 700; color: var(--danger); }
+  .callout.info::before   { content: "ℹ️ NOTA — "; font-weight: 700; color: var(--info); }
+  /* STEP LIST */
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding: 0;
+  }
+  .steps li {
+    counter-increment: step;
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 14px 16px 14px 56px;
+    position: relative;
+    margin: 8px 0;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 14px;
+    top: 14px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  /* MOCKUP / ILLUSTRATIONS */
+  .mockup {
+    background: #edf2f7;
+    border: 1px solid var(--soft);
+    border-radius: 10px;
+    margin: 16px 0;
+    overflow: hidden;
+    font-size: 12px;
+  }
+  .mockup-bar {
+    background: linear-gradient(135deg, var(--primary), #764ba2);
+    color: #fff;
+    padding: 8px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+  }
+  .mockup-bar .tabs {
+    display: flex;
+    gap: 4px;
+  }
+  .mockup-bar .tabs span {
+    background: rgba(255,255,255,.15);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+  }
+  .mockup-bar .tabs span.active {
+    background: #fff;
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .mockup-banner {
+    background: linear-gradient(135deg,#fbbf24,#ed8936);
+    color: #fff;
+    padding: 7px 14px;
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .mockup-body { padding: 12px 14px; background: #fff; }
+  .mockup-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 80px 70px 70px;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f2f5;
+    font-size: 11px;
+  }
+  .mockup-row.head {
+    font-weight: 700;
+    color: var(--muted);
+    background: #f7fafc;
+    padding: 6px 4px;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: .5px;
+  }
+  .tag {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .tag-pending { background: #fef3c7; color: #92400e; }
+  .tag-active  { background: #dcfce7; color: #166534; }
+  .tag-walk    { background: #fed7aa; color: #9a3412; }
+  .tag-done    { background: #e2e8f0; color: #4a5568; }
+  /* PILLS */
+  .pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .pill-green { background: #c6f6d5; color: #22543d; }
+  .pill-yellow { background: #fefcbf; color: #744210; }
+  .pill-red   { background: #fed7d7; color: #742a2a; }
+  /* ANNOTATIONS */
+  .annot {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin: 14px 0;
+  }
+  .annot .annot-num {
+    background: var(--accent);
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .annot .annot-text { font-size: 14px; }
+  .annot .annot-text strong { color: var(--primary-dark); }
+  /* KEYBOARD */
+  kbd {
+    background: var(--soft);
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: monospace;
+    font-size: 12px;
+  }
+  /* TABLE */
+  table.simple {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    margin: 12px 0;
+  }
+  table.simple th, table.simple td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--soft);
+  }
+  table.simple th {
+    background: var(--bg);
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+  }
+  /* FOOTER */
+  footer.gp-foot {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 24px;
+    color: var(--muted);
+    font-size: 12px;
+    border-top: 1px solid var(--soft);
+    background: var(--card);
+  }
+
+  /* ─────────── PRINT STYLES (Ctrl+P → PDF) ─────────── */
+  @media print {
+    body { background: #fff; font-size: 11pt; }
+    .page-wrap { display: block; max-width: 100%; }
+    aside.toc { display: none; }
+    header.brand {
+      padding: 16pt 0;
+      border-bottom: 2px solid var(--accent);
+      page-break-after: avoid;
+    }
+    main { padding: 0; max-width: 100%; }
+    section {
+      box-shadow: none;
+      border: none;
+      padding: 12pt 0;
+      page-break-inside: avoid;
+      margin-bottom: 0;
+    }
+    section h2 { page-break-after: avoid; font-size: 16pt; }
+    .callout { page-break-inside: avoid; }
+    .mockup  { page-break-inside: avoid; }
+    .steps li { page-break-inside: avoid; }
+    footer.gp-foot { padding: 8pt 0; }
+    .no-print { display: none !important; }
+    a { color: var(--text); text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+<header class="brand">
+  <h1>Guida operativa — Gestione Visitatori</h1>
+  <p>Manuale rapido per le collaboratrici S2S che useranno la piattaforma il giorno dell'evento.</p>
+  <span class="meta-pill">Versione 1.0 · maggio 2026 · stampabile con Ctrl+P</span>
+</header>
+
+<aside class="toc no-print">
+  <h2>Indice</h2>
+  <ol>
+    <li><a href="#cosa-e">Cos'è questo sistema</a></li>
+    <li><a href="#accesso">Come si accede</a></li>
+    <li><a href="#mattina">La mattina dell'evento</a></li>
+    <li><a href="#header">La barra in alto: cosa significa</a></li>
+    <li><a href="#tab-visitatori">Tab Visitatori</a></li>
+    <li><a href="#tab-ospiti">Tab Ospiti Attesi</a></li>
+    <li><a href="#tab-eventi">Tab Eventi</a></li>
+    <li><a href="#tab-preasseg">Tab Pre-assegnazione</a></li>
+    <li><a href="#tab-acquire">Tab Acquisizione</a></li>
+    <li><a href="#tab-audit">Tab Audit</a></li>
+    <li><a href="#visitatore-qr">Visitatore con QR personale</a></li>
+    <li><a href="#visitatore-senza-qr">Visitatore senza QR</a></li>
+    <li><a href="#walkin">Walk-in dal pool</a></li>
+    <li><a href="#troubleshoot">Risoluzione problemi</a></li>
+    <li><a href="#concludi-visita">Concludere una visita</a></li>
+    <li><a href="#chiudi-evento">Chiudere un evento</a></li>
+    <li><a href="#gdpr">Privacy GDPR e prova legale</a></li>
+    <li><a href="#glossario">Glossario rapido</a></li>
+    <li><a href="#contatti">Chi contattare</a></li>
+  </ol>
+</aside>
+
+<main>
+
+<!-- ============ 1 ============ -->
+<section id="cosa-e">
+  <h2>Cos'è questo sistema</h2>
+  <p class="lead">Una piattaforma web per gestire l'ingresso dei visitatori in azienda: registrazione, badge tornello, firma consensi GDPR e tracciamento ingressi/uscite.</p>
+
+  <p>Il sistema collega tre componenti, ma <strong>tu lavori sempre da una sola pagina web</strong> chiamata "Admin". Le altre due funzionano automaticamente senza che tu debba toccarle.</p>
+
+  <div class="annot">
+    <span class="annot-num">1</span>
+    <span class="annot-text"><strong>Admin</strong> — è il pannello che usi tu. Da qui vedi tutti i visitatori, gli ospiti attesi, gli eventi, e gestisci tutto.</span>
+  </div>
+  <div class="annot">
+    <span class="annot-num">2</span>
+    <span class="annot-text"><strong>Kiosk</strong> — è la pagina di registrazione che il visitatore vede sul tablet al banco (o sul proprio cellulare via QR). Tu non ci vai quasi mai, ma è quella su cui firmano i visitatori.</span>
+  </div>
+  <div class="annot">
+    <span class="annot-num">3</span>
+    <span class="annot-text"><strong>Agente</strong> — un programmino sul PC della reception che parla con il tornello Zucchetti. Si accende da solo all'avvio del PC, lo vedi solo se il pallino "Agente" diventa rosso (vedi sezione 4).</span>
+  </div>
+
+  <div class="callout tip">In una giornata normale lavori solo con la pagina Admin. Le altre due lavorano per te.</div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="accesso">
+  <h2>Come si accede al sistema</h2>
+
+  <h3>Tu (collaboratrice): pagina Admin</h3>
+  <p>Apri il browser e vai sull'URL dell'Admin che ti ha condiviso l'amministratore. Login con email e password personale.</p>
+  <ul>
+    <li>Ogni collaboratrice ha le proprie credenziali — <strong>non condividerle</strong>.</li>
+    <li>Se dimentichi la password, contatta l'amministratore.</li>
+    <li>Dopo il login resti collegata finché non chiudi il browser (o passi sotto la voce "Esci").</li>
+  </ul>
+
+  <h3>Il visitatore: due modi di accedere alla registrazione</h3>
+  <p>Esistono <strong>due modalità diverse</strong> da cui un visitatore può registrarsi. Capirle è importante perché si comportano in modo diverso:</p>
+
+  <table class="simple">
+    <tr>
+      <th style="width:50%">📱 QR personale (smartphone visitatore)</th>
+      <th>🖥️ Tablet al desk</th>
+    </tr>
+    <tr>
+      <td>Il visitatore riceve un'email con il <em>suo</em> QR code. Lo scansiona col cellulare e la registrazione si apre già <strong>pre-compilata</strong> con i suoi dati. Deve solo firmare.</td>
+      <td>Il visitatore arriva senza email/QR. Usa il tablet al banco della reception: compila lui i dati, firma e basta.</td>
+    </tr>
+    <tr>
+      <td>Funziona <strong>solo dal link nell'email</strong>. Se uno digita a mano l'URL del sistema dal proprio cellulare, vede la schermata "🔒 Accesso non autorizzato".</td>
+      <td>Funziona perché il tablet è stato "autorizzato" una volta dall'amministratore. È ricordato per sempre su quel dispositivo.</td>
+    </tr>
+    <tr>
+      <td>Dopo aver firmato, può ritirare il badge fisico al banco.</td>
+      <td>Stesso: ritira il badge al banco dopo aver firmato.</td>
+    </tr>
+  </table>
+
+  <div class="callout info">Il sistema sa distinguere fra i due da solo, in base a come l'utente apre la pagina. Tu non devi configurare niente.</div>
+
+  <h3>Schermata di blocco — quando appare?</h3>
+  <p>Se un visitatore digita a caso l'URL del sistema dal proprio cellulare senza essere passato dall'email, vede questa schermata:</p>
+
+  <div class="mockup" style="max-width:480px;margin:0 auto">
+    <div class="mockup-body" style="text-align:center;padding:30px 18px">
+      <div style="font-size:48px;margin-bottom:10px">🔒</div>
+      <strong style="font-size:14px;color:var(--danger)">Accesso non autorizzato</strong>
+      <p style="font-size:11px;color:var(--muted);margin:8px 0">Questa pagina è dedicata alla registrazione visitatori in azienda.</p>
+      <p style="font-size:11px;color:var(--muted);margin:8px 0">Se sei un partecipante, usa il <strong>QR code personale</strong> che hai ricevuto via email.</p>
+      <p style="font-size:11px;color:var(--muted);margin:8px 0">Se sei al desk con un tablet aziendale, contatta l'amministratore.</p>
+      <p style="font-size:11px;font-weight:600;color:var(--primary);margin-top:14px">📍 Service to Service Srl</p>
+    </div>
+  </div>
+
+  <div class="callout warn">Se uno dei tablet aziendali mostra questa schermata, contatta l'amministratore. Vuol dire che è stato "dimenticato" (memoria del browser cancellata, ecc.) e va riautorizzato col PIN.</div>
+</section>
+
+<!-- ============ 3 ============ -->
+<section id="mattina">
+  <h2>La mattina dell'evento — 5 minuti di controllo</h2>
+  <p class="lead">Prima dell'arrivo del primo visitatore, fai questi 5 controlli in ordine.</p>
+
+  <ol class="steps">
+    <li><strong>Apri l'Admin</strong> e fai login.</li>
+    <li><strong>Guarda il pallino "Agente"</strong> in alto a destra. Deve essere <span class="pill pill-green">● Agente: connesso</span> verde. Se è rosso o giallo, vai alla sezione <a href="#troubleshoot">Risoluzione problemi</a>.</li>
+    <li><strong>Verifica il banner arancione</strong> sotto il logo: deve mostrare il nome dell'evento di oggi (es. "● Call Reference · 15/05/2026"). Se non c'è, vai in tab Eventi e attiva l'evento.</li>
+    <li><strong>Vai in tab Ospiti Attesi</strong>: dovresti vedere la lista dei partecipanti pre-importati (es. 96 ospiti). Le 4 card in alto mostrano "Totale ospiti / Da arrivare / Dentro ora / Usciti".</li>
+    <li><strong>Vai in tab Visitatori</strong>: a inizio giornata è vuota o quasi (i visitatori si registrano man mano che arrivano). Il filtro evento è già preselezionato sull'evento di oggi.</li>
+  </ol>
+
+  <div class="callout tip">Se la lista Ospiti Attesi è incompleta, l'evento non è attivo, o ci sono problemi, <strong>NON aspettare i visitatori</strong>: chiama subito il responsabile tecnico (vedi sezione 19).</div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="header">
+  <h2>La barra in alto — cosa significa ogni indicatore</h2>
+  <p class="lead">In cima alla pagina Admin ci sono indicatori che ti dicono "tutto OK" o "c'è un problema". Imparare a leggerli ti fa risparmiare tempo.</p>
+
+  <div class="mockup">
+    <div class="mockup-bar">
+      <span style="font-weight:700">s2s · Gestione Visitatori</span>
+      <span>
+        <span class="pill pill-green">● Agente: connesso</span> &nbsp;
+        <span class="pill pill-yellow">📧 3 in coda</span> &nbsp;
+        tecnico@s2s.it &nbsp;|&nbsp; 👤 Utenti · 📊 CSV · 🔄 · Esci
+      </span>
+    </div>
+    <div class="mockup-bar tabs" style="background:#3a3f8a">
+      <div class="tabs">
+        <span class="active">Visitatori</span><span>Ospiti Attesi</span><span>🎫 Eventi</span><span>📝 Pre-asseg</span><span>🔍 Acquisizione</span><span>📋 Audit</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="annot">
+    <span class="annot-num">1</span>
+    <span class="annot-text"><strong>Pallino Agente</strong> — verde = tutto OK. Giallo = lento (15-120s di ritardo, controlla rete). Rosso = offline (l'agente Python sul PC è fermo, vai alla sezione 14).</span>
+  </div>
+  <div class="annot">
+    <span class="annot-num">2</span>
+    <span class="annot-text"><strong>📧 Email in coda</strong> — appare solo se ci sono email QR ancora da inviare. Giallo = normale (vengono spedite entro 10 secondi). Rosso = bloccate (> 5 minuti, problema con l'agente o M365).</span>
+  </div>
+  <div class="annot">
+    <span class="annot-num">3</span>
+    <span class="annot-text"><strong>Tua email + bottoni</strong> — Utenti (gestione collaboratrici, solo admin), CSV (esporta lista visitatori), 🔄 (ricarica la pagina), Esci (logout).</span>
+  </div>
+  <div class="annot">
+    <span class="annot-num">4</span>
+    <span class="annot-text"><strong>6 tab</strong> — sono le sezioni del sistema. La tab attiva è bianca col testo viola. Clicca per spostarti.</span>
+  </div>
+
+  <div class="callout info">Il pallino Agente si aggiorna automaticamente ogni 5 secondi. Le email in coda ogni 10 secondi. Non c'è bisogno di ricaricare la pagina a mano.</div>
+</section>
+
+<!-- ============ 5 ============ -->
+<section id="tab-visitatori">
+  <h2>Tab "Visitatori" — chi è entrato/uscito oggi</h2>
+  <p class="lead">È la tab principale durante l'evento: vedi in tempo reale chi sta firmando al kiosk, chi è passato al tornello, chi è uscito.</p>
+
+  <h3>Come è organizzata</h3>
+  <div class="mockup">
+    <div class="mockup-banner"><span>● Call Reference · 15/05/2026</span><span style="background:rgba(255,255,255,.3);padding:2px 8px;border-radius:4px">Chiudi evento</span></div>
+    <div class="mockup-body">
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px"><strong>Filtri:</strong> Data · Nome · Cognome · Evento (preselezionato: Call Reference) · Motivo · 🔍 Filtra · ↺ Reset</div>
+      <div class="mockup-row head">
+        <span>Visitatore</span><span>Azienda</span><span>Tipo</span><span>Badge</span><span>Azioni</span>
+      </div>
+      <div class="mockup-row">
+        <span><strong>Rossi</strong> Mario</span><span>Esempio Srl</span><span><span class="tag tag-active">Atteso</span></span><span><strong>238576</strong> <span class="tag tag-active">ACTIVE</span></span><span>ℹ️ ⏹</span>
+      </div>
+      <div class="mockup-row">
+        <span><strong>Bianchi</strong> Anna</span><span>Bianchi Spa</span><span><span class="tag tag-active">Atteso</span></span><span><strong>754747</strong> <span class="tag tag-active">ACTIVE</span></span><span>ℹ️ ⏹</span>
+      </div>
+      <div class="mockup-row">
+        <span><strong>Verdi</strong> Lucia</span><span>Verdi Srl</span><span><span class="tag tag-walk">Walk-in</span></span><span><strong>999001</strong> <span class="tag tag-pending">PENDING</span></span><span>ℹ️ ⏹</span>
+      </div>
+      <div class="mockup-row">
+        <span><strong>Esposito</strong> Carlo</span><span>—</span><span><span class="tag tag-done">Concluso</span></span><span><strong>123456</strong></span><span>ℹ️</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>Cosa vuol dire "Tipo"</h3>
+  <ul>
+    <li><span class="tag tag-active">Atteso</span> — era nella lista degli ospiti, è arrivato regolarmente.</li>
+    <li><span class="tag tag-walk">Walk-in</span> — non era in lista, è stato registrato al desk al volo dal pool badge.</li>
+    <li><span class="tag tag-done">Concluso</span> — ha terminato la visita (è uscito), il suo badge è libero e riassegnabile.</li>
+  </ul>
+
+  <h3>Cosa vuol dire "Badge"</h3>
+  <ul>
+    <li><span class="tag tag-pending">PENDING</span> — l'agente sta ancora attivando il badge al tornello (di solito ci mette 5-10 secondi).</li>
+    <li><span class="tag tag-active">ACTIVE</span> — il badge è attivo, il visitatore può passare il tornello.</li>
+    <li>Nessun tag e numero senza colori — il visitatore è uscito, badge libero.</li>
+  </ul>
+
+  <h3>Filtri e ricerca rapida</h3>
+  <ul>
+    <li>Scrivi nel campo <strong>Nome</strong> o <strong>Cognome</strong> → la tabella filtra <strong>automaticamente</strong> mentre scrivi (no bisogno di cliccare "Filtra").</li>
+    <li>Il filtro <strong>Evento</strong> è già preselezionato sull'evento di oggi: vedi solo i partecipanti del giorno, non lo storico.</li>
+    <li>Bottone <strong>↺ Reset</strong> = cancella tutti i filtri.</li>
+    <li>Bottone <strong>📦 Vai all'Archivio</strong> = mostra solo i visitatori già usciti (Concluso). Riclicca per tornare a "attivi".</li>
+  </ul>
+
+  <h3>Azioni per ogni visitatore</h3>
+  <ul>
+    <li><strong>ℹ️</strong> = apri il dettaglio del visitatore (anagrafica completa, firma, timbrature ingresso/uscita, consensi GDPR, prova legale).</li>
+    <li><strong>⏹</strong> = concludi la visita (uscita manuale). Vedi sezione 15 per come funziona il "doppio click" di conferma.</li>
+  </ul>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="tab-ospiti">
+  <h2>Tab "Ospiti Attesi" — chi deve arrivare</h2>
+  <p class="lead">È la lista pre-caricata dei partecipanti che ti aspetti. La usi PRIMA dell'evento per preparare badge e invitare via QR.</p>
+
+  <h3>Le 4 card in cima</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        <div style="background:#ebf4ff;padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--muted)">TOTALE OSPITI</div><div style="font-size:22px;font-weight:700;color:var(--primary)">96</div><div style="font-size:9px;color:var(--muted)">in lista</div></div>
+        <div style="background:#fff5eb;padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--muted)">DA ARRIVARE</div><div style="font-size:22px;font-weight:700;color:#d97706">82</div><div style="font-size:9px;color:var(--muted)">non ancora al kiosk</div></div>
+        <div style="background:#dcfce7;padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--muted)">DENTRO ORA</div><div style="font-size:22px;font-weight:700;color:var(--ok)">14</div><div style="font-size:9px;color:var(--muted)">entrati, non usciti</div></div>
+        <div style="background:#e0e7ff;padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--muted)">USCITI</div><div style="font-size:22px;font-weight:700;color:#5a67d8">0</div><div style="font-size:9px;color:var(--muted)">visita conclusa</div></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Le azioni principali (toolbar)</h3>
+  <table class="simple">
+    <tr><th>Bottone</th><th>Quando lo usi</th></tr>
+    <tr><td><strong>➕ Aggiungi</strong></td><td>Aggiungere manualmente un ospite alla lista (es. una persona dimenticata nell'import iniziale).</td></tr>
+    <tr><td><strong>📥 Importa CSV/Excel</strong></td><td>Importare massivamente la lista ospiti da un file Excel. Tipicamente fatto una sola volta prima dell'evento.</td></tr>
+    <tr><td><strong>📄 Template</strong></td><td>Scaricare il template CSV vuoto da compilare per l'import.</td></tr>
+    <tr><td><strong>📝 Compila</strong></td><td>Aprire una griglia editabile per assegnare badge ai nominativi importati (più rapida del wizard).</td></tr>
+    <tr><td><strong>⚡ Pre-assegna</strong></td><td>Wizard sequenziale che ti porta uno alla volta per ogni ospite chiedendoti il numero badge da assegnare.</td></tr>
+    <tr><td><strong>🏷️ Miniature</strong></td><td>Stampa etichette adesive (mini-cartellini con nome+badge) da appiccicare sui badge fisici.</td></tr>
+    <tr><td><strong>📱 Genera QR</strong></td><td>Genera un QR generico per l'evento (un solo QR per tutti). Pratico ma meno preciso del QR personale.</td></tr>
+    <tr><td><strong>📧 Invia QR a tutti</strong></td><td>Invia il <strong>QR personale</strong> via email a ogni ospite della lista. Lo fai il giorno prima dell'evento.</td></tr>
+    <tr><td><strong>👁️ Mostra arrivati</strong></td><td>Toggle per vedere solo gli ospiti che hanno già firmato (signature presente) o solo quelli non ancora arrivati.</td></tr>
+  </table>
+
+  <h3>Colonna "📧 QR" — capire lo stato</h3>
+  <ul>
+    <li><span class="pill" style="background:#e2e8f0;color:#2d3748">📧 Invia</span> — non hai ancora mandato il QR a questo ospite. Click per inviarlo singolarmente.</li>
+    <li><span class="pill pill-green">✅ Inviato 1g fa</span> — l'email è stata mandata, l'ospite l'ha ricevuta.</li>
+    <li><span class="pill pill-yellow">⏳ In coda</span> — è in coda nell'agente, viene mandata entro pochi secondi.</li>
+    <li><span class="pill pill-red">❌ Fallito</span> — errore nell'invio (es. email non valida). Click per ritentare.</li>
+  </ul>
+
+  <h3>Colonna "Stato"</h3>
+  <ul>
+    <li><span class="pill" style="background:#fef3c7;color:#92400e">In attesa</span> — non si è ancora registrato.</li>
+    <li><span class="pill pill-green">🎫 Badge X pronto</span> — il badge è pre-attivato, l'ospite deve solo ritirarlo + firmare.</li>
+    <li><span class="pill" style="background:#dcfce7;color:#22543d">✓ Arrivato</span> — ha firmato al kiosk, è entrato.</li>
+  </ul>
+
+  <div class="callout tip">Il 90% del lavoro di questa tab lo fai <strong>prima dell'evento</strong>: importi gli ospiti, assegni i badge, mandi le email QR. Il giorno dell'evento la tab serve principalmente come "lista di controllo" per spuntare gli arrivi.</div>
+</section>
+
+<!-- ============ 7 ============ -->
+<section id="tab-eventi">
+  <h2>Tab "🎫 Eventi" — creare e gestire eventi</h2>
+  <p class="lead">Crea un evento per ogni occasione che richiede registrazione visitatori. Solo UN evento può essere attivo alla volta.</p>
+
+  <h3>Quando creare un nuovo evento</h3>
+  <ul>
+    <li>Convegno, meeting con clienti esterni, corso di formazione → crea un evento dedicato.</li>
+    <li>Visite spot quotidiane (1 fornitore, 1 candidato) → non serve evento, basta registrarli walk-in.</li>
+  </ul>
+
+  <h3>Come creare un evento</h3>
+  <ol class="steps">
+    <li>Click <strong>+ Nuovo Evento</strong>.</li>
+    <li>Compila: <em>Nome</em> (es. "Convegno 15 maggio"), <em>Data inizio</em>, <em>Data fine</em>, <em>QR attivo dal</em> (data da cui il QR funziona; opzionale).</li>
+    <li>Click <strong>Salva</strong>.</li>
+    <li>L'evento appare nella tabella. Clicca <strong>▶ Avvia</strong> per renderlo "attivo".</li>
+  </ol>
+
+  <div class="callout warn">Quando avvii un evento, se ce n'era già uno attivo, viene disattivato automaticamente. Solo uno attivo alla volta.</div>
+
+  <h3>Indicatori nella tabella eventi</h3>
+  <table class="simple">
+    <tr><th>Stato</th><th>Cosa vuol dire</th></tr>
+    <tr><td>🔴 Attivo</td><td>L'evento corrente. Il banner arancione in cima alla pagina mostra questo evento.</td></tr>
+    <tr><td>🔒 Chiuso</td><td>L'evento è stato chiuso. Read-only (solo consultazione storica).</td></tr>
+    <tr><td>🕐 Passato</td><td>La data finale è già passata ma l'evento non è stato esplicitamente chiuso.</td></tr>
+    <tr><td>(vuoto)</td><td>Evento futuro, non ancora avviato.</td></tr>
+  </table>
+</section>
+
+<!-- ============ 8 ============ -->
+<section id="tab-preasseg">
+  <h2>Tab "📝 Pre-assegnazione" — preparare i badge in anticipo</h2>
+  <p class="lead">Bozze di lavoro per preparare i 96 badge prima dell'evento, con possibilità di lavorare in due (es. due segretarie sulla stessa lista).</p>
+
+  <h3>Quando si usa</h3>
+  <ul>
+    <li>Hai 96 partecipanti già importati ma nessun badge assegnato.</li>
+    <li>Vuoi associare a ciascuno un numero di badge fisico PRIMA che arrivino.</li>
+    <li>Il giorno dell'evento, l'ospite trova il badge già pronto ⇒ ritira + firma in 5 secondi al banco.</li>
+  </ul>
+
+  <h3>Workflow</h3>
+  <ol class="steps">
+    <li>Click <strong>+ Nuova bozza</strong> → dai un nome (es. "Pre-asseg 15 maggio").</li>
+    <li>Importa la lista ospiti dalla bozza, o aggiungi righe manualmente.</li>
+    <li>Per ogni ospite, scrivi il numero badge nella colonna "Numero Badge" (puoi anche usare il bottone "Auto-numera badge da:" per assegnarli in sequenza).</li>
+    <li>Quando tutti sono compilati, click <strong>✅ Finalizza bozza</strong>.</li>
+    <li>Il sistema crea gli stub visitor (in stato pending) e li manda all'agente per attivazione.</li>
+  </ol>
+
+  <div class="callout info">Se due segretarie lavorano sulla stessa bozza, il sistema rileva i conflitti di edit e mostra un messaggio "Un altro operatore ha modificato questo draft" — niente sovrascritture silenziose.</div>
+</section>
+
+<!-- ============ 9 ============ -->
+<section id="tab-acquire">
+  <h2>Tab "🔍 Acquisizione" — pre-attivare badge col lettore RFID</h2>
+  <p class="lead">Per eventi grandi: invece di digitare a mano 96 numeri badge, usi un lettore RFID USB (es. HDWR HD-RD80) e passi i badge fisici uno dietro l'altro.</p>
+
+  <h3>Funziona così</h3>
+  <ol class="steps">
+    <li>Crea una <strong>nuova sessione di scan</strong>.</li>
+    <li>Apri la sessione, posiziona il cursore nel campo di input.</li>
+    <li>Passa i badge fisici al lettore: ognuno produce "numero + Invio". Il sistema li registra nel pool.</li>
+    <li>Quando hai finito di scansionare, vai in modalità <strong>Pair</strong> e scegli come abbinare ogni badge a un ospite della lista:
+      <ul>
+        <li><strong>Auto-pair sequenziale</strong> — il sistema abbina N-esimo badge al N-esimo ospite (alfabetico). Veloce ma serve liste già ordinate.</li>
+        <li><strong>Click + scan</strong> — clicchi sull'ospite, passi il badge al lettore, abbinato.</li>
+        <li><strong>Drag-drop</strong> — trascini un badge sull'ospite.</li>
+      </ul>
+    </li>
+    <li>Salva la sessione. Tutti i badge sono pre-assegnati.</li>
+  </ol>
+
+  <div class="callout tip">Funziona anche se non hai il lettore RFID: puoi digitare i numeri a mano nello stesso campo. È solo più lento.</div>
+</section>
+
+<!-- ============ 10 ============ -->
+<section id="tab-audit">
+  <h2>Tab "📋 Audit" — log delle operazioni</h2>
+  <p class="lead">Tutte le azioni importanti vengono registrate qui automaticamente: chi ha creato un evento, chi ha assegnato un badge, chi ha concluso una visita, ecc.</p>
+
+  <h3>Quando consultarlo</h3>
+  <ul>
+    <li>Capire chi ha fatto cosa quando.</li>
+    <li>Investigare un problema (es. perché un visitor risulta uscito prima del previsto).</li>
+    <li>Audit interno o richiesta legale.</li>
+  </ul>
+
+  <h3>Cosa vedi</h3>
+  <p>Tabella con: <strong>Quando</strong> · <strong>Operatore</strong> (email) · <strong>Azione</strong> (es. "associa badge", "concludi visita", "chiudi evento") · <strong>Entità</strong> (visitor, evento, ecc.) · <strong>Dettagli</strong> (JSON con info extra).</p>
+
+  <div class="callout info">L'audit log è in sola lettura per tutti. Non si può modificare né cancellare. Anche l'admin lo può solo consultare.</div>
+</section>
+
+<!-- ============ 11 ============ -->
+<section id="visitatore-qr">
+  <h2>Quando arriva un visitatore con QR personale</h2>
+  <p class="lead">Scenario più comune se hai mandato le email QR il giorno prima: il visitatore arriva già "firmato" e devi solo dargli il badge.</p>
+
+  <ol class="steps">
+    <li>Il visitatore arriva al desk e dice "sono Rossi Mario".</li>
+    <li>Vai in tab <strong>Visitatori</strong>, scrivi "Rossi" nel filtro Cognome.</li>
+    <li>Vedi la sua riga con stato <span class="tag tag-active">Atteso</span> e badge <span class="tag tag-active">ACTIVE</span> (es. badge 238576). Significa: ha firmato dal cellulare, l'agente ha già attivato il badge al tornello.</li>
+    <li>Trova il badge fisico 238576 e consegnaglielo.</li>
+    <li>Lo informi che può passare al tornello.</li>
+  </ol>
+
+  <div class="callout tip">Se il badge mostra <span class="tag tag-pending">PENDING</span> aspetta 10-15 secondi e ricarica. È normale all'inizio del flusso. Se dopo 30 secondi è ancora PENDING, vai alla sezione 14.</div>
+</section>
+
+<!-- ============ 12 ============ -->
+<section id="visitatore-senza-qr">
+  <h2>Quando arriva un visitatore senza QR (ma è in lista)</h2>
+  <p class="lead">Visitatore atteso che non ha ricevuto/visto/ricordato l'email QR. Lo registri tu al kiosk.</p>
+
+  <ol class="steps">
+    <li>Verifica che sia in lista: tab <strong>Ospiti Attesi</strong>, filtra per cognome.</li>
+    <li>Lo accompagni al tablet aziendale.</li>
+    <li>Sul tablet, gli mostri il form: scrive nome+cognome+azienda+documento, spunta i consensi, firma col dito.</li>
+    <li>Conferma "Registra Visita".</li>
+    <li>Aspetta 10 secondi: vai in tab Visitatori, dovresti vederlo con badge <span class="tag tag-active">ACTIVE</span>.</li>
+    <li>Gli consegni il badge fisico (se aveva un badge pre-assegnato lo trovi dalla lista Ospiti Attesi nella colonna "Stato").</li>
+  </ol>
+
+  <div class="callout info">Il sistema riconosce automaticamente che il visitatore è in lista (matching nome+cognome o email) e gli collega l'eventuale badge pre-assegnato.</div>
+</section>
+
+<!-- ============ 13 ============ -->
+<section id="walkin">
+  <h2>Walk-in dal pool — visitatore non in lista</h2>
+  <p class="lead">Arriva qualcuno che non era previsto (es. accompagnatore, fornitore non annunciato). Lo registri al volo con un badge dal pool anonimo.</p>
+
+  <ol class="steps">
+    <li>Vai in tab <strong>Visitatori</strong>, click <strong>👤 Walk-in dal pool</strong>.</li>
+    <li>Si apre una modale: compila nome, cognome, azienda, motivo visita, persona da visitare.</li>
+    <li>Il sistema seleziona automaticamente il primo badge libero dal pool.</li>
+    <li>Click <strong>Registra walk-in</strong>.</li>
+    <li>Consegnagli il badge fisico mostrato nella modale.</li>
+    <li>Lo accompagni al tablet per firmare i consensi GDPR.</li>
+  </ol>
+
+  <div class="callout warn">Il walk-in funziona solo se hai badge disponibili nel <strong>pool</strong>. Se il pool è vuoto, ti compare un messaggio di errore. Devi aggiungere badge al pool dalla tab Pre-assegnazione o Acquisizione.</div>
+</section>
+
+<!-- ============ 14 ============ -->
+<section id="troubleshoot">
+  <h2>Risoluzione problemi più comuni</h2>
+
+  <h3>Il pallino Agente è rosso o giallo</h3>
+  <ul>
+    <li><strong>Giallo</strong> (15-120s di ritardo) — rete lenta o agente sovraccarico. Aspetta 1 minuto. Se persiste, contatta il responsabile tecnico.</li>
+    <li><strong>Rosso</strong> (oltre 2 minuti) — l'agente Python sul PC reception è fermo. Soluzione: chi gestisce il PC va in `C:\zucchetti-agent\` e fa doppio click su <code>aggiorna_agente.bat</code>. In 30 secondi torna verde.</li>
+  </ul>
+
+  <h3>Un badge resta <span class="tag tag-pending">PENDING</span> oltre 30 secondi</h3>
+  <ol class="steps">
+    <li>Apri il visitor con il bottone <strong>ℹ️</strong>.</li>
+    <li>Nel pannello stato vedi un bottone giallo <strong>🔄 Forza retry agente</strong>.</li>
+    <li>Clicca: il sistema rilancia l'attivazione del badge. Entro 5-10 secondi diventa ACTIVE.</li>
+  </ol>
+
+  <h3>Il visitatore dice "Ho ricevuto il QR ma non si apre"</h3>
+  <ul>
+    <li>Verifica che lui clicchi <strong>dal link nell'email</strong>, non digiti l'URL a mano (la pagina diretta è bloccata).</li>
+    <li>Se il QR scade o non è valido, registralo come walk-in al tablet del desk (sezione 13).</li>
+  </ul>
+
+  <h3>"Badge in coda da > 5 minuti" (📧 rosso nell'header)</h3>
+  <ul>
+    <li>Significa che le email QR ai partecipanti non vengono inviate.</li>
+    <li>Probabile causa: agente Python fermo (vedi sopra) o problema temporaneo con Microsoft 365.</li>
+    <li>Contatta il responsabile tecnico. Nel frattempo i partecipanti senza email possono comunque registrarsi al desk.</li>
+  </ul>
+
+  <h3>Il sistema mostra "Pagina bianca" dopo il login</h3>
+  <ul>
+    <li>Aspetta 10 secondi: il sistema ha un timer di emergenza che mostra la pagina anche se qualcosa va lento.</li>
+    <li>Se resta bianca, premi <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> per hard refresh.</li>
+    <li>Se persiste, prova logout + nuovo login.</li>
+  </ul>
+</section>
+
+<!-- ============ 15 ============ -->
+<section id="concludi-visita">
+  <h2>Concludere una visita (uscita)</h2>
+  <p class="lead">Quando un visitatore esce, il badge viene letto al tornello e l'agente concludere la visita automaticamente. In alcuni casi devi farlo a mano dall'admin.</p>
+
+  <h3>Conclusione automatica</h3>
+  <p>Il visitatore passa il badge al tornello in uscita. Entro 5-10 secondi:</p>
+  <ul>
+    <li>La sua riga in tab Visitatori mostra <span class="tag tag-done">Concluso</span>.</li>
+    <li>Il badge ritorna libero nel pool.</li>
+    <li>La card "Dentro ora" cala di 1, "Usciti" sale di 1.</li>
+  </ul>
+
+  <h3>Conclusione manuale (quando serve)</h3>
+  <p>Se un visitatore esce senza passare il tornello (es. è uscito da una porta secondaria, hai dimenticato di dargli il badge…), concludilo a mano:</p>
+  <ol class="steps">
+    <li>Tab Visitatori → trova il visitatore → click <strong>⏹</strong>.</li>
+    <li>Il bottone diventa verde "✓ Conferma?" per 4 secondi.</li>
+    <li>Click di nuovo: la visita viene archiviata e il badge liberato.</li>
+    <li>Se ci ripensi e non clicchi entro 4 secondi, il bottone torna come prima.</li>
+  </ol>
+
+  <div class="callout tip">Il doppio click è una protezione: evita uscite accidentali con un click solo. Non serve nessun popup di conferma fastidioso.</div>
+</section>
+
+<!-- ============ 16 ============ -->
+<section id="chiudi-evento">
+  <h2>Chiudere un evento — fine giornata</h2>
+  <p class="lead">A fine evento, lo chiudi per archiviare i visitatori e liberare i badge dal pool.</p>
+
+  <ol class="steps">
+    <li>Vai in tab <strong>🎫 Eventi</strong>.</li>
+    <li>Trova l'evento attivo (🔴) e click <strong>🛑 Chiudi evento</strong> (puoi anche cliccare "Chiudi evento" sul banner arancione in cima alla pagina).</li>
+    <li><strong>ATTENZIONE</strong>: se ci sono ancora visitatori "Dentro ora", il sistema te lo dice e ti mostra i primi 5 nomi. Doppia conferma necessaria.</li>
+    <li>Conferma la chiusura.</li>
+    <li>Il sistema archivia tutti i visitor (xatlas_status → checked_out) e l'agente libera i badge dal pool nei prossimi 30 secondi.</li>
+  </ol>
+
+  <div class="callout danger">Chiudere un evento è IRREVERSIBILE. I visitatori archiviati restano consultabili nello storico ma non possono essere "riattivati". Se per errore qualcuno è ancora dentro, il suo badge smetterà di funzionare al tornello (dovrà uscire da un'altra porta).</div>
+</section>
+
+<!-- ============ 17 ============ -->
+<section id="gdpr">
+  <h2>Privacy GDPR e prova legale — cosa viene tracciato</h2>
+  <p class="lead">Il sistema raccoglie e conserva legalmente tutti gli elementi necessari per dimostrare il consenso del visitatore.</p>
+
+  <h3>Per ogni visitatore registrato vengono salvati:</h3>
+  <table class="simple">
+    <tr><th>Dato</th><th>Cosa prova</th></tr>
+    <tr><td>Nome, cognome, email, documento (CI/Passaporto)</td><td>Identità verificata</td></tr>
+    <tr><td>Firma autografa raccolta sul tablet/smartphone</td><td>Consenso esplicito (visibile in dettaglio visitor: tab Visitatori → ℹ️)</td></tr>
+    <tr><td>Timestamp esatto della firma</td><td>Quando ha firmato (preciso al millisecondo)</td></tr>
+    <tr><td>Versione del PDF "Norme di accesso alla struttura" accettata</td><td>Quale documento ha letto (es. Rev.2_20260509)</td></tr>
+    <tr><td>Apertura del PDF prima della firma (sì/no)</td><td>Ha consultato il documento o ha solo spuntato</td></tr>
+    <tr><td>IP pubblico del dispositivo del visitatore</td><td>Da quale rete ha firmato (es. WiFi guest S2S)</td></tr>
+    <tr><td>User-Agent del browser/device</td><td>Da quale dispositivo (es. iPhone Safari)</td></tr>
+    <tr><td>SHA256 del PDF servito al momento della firma</td><td>Il documento NON è stato modificato dopo (immutabilità)</td></tr>
+  </table>
+
+  <div class="callout tip">Per consultare la prova legale di un visitatore: tab Visitatori → ℹ️ → vai in fondo al pannello "Consensi e audit legale". C'è anche una card viola "🛡️ Prova legale completa" con IP, device e hash PDF.</div>
+
+  <h3>In caso di richiesta cancellazione (diritto all'oblio)</h3>
+  <p>Il diritto all'oblio non è gestibile direttamente dall'admin. Se un ospite richiede la cancellazione, contatta il responsabile DPO e procedi via Supabase Dashboard con SQL DELETE motivato + audit log.</p>
+</section>
+
+<!-- ============ 18 ============ -->
+<section id="glossario">
+  <h2>Glossario rapido</h2>
+  <table class="simple">
+    <tr><th>Termine</th><th>Significato pratico</th></tr>
+    <tr><td><strong>Admin</strong></td><td>La pagina web che usi tu.</td></tr>
+    <tr><td><strong>Kiosk</strong></td><td>La pagina che il visitatore vede sul tablet o cellulare.</td></tr>
+    <tr><td><strong>Agente</strong></td><td>Programmino sul PC reception che parla col tornello Zucchetti.</td></tr>
+    <tr><td><strong>QR personale</strong></td><td>QR code univoco mandato via email a un ospite specifico.</td></tr>
+    <tr><td><strong>Pool badge</strong></td><td>Insieme di badge fisici pre-caricati nel sistema, pronti per essere assegnati.</td></tr>
+    <tr><td><strong>Walk-in</strong></td><td>Visitatore non in lista, registrato al volo al desk.</td></tr>
+    <tr><td><strong>Pending</strong></td><td>Badge in attesa di attivazione dall'agente (5-10 secondi).</td></tr>
+    <tr><td><strong>Active</strong></td><td>Badge attivo, visitatore può passare il tornello.</td></tr>
+    <tr><td><strong>Checked_out</strong></td><td>Visita conclusa, badge libero.</td></tr>
+    <tr><td><strong>Pre-assegnazione</strong></td><td>Workflow per associare badge agli ospiti PRIMA dell'evento.</td></tr>
+    <tr><td><strong>Stub visitor</strong></td><td>Record pre-creato dall'admin (ospite atteso con badge assegnato) ma non ancora firmato al kiosk.</td></tr>
+    <tr><td><strong>Banner arancione</strong></td><td>Indicatore in alto che mostra l'evento attivo corrente.</td></tr>
+    <tr><td><strong>Tornello</strong></td><td>Cancello fisico XAtlas/Zucchetti SuperTRAX all'ingresso/uscita.</td></tr>
+    <tr><td><strong>RLS</strong></td><td>Sicurezza database Supabase — proteggono i dati lato server (non ti riguarda direttamente).</td></tr>
+    <tr><td><strong>Audit log</strong></td><td>Registro automatico di ogni operazione importante.</td></tr>
+  </table>
+</section>
+
+<!-- ============ 19 ============ -->
+<section id="contatti">
+  <h2>Chi contattare se serve aiuto</h2>
+  <table class="simple">
+    <tr><th>Problema</th><th>Chi chiamare</th></tr>
+    <tr><td>Login non funziona, password dimenticata</td><td>Amministratore S2S</td></tr>
+    <tr><td>Agente offline, pallino rosso che non torna verde</td><td>Responsabile tecnico — Antonio Gelormini (Ga Informatica)</td></tr>
+    <tr><td>Errori sull'invio email QR persistenti</td><td>Responsabile tecnico — Antonio Gelormini</td></tr>
+    <tr><td>Tornello non legge un badge</td><td>Responsabile sicurezza S2S + verifica badge ACTIVE sull'admin</td></tr>
+    <tr><td>Richiesta cancellazione dati (GDPR)</td><td>DPO S2S</td></tr>
+    <tr><td>Bug nella piattaforma, funzionalità che non capisci</td><td>Responsabile tecnico — Antonio Gelormini</td></tr>
+  </table>
+
+  <div class="callout info">Questa guida è aggiornata alla versione del 9 maggio 2026. Per la versione più recente bookmark questa pagina o stampala da Ctrl+P.</div>
+</section>
+
+</main>
+
+<footer class="gp-foot">
+  <p>Service to Service Srl — Sistema Gestione Visitatori · Sviluppato da Antonio Gelormini (Ga Informatica)<br>
+  Guida operativa v1.0 · Build piattaforma: <strong>2026-05-10l · operator-fluidity</strong></p>
+</footer>
+
+</div>
+
+</body>
+</html>
