@@ -552,3 +552,24 @@ ALTER TABLE guest_list
   ADD COLUMN IF NOT EXISTS badge_number  TEXT,
   ADD COLUMN IF NOT EXISTS document_type TEXT,
   ADD COLUMN IF NOT EXISTS document_id   TEXT;
+
+-- =====================================================
+-- MIGRATION v14 — Handoff visivo PC admin → tablet kiosk
+-- =====================================================
+-- Quando l'operatore clicca "Passa il tablet kiosk all'ospite" dal dialog
+-- handoff, l'admin setta handoff_requested_at = NOW() su guest_list.
+-- Il tablet kiosk (polling 8s su guest_list) vede il timestamp recente
+-- e applica un'animazione "pulse" verde + scroll-into-view + ding audio
+-- per facilitare l'identificazione visiva dell'ospite appena aggiunto.
+-- L'highlight si auto-disattiva dopo 90 secondi (calcolo lato client).
+-- Nessun cleanup server-side necessario: il flag è informativo, non blocca
+-- niente; al massimo la card mostra l'highlight finché l'ospite non firma
+-- (a quel punto sparisce naturalmente dal lookup).
+
+ALTER TABLE guest_list
+  ADD COLUMN IF NOT EXISTS handoff_requested_at TIMESTAMPTZ;
+
+-- RLS: il kiosk anonimo deve poter LEGGERE handoff_requested_at (già coperto
+-- dalla policy anon_select_guest_list esistente, che fa SELECT *). L'UPDATE
+-- è invece riservato all'admin autenticato (policy admin_update_guest_list
+-- esistente). Nessuna nuova policy richiesta.

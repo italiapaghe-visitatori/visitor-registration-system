@@ -597,6 +597,41 @@
 
     .guest-tile:active { transform: translateY(0); }
 
+    /* Handoff: admin ha appena passato questo ospite al tablet kiosk.
+       Pulse verde + bordo spesso per attirare l'attenzione in 1 secondo. */
+    .guest-tile-handoff {
+      border-color: #38a169 !important;
+      border-width: 3px !important;
+      background: linear-gradient(135deg, #f0fff4 0%, #e6fffa 100%) !important;
+      animation: handoffPulse 1.4s ease-in-out infinite;
+      box-shadow: 0 0 0 0 rgba(56, 161, 105, 0.6);
+    }
+    @keyframes handoffPulse {
+      0%   { box-shadow: 0 0 0 0   rgba(56, 161, 105, 0.55); }
+      70%  { box-shadow: 0 0 0 14px rgba(56, 161, 105, 0);    }
+      100% { box-shadow: 0 0 0 0   rgba(56, 161, 105, 0);    }
+    }
+    .guest-tile-handoff .guest-tile-avatar {
+      background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+    }
+    .guest-tile-handoff::after {
+      content: '✍️ Ti aspetta per firmare';
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #2f855a;
+      background: rgba(255,255,255,0.92);
+      padding: 3px 9px;
+      border-radius: 12px;
+      border: 1px solid #c6f6d5;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .guest-tile-handoff { position: relative; }
+
     .guest-tile-avatar {
       width: 36px;
       height: 36px;
@@ -2208,11 +2243,22 @@
         grid.appendChild(msg);
         return;
       }
+      let highlightedBtn = null;
       guests.forEach(g => {
         const initials = ((g.last_name[0] || '') + (g.first_name[0] || '')).toUpperCase();
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'guest-tile';
+        // Highlight handoff: l'admin ha appena cliccato "Passa il tablet kiosk
+        // all'ospite" per questo guest. Mostra animazione pulse + scroll + ding
+        // se il timestamp è recente (< 90s) e non l'abbiamo già notificato.
+        if (g.handoff_requested_at && isHandoffRecent(g.handoff_requested_at)) {
+          btn.classList.add('guest-tile-handoff');
+          if (!handoffNotified.has(g.id)) {
+            highlightedBtn = btn;
+            handoffNotified.add(g.id);
+          }
+        }
         btn.innerHTML =
           `<div class="guest-tile-avatar">${escHtml(initials)}</div>` +
           `<div class="guest-tile-info">` +
@@ -2222,6 +2268,50 @@
         btn.addEventListener('click', () => selectGuest(g));
         grid.appendChild(btn);
       });
+      // Se c'è una nuova card handoff, scroll + ding + auto-apri details
+      if (highlightedBtn) {
+        try { openLookupDetails(); } catch (_) {}
+        setTimeout(() => {
+          try { highlightedBtn.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+          playHandoffDing();
+        }, 150);
+      }
+    }
+
+    // ── HANDOFF HIGHLIGHT (tablet kiosk) ─────────────────
+    // L'admin (su PC separato) ha appena cliccato "Passa il tablet kiosk".
+    // Riconosciamo l'ospite via handoff_requested_at recente e lo evidenziamo.
+    const HANDOFF_FRESH_MS = 90 * 1000; // 90 secondi
+    const handoffNotified = new Set(); // guest_id già notificati (no ding ripetuti)
+    function isHandoffRecent(iso) {
+      if (!iso) return false;
+      try {
+        const ts = new Date(iso).getTime();
+        return (Date.now() - ts) < HANDOFF_FRESH_MS;
+      } catch (_) { return false; }
+    }
+    function openLookupDetails() {
+      const d = document.getElementById('guest-details');
+      if (d && !d.open) d.open = true;
+    }
+    // Beep "ding" gentile via Web Audio API (no asset esterni)
+    function playHandoffDing() {
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(880, ctx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.12);
+        g.gain.setValueAtTime(0.0001, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+        o.connect(g); g.connect(ctx.destination);
+        o.start();
+        o.stop(ctx.currentTime + 0.42);
+      } catch (_) { /* audio bloccato/non disponibile, ignora */ }
     }
 
     function buildAlphaKeyboard() {

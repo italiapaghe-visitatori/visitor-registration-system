@@ -3563,7 +3563,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-11f · handoff-real-cases</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-11g · highlight-tablet</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -6909,7 +6909,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     function handoffResolveEventId(guest) {
       return guest.event_id || activeEvent?.id || null;
     }
-    function handoffTabletInstructions() {
+    async function handoffTabletInstructions() {
       if (!signatureHandoffGuest) return;
       const guest = signatureHandoffGuest;
       const nameEl = document.getElementById('handoff-instr-name');
@@ -6918,7 +6918,17 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       if (nameEl) nameEl.textContent = `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || 'l\'ospite';
       if (urlEl) urlEl.value = buildPrefillKioskUrl(guest.id);
       if (panel) panel.classList.add('active');
-      auditLog('signature_handoff_tablet', 'guest_list', guest.id, { method: 'tablet_lookup_polling' });
+      // Setta handoff_requested_at = now() → il tablet kiosk (polling 8s) vede
+      // il timestamp recente e lampeggia/scrolla automaticamente alla card
+      // dell'ospite, così l'operatore o l'ospite stesso lo trovano in 1 secondo.
+      try {
+        await api(`${SUPABASE_URL}/rest/v1/guest_list?id=eq.${encodeURIComponent(guest.id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ handoff_requested_at: new Date().toISOString() })
+        });
+      } catch (_) { /* best-effort, le istruzioni mostrate sono valide comunque */ }
+      auditLog('signature_handoff_tablet', 'guest_list', guest.id, { method: 'tablet_lookup_polling_highlight' });
     }
     function handoffCopyTabletUrl(btn) {
       const input = document.getElementById('handoff-tablet-url');
