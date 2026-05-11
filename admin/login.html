@@ -61,6 +61,36 @@
 
     .form-group { margin-bottom: 18px; }
 
+    /* Input password con bottone "occhietto" per mostrare/nascondere */
+    .pw-wrap { position: relative; }
+    .pw-wrap input { padding-right: 50px; }
+    .pw-eye {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 38px;
+      height: 38px;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      font-size: 19px;
+      color: #718096;
+      -webkit-user-select: none;
+      user-select: none;
+      line-height: 1;
+      border-radius: 8px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .pw-eye:hover {
+      background: #edf2f7;
+      color: #4c51bf;
+    }
+    .pw-eye:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(102,126,234,0.3);
+    }
+
     label {
       display: block;
       font-size: 13px;
@@ -180,7 +210,10 @@
         </div>
         <div class="form-group">
           <label for="password">Password</label>
-          <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+          <div class="pw-wrap">
+            <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+            <button type="button" class="pw-eye" onclick="togglePw(this)" aria-label="Mostra password" title="Mostra/nascondi password">👁️</button>
+          </div>
         </div>
         <button type="submit" id="login-btn" class="btn-login">Accedi</button>
       </form>
@@ -205,11 +238,17 @@
       <form id="reset-form">
         <div class="form-group">
           <label for="new-password">Nuova password</label>
-          <input type="password" id="new-password" required minlength="8" autocomplete="new-password" placeholder="almeno 8 caratteri">
+          <div class="pw-wrap">
+            <input type="password" id="new-password" required minlength="8" autocomplete="new-password" placeholder="almeno 8 caratteri">
+            <button type="button" class="pw-eye" onclick="togglePw(this)" aria-label="Mostra password" title="Mostra/nascondi password">👁️</button>
+          </div>
         </div>
         <div class="form-group">
           <label for="new-password2">Conferma password</label>
-          <input type="password" id="new-password2" required minlength="8" autocomplete="new-password" placeholder="riscrivi la password">
+          <div class="pw-wrap">
+            <input type="password" id="new-password2" required minlength="8" autocomplete="new-password" placeholder="riscrivi la password">
+            <button type="button" class="pw-eye" onclick="togglePw(this)" aria-label="Mostra password" title="Mostra/nascondi password">👁️</button>
+          </div>
         </div>
         <button type="submit" id="reset-btn" class="btn-login">Salva e accedi</button>
       </form>
@@ -412,11 +451,14 @@
       e.preventDefault();
       const email = window.prompt('Inserisci la tua email per il reset della password:');
       if (!email) return;
+      // redirect_to esplicito: senza, Supabase usa solo l'origin del site_url
+      // troncando il path → atterriamo su italiapaghe-visitatori.github.io/ (404)
+      const redirectTo = window.location.origin + window.location.pathname;
       try {
         await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-          body: JSON.stringify({ email })
+          body: JSON.stringify({ email, redirect_to: redirectTo })
         });
         showMsg('success', 'Se l\'account esiste riceverai un\'email di reset.');
       } catch (_) {
@@ -429,6 +471,16 @@
       m.className = 'message ' + type;
       m.textContent = text;
       m.style.display = 'block';
+    }
+
+    // Toggle visibilità password: cambia type=password↔text e icona occhio
+    function togglePw(btn) {
+      const input = btn.previousElementSibling;
+      if (!input || input.tagName !== 'INPUT') return;
+      const showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      btn.textContent = showing ? '👁️' : '🙈';
+      btn.setAttribute('aria-label', showing ? 'Mostra password' : 'Nascondi password');
     }
   </script>
 </body>

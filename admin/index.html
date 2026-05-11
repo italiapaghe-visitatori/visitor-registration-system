@@ -3988,13 +3988,22 @@
       } catch (_) { /* ignore */ }
     }
 
+    // Calcola redirect_to esplicito puntando a admin/login.html (dove la pagina
+    // gestisce l'atterraggio da magic-link). Senza, Supabase tronca il path
+    // del site_url usando solo l'origin → atterriamo su github.io root (404).
+    function _recoveryRedirect() {
+      // Da admin/index.html ricaviamo admin/login.html mantenendo lo stesso path base
+      const base = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+      return base + 'login.html';
+    }
+
     async function sendResetPassword(email) {
       if (!confirm(`Inviare email di reset password a ${email}?`)) return;
       try {
         const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-          body: JSON.stringify({ email })
+          body: JSON.stringify({ email, redirect_to: _recoveryRedirect() })
         });
         if (!res.ok) {
           const b = await res.json().catch(()=>({}));
@@ -4014,7 +4023,7 @@
         const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-          body: JSON.stringify({ email })
+          body: JSON.stringify({ email, redirect_to: _recoveryRedirect() })
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         alert(`✉️ Email di re-invito inviata a ${email}.`);
