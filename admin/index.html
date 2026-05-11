@@ -1908,6 +1908,13 @@
       margin-top:   0    !important;
       margin-bottom: 16px !important;
     }
+    /* Su Visitatori: stats cards in cima al contenuto (richiesta utente).
+       Override del default che le metterebbe in fondo (order:4). */
+    body[data-view="visitors"] #view-visitors.active > .stats-bar {
+      order:        -1   !important;
+      margin-top:   0    !important;
+      margin-bottom: 16px !important;
+    }
 
     /* SNELLA: quando view-visitors fa da panoramica (NON è la tab attiva
        Visitatori), nascondi filtri, stats card, paginazione e ricerca per
@@ -3341,7 +3348,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10m · session-timeout</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10n · stats-top-visitors</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
