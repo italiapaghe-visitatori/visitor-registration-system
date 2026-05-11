@@ -577,7 +577,7 @@
   <h2>3️⃣ La tua email + i 4 bottoni rapidi</h2>
   <table class="simple">
     <tr><th>Bottone</th><th>Cosa fa</th><th>Quando lo usi</th></tr>
-    <tr><td>👤 <strong>Utenti</strong></td><td>Apre la finestra "Gestione operatori": vedi le altre collaboratrici, ne aggiungi una nuova, resetti password.</td><td>Solo se sei amministratore. Vedi <a href="#s36">capitolo 36</a>.</td></tr>
+    <tr><td>👤 <strong>Operatori</strong></td><td>Apre la modale "Gestione operatori". Cosa vedi dipende dal tuo ruolo: super-admin vede tutti + può invitare/bloccare/eliminare; operatore normale vede solo sé stesso.</td><td>Vedi <a href="#s36">capitolo 36</a>.</td></tr>
     <tr><td>📊 <strong>CSV</strong></td><td>Scarica un file Excel con tutti i visitatori del periodo che selezioni.</td><td>Fine mese, per report. Vedi <a href="#s39">capitolo 39</a>.</td></tr>
     <tr><td>🔄</td><td>Ricarica la pagina (forzato).</td><td>Solo se la pagina sembra "congelata".</td></tr>
     <tr><td><strong>Esci</strong></td><td>Logout dal sistema.</td><td>Fine turno (o se passi il PC a una collega che fa login con le sue credenziali).</td></tr>
@@ -1973,50 +1973,124 @@
 <!-- ============================ S 36 ============================ -->
 <section class="chapter" id="s36" data-part="Parte 6 · Le tab in dettaglio" data-title="Modale Operatori">
   <h1 class="title">Modale "👤 Operatori" — gestione collaboratrici</h1>
-  <p class="subtitle">Solo per amministratori. Da qui aggiungi colleghe, resetti password, blocchi account.</p>
+  <p class="subtitle">Da qui inviti nuove operatrici, resetti password, blocchi o elimini account. Cosa vedi dipende dal tuo ruolo.</p>
+
+  <h2>Due livelli di accesso</h2>
+
+  <div class="card">
+    <h3>👑 Super-admin</h3>
+    <p>L'amministratore principale del sistema (es. <code>tecnico.gelormini@gmail.com</code>). Vede <strong>tutte</strong> le operatrici, può invitarne di nuove, resettare password di chiunque, bloccare/sbloccare/eliminare account. Compare con un badge dorato <strong>SUPER-ADMIN</strong> accanto al nome.</p>
+  </div>
+
+  <div class="card">
+    <h3>👤 Operatore normale</h3>
+    <p>Tutte le altre collaboratrici. Vedono <strong>solo sé stesse</strong> nella modale operatori (privacy delle colleghe). Possono richiedere il reset della propria password. <strong>Non possono</strong> invitare nuove utenze né bloccare/eliminare altre operatrici.</p>
+    <p class="legend">Importante: questa limitazione riguarda <em>solo</em> la modale Operatori. Su tutte le altre tab (Visitatori, Ospiti Attesi, Eventi, Pre-assegnazione, Acquisizione, Audit) un operatore normale ha gli stessi poteri di un super-admin: piena gestione di evento, visitatori, badge.</p>
+  </div>
 
   <h2>Come si apre</h2>
-  <p>Click sul bottone <strong>👤 Utenti</strong> nella barra blu in alto a destra. Si apre una finestra modale con due tab interne.</p>
+  <p>Click sul bottone <strong>👤 Operatori</strong> nella barra blu in alto a destra. Si apre una finestra modale con due tab interne.</p>
 
   <h2>Tab "📋 Operatori attivi"</h2>
-  <p>Mostra la lista di tutte le collaboratrici registrate, con colonne:</p>
+  <p>Mostra la lista di tutte le collaboratrici registrate (super-admin) oppure solo la propria riga (operatore normale).</p>
+
+  <h3>Colonne</h3>
   <ul>
-    <li><strong>Email</strong>: l'identificativo unico.</li>
-    <li><strong>Nome</strong>: nome leggibile (es. "Anna Bianchi").</li>
-    <li><strong>Ruolo</strong>: <code>admin</code> (può tutto) o <code>operator</code> (può solo lavorare al banco).</li>
-    <li><strong>Stato</strong>: Attivo / Disabilitato.</li>
-    <li><strong>Ultimo accesso</strong>: quando ha fatto login l'ultima volta.</li>
-    <li><strong>Azioni</strong>: 🔑 reset password · ✏️ modifica · 🚫 disabilita.</li>
+    <li><strong>Nome</strong>: nome leggibile (es. "Ferraro Ester"). Accanto compaiono badge: <em>(TU)</em> verde se è la tua riga, <strong>SUPER-ADMIN</strong> dorato se è un amministratore principale protetto.</li>
+    <li><strong>Email</strong>: l'identificativo unico per il login.</li>
+    <li><strong>Stato</strong>: <em>Attivo</em> · <em>Invitato</em> (mai loggato dopo l'invito) · <em>Mai loggato</em> (confermato ma non ancora entrato) · <em>Bloccato</em> (ban attivo).</li>
+    <li><strong>Ultimo accesso</strong>: quando ha fatto login l'ultima volta. Sotto, in piccolo grigio, c'è anche l'<strong>ultima azione amministrativa</strong> registrata: "🔁 Reset inviato: gg/mm/aa hh:mm" oppure "Invitato" / "Re-invitato".</li>
+    <li><strong>Azioni</strong>: bottoni che cambiano in base al ruolo e allo stato (vedi sotto).</li>
   </ul>
 
-  <h2>Tab "✉️ Invita nuovo operatore"</h2>
+  <h3>Quali bottoni vedi</h3>
+  <table class="simple">
+    <tr><th>Bottone</th><th>Quando appare</th><th>Cosa fa</th></tr>
+    <tr><td><strong>📧 Reinvia invito</strong></td><td>Stato = "Invitato"</td><td>Rimanda il magic-link di benvenuto (utile se il primo è scaduto).</td></tr>
+    <tr><td><strong>🔑 Reset password</strong></td><td>Account attivo (non bloccato)</td><td>Manda email "Reset password" con link per impostare nuova password (vedi <a href="#s41">cap. 41</a>).</td></tr>
+    <tr><td><strong>🚫 Blocca</strong></td><td>Solo super-admin, su righe altrui non super-admin</td><td>Sospende l'account: non potrà più fare login. <strong>Reversibile</strong>.</td></tr>
+    <tr><td><strong>✅ Sblocca</strong></td><td>Solo super-admin, su righe bloccate</td><td>Riattiva l'account. Riprende a poter accedere.</td></tr>
+    <tr><td><strong>🗑️ Elimina</strong></td><td>Solo super-admin, su righe altrui non super-admin</td><td>Cancellazione definitiva. <strong>Irreversibile</strong>: doppia conferma + digitazione di "ELIMINA".</td></tr>
+  </table>
+
+  <div class="callout info">
+    <span class="head">ℹ️ Cosa vedi se non sei super-admin</span>
+    Sulla tua riga compaiono solo <strong>(TU)</strong> e il bottone <strong>🔑 Reset password</strong>. Nessuna riga altrui, nessun bottone Blocca/Elimina. La tab "✉️ Invita nuovo operatore" è nascosta.
+  </div>
+
+  <h2>Tab "✉️ Invita nuovo operatore" (solo super-admin)</h2>
   <ol class="steps">
-    <li>Compila: Email + Nome + Ruolo (admin o operator).</li>
-    <li>Click <strong>Invia invito</strong>.</li>
-    <li>Il sistema manda un'email alla collega col link di registrazione + password temporanea.</li>
-    <li>Lei clicca sul link, fa login, viene chiesta nuova password.</li>
-    <li>Da quel momento può accedere all'Admin.</li>
+    <li>Apri la modale 👤 Operatori e clicca la tab "✉️ Invita nuovo operatore".</li>
+    <li>Compila i due campi:
+      <ul>
+        <li><strong>Email dell'operatore</strong>: l'indirizzo personale aziendale della nuova collega.</li>
+        <li><strong>Nome visualizzato</strong>: opzionale, es. "Ferraro Ester".</li>
+      </ul>
+    </li>
+    <li>Click <strong>✉️ Invita operatore</strong>.</li>
+    <li>Il sistema manda automaticamente un'email di benvenuto col link "Imposta la mia password".</li>
+    <li>La collega clicca il link, sceglie LEI la propria password (l'amministratore non la vedrà mai), entra direttamente nell'admin.</li>
   </ol>
 
-  <h2>Reset password per una collega</h2>
-  <ol>
-    <li>Tab Operatori → trova la collega nell'elenco.</li>
-    <li>Click <strong>🔑</strong> sulla sua riga.</li>
-    <li>Conferma. Il sistema genera una password temporanea e le manda un'email.</li>
-    <li>Lei clicca il link nell'email e imposta una nuova password.</li>
+  <div class="shot">
+    <div class="shot-body">
+      <div style="background:#fff; padding:16px; border-radius:6px; max-width:480px; margin:0 auto; box-shadow:0 2px 6px rgba(0,0,0,.1); font-size:13px">
+        <div style="background:#ebf4ff; border:1px solid #bee3f8; padding:10px 12px; border-radius:6px; font-size:12px; color:#2c5282; margin-bottom:14px">
+          <strong>Come funziona l'invito:</strong> inserisci l'email dell'operatore e clicca Invita. Supabase manda un'email con un link sicuro: l'operatore lo apre, sceglie LEI la sua password.
+        </div>
+        <label style="font-size:11px; color:#4a5568">Email dell'operatore *</label>
+        <div style="border:1px solid #cbd5e0; padding:8px; border-radius:5px; margin:4px 0 10px; font-size:13px">ferraro.ester@s2s.it</div>
+        <label style="font-size:11px; color:#4a5568">Nome visualizzato (opzionale)</label>
+        <div style="border:1px solid #cbd5e0; padding:8px; border-radius:5px; margin:4px 0 14px; font-size:13px">Ferraro Ester</div>
+        <div style="background:linear-gradient(135deg,#4c51bf,#764ba2); color:#fff; padding:11px; border-radius:6px; text-align:center; font-weight:600; font-size:13px">✉️ Invita operatore</div>
+      </div>
+    </div>
+    <div class="shot-cap"><b>Figura 36.1</b> — La tab "Invita nuovo operatore" del super-admin.</div>
+  </div>
+
+  <h2>Bloccare un'operatore (Blocca → Sblocca)</h2>
+  <p>Esempio tipico: una collaboratrice è in malattia/ferie lunghe e per sicurezza vuoi sospendere temporaneamente il suo accesso.</p>
+  <ol class="steps">
+    <li>Apri 👤 Operatori → trova la collega.</li>
+    <li>Click <strong>🚫 Blocca</strong> sulla sua riga.</li>
+    <li>Conferma. Lo stato passa a <em>Bloccato</em> (etichetta rossa).</li>
+    <li>Da questo momento, se prova a fare login vedrà "User banned".</li>
+    <li>Quando torna a lavoro, clicca <strong>✅ Sblocca</strong> sulla sua riga → riprende a poter accedere.</li>
   </ol>
 
-  <h2>Disabilitare una collega</h2>
-  <p>Es. una collaboratrice se ne va dall'azienda:</p>
-  <ol>
-    <li>Tab Operatori → trova la collega.</li>
-    <li>Click <strong>🚫 Disabilita</strong>.</li>
-    <li>Conferma. Da quel momento non può più fare login. Le righe di audit con il suo nome restano (per accountability storica).</li>
+  <div class="callout tip">
+    <span class="head">💡 Blocca vs Elimina</span>
+    <strong>Blocca</strong> = pausa reversibile, audit log e collegamenti restano intatti.<br>
+    <strong>Elimina</strong> = cancellazione definitiva da <code>auth.users</code>. Le righe audit log con il suo nome restano per accountability, ma l'account non si può ricreare con stessa identità.
+  </div>
+
+  <h2>Eliminare un'operatore (irreversibile)</h2>
+  <p>Es. collaboratrice che ha lasciato definitivamente l'azienda.</p>
+  <ol class="steps">
+    <li>👤 Operatori → trova la collega.</li>
+    <li>Click <strong>🗑️ Elimina</strong>.</li>
+    <li>Conferma il primo pop-up "ELIMINARE DEFINITIVAMENTE…".</li>
+    <li>Digita esattamente la parola <strong>ELIMINA</strong> nella seconda finestra di conferma.</li>
+    <li>L'utenza sparisce dalla lista.</li>
   </ol>
 
+  <div class="callout danger">
+    <span class="head">🛑 Doppia barriera anti-errore</span>
+    L'eliminazione richiede <strong>2 conferme + parola da digitare</strong>. Non si elimina mai per sbaglio. Una volta confermato, l'utenza viene rimossa subito e <strong>non si recupera</strong>.
+  </div>
+
+  <h2>Reset password di una collega (super-admin)</h2>
+  <p>La collega ha dimenticato la password? Glielo resetti in 2 click. Vedi il <a href="#s41">capitolo 41</a> per il flusso completo.</p>
+
+  <h2>Protezioni del super-admin</h2>
   <div class="callout warn">
-    <span class="head">⚠️ Solo per admin</span>
-    Se sei "operator" e non "admin", non vedi nemmeno il bottone 👤 Utenti. Per qualunque cambio di password chiama l'amministratore.
+    <span class="head">⚠️ Non puoi danneggiare gli amministratori principali</span>
+    <ul style="margin:6px 0">
+      <li>Un super-admin <strong>non può essere bloccato o eliminato</strong> da nessuno (nemmeno da altri super-admin, lato UI).</li>
+      <li>Un operatore <strong>non può agire su sé stesso</strong> (no auto-blocco, no auto-elimina).</li>
+      <li>Se tenti queste azioni, vedi un messaggio di errore.</li>
+    </ul>
+    Per modificare la lista dei super-admin protetti serve un intervento del responsabile tecnico (vedi <a href="#s55">cap. 55</a>).
   </div>
 </section>
 
@@ -2150,26 +2224,73 @@
 <!-- ============================ S 41 ============================ -->
 <section class="chapter" id="s41" data-part="Parte 7 · Operazioni speciali" data-title="Reset password operatore">
   <h1 class="title">Reset password di un operatore</h1>
-  <p class="subtitle">Quando una collega ha dimenticato la password, o nuovo arrivo, o sospetto di compromissione.</p>
+  <p class="subtitle">Tre situazioni: hai dimenticato la tua password, devi resettarla a una collega, oppure è la prima volta che ricevi l'invito.</p>
 
-  <h2>Se sei tu che hai dimenticato la password</h2>
+  <h2>Caso A — Hai dimenticato la TUA password</h2>
   <ol class="steps">
-    <li>Vai sulla pagina di login Admin.</li>
-    <li>Clicca <strong>"Hai dimenticato la password?"</strong> sotto le caselle.</li>
+    <li>Vai sulla pagina di login (apri il browser sull'indirizzo Admin).</li>
+    <li>Click sul link <strong>"Password dimenticata?"</strong> sotto i due campi.</li>
     <li>Scrivi la tua email aziendale.</li>
-    <li>Ti arriva un'email col link per resettare.</li>
-    <li>Apri il link, imposta una nuova password (almeno 8 caratteri, una maiuscola, un numero).</li>
-    <li>Fai login con la nuova password.</li>
+    <li>Vedi il messaggio "Se l'account esiste riceverai un'email di reset". Entro 1-2 minuti arriva l'email.</li>
+    <li>Apri l'email (subject: <em>"Reset password — Gestione Visitatori S2S"</em>) e clicca il pulsante viola <strong>🔐 Reimposta la password</strong>.</li>
+    <li>Atterri sulla pagina di login, ma stavolta vedi il form <strong>"Reimposta la password"</strong> al posto del login normale.</li>
+    <li>Scrivi la nuova password (minimo 8 caratteri). Usa l'<strong>occhietto 👁️</strong> a destra per controllare cosa hai digitato.</li>
+    <li>Riscrivi la stessa password nel campo "Conferma password".</li>
+    <li>Click <strong>Salva e accedi</strong>. In 1 secondo entri direttamente nell'admin.</li>
   </ol>
 
-  <h2>Se sei amministratore e devi resettare per una collega</h2>
+  <h2>Caso B — Sei super-admin e devi resettare per una collega</h2>
   <ol class="steps">
-    <li>Bottone <strong>👤 Utenti</strong> nella barra in alto.</li>
-    <li>Tab "📋 Operatori attivi" → trova la collega.</li>
-    <li>Click <strong>🔑</strong> sulla sua riga.</li>
-    <li>Conferma. Il sistema le manda un'email con link di reset.</li>
-    <li>Lei clicca, imposta nuova password, può rientrare.</li>
+    <li>Click sul bottone <strong>👤 Operatori</strong> nella barra blu in alto.</li>
+    <li>Tab "📋 Operatori attivi" → trova la collega nell'elenco.</li>
+    <li>Click <strong>🔑 Reset password</strong> sulla sua riga.</li>
+    <li>Conferma il dialog "Inviare email di reset password a …?".</li>
+    <li>Vedi "✉️ Email di reset password inviata a …".</li>
+    <li>La collega riceve l'email entro 1-2 minuti. Clicca il link, sceglie LEI la nuova password, entra.</li>
+    <li>Sulla sua riga in Admin compare la traccia: <em>"🔁 Reset inviato: gg/mm/aa hh:mm"</em>.</li>
   </ol>
+
+  <h2>Caso C — Primo accesso dopo un invito</h2>
+  <ol class="steps">
+    <li>Hai ricevuto l'email <em>"Sei stato invitato a Gestione Visitatori S2S"</em>.</li>
+    <li>Clicca il pulsante viola <strong>🚀 Imposta la mia password</strong>.</li>
+    <li>Atterri sul form <strong>"Benvenuto/a! Imposta la tua password"</strong>.</li>
+    <li>Scegli una password (con occhietto 👁️ per verifica), riscrivila per conferma.</li>
+    <li>Click <strong>Salva e accedi</strong>. Entri nell'admin con la tua identità.</li>
+  </ol>
+
+  <div class="shot">
+    <div class="shot-body">
+      <div style="max-width:380px; margin:0 auto; background:#fff; padding:18px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,.1)">
+        <h3 style="text-align:center; color:#4c51bf; margin:0 0 6px; font-size:15px">Reimposta la password</h3>
+        <p style="text-align:center; color:#718096; font-size:12px; margin:0 0 16px">Hai richiesto il reset: scegli una nuova password</p>
+        <div style="margin:8px 0"><label style="font-size:11px; color:#4a5568">Nuova password</label>
+          <div style="position:relative; margin-top:4px">
+            <div style="border:1px solid #cbd5e0; padding:9px; padding-right:38px; border-radius:5px; font-size:13px">••••••••••</div>
+            <div style="position:absolute; right:8px; top:50%; transform:translateY(-50%); font-size:16px; color:#718096">👁️</div>
+          </div>
+        </div>
+        <div style="margin:8px 0"><label style="font-size:11px; color:#4a5568">Conferma password</label>
+          <div style="position:relative; margin-top:4px">
+            <div style="border:1px solid #cbd5e0; padding:9px; padding-right:38px; border-radius:5px; font-size:13px">••••••••••</div>
+            <div style="position:absolute; right:8px; top:50%; transform:translateY(-50%); font-size:16px; color:#718096">👁️</div>
+          </div>
+        </div>
+        <div style="background:linear-gradient(135deg,#4c51bf,#764ba2); color:#fff; padding:11px; border-radius:6px; text-align:center; font-weight:600; font-size:13px; margin-top:12px">Salva e accedi</div>
+        <div style="background:#ebf4ff; color:#2c5282; padding:9px 11px; font-size:11px; border-radius:6px; margin-top:12px; line-height:1.5">La password resta <strong>solo tua</strong>: nessuno (nemmeno l'amministratore) la conoscerà. Deve essere lunga almeno <strong>8 caratteri</strong>.</div>
+      </div>
+    </div>
+    <div class="shot-cap"><b>Figura 41.1</b> — Il form "Reimposta la password" con i due campi password dotati di occhietto 👁️ per mostrare/nascondere il testo digitato.</div>
+  </div>
+
+  <h2>Tracciamento nel pannello Operatori</h2>
+  <p>Ogni reset password che invii tramite il pannello <strong>👤 Operatori</strong> viene <strong>tracciato automaticamente</strong>. Sulla riga della collega, sotto la data dell'ultimo accesso, compare in piccolo grigio:</p>
+  <ul>
+    <li>🔁 <strong>Reset inviato: 12/05/26 01:21</strong> — l'admin le ha inviato l'email di reset</li>
+    <li>🔁 <strong>Invitato: 12/05/26 00:50</strong> — primo invito ricevuto</li>
+    <li>🔁 <strong>Re-invitato: 12/05/26 00:55</strong> — re-invito del magic-link</li>
+  </ul>
+  <p>Per la cronologia completa (es. "quanti reset ho fatto a Ester nell'ultimo mese") apri tab <strong>📋 Audit</strong> e filtra per azione <code>operator_reset_password</code> (vedi <a href="#s35">cap. 35</a>).</p>
 
   <div class="callout tip">
     <span class="head">💡 Password sicure</span>
@@ -2177,9 +2298,22 @@
   </div>
 
   <div class="callout warn">
+    <span class="head">⚠️ Tu non vedrai mai la password</span>
+    Nessuno (nemmeno il super-admin) può vedere la password di una collega. La scegli <strong>sempre tu</strong> sul tuo dispositivo, attraverso il magic-link nell'email. Se qualcuno te la chiede al telefono per "salvarla", è una richiesta sospetta: non darla.
+  </div>
+
+  <div class="callout warn">
     <span class="head">⚠️ Mai condividere</span>
     Ogni collega deve avere la <strong>sua</strong> password personale. Niente "logiamoci tutte con l'account di Anna". Le righe in audit log devono dire chi ha fatto cosa: se tutti usano lo stesso account, nessuno è responsabile.
   </div>
+
+  <h2>Se il link non funziona</h2>
+  <ul>
+    <li><strong>"Link non valido o scaduto"</strong>: il magic-link dura 24 ore. Chiedi al super-admin un nuovo reset.</li>
+    <li><strong>"Le due password non coincidono"</strong>: hai sbagliato la conferma. Riscrivi attentamente.</li>
+    <li><strong>"La password deve essere lunga almeno 8 caratteri"</strong>: aggiungi caratteri.</li>
+    <li><strong>Pagina bianca dopo "Salva e accedi"</strong>: aspetta 10 secondi, premi <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. Vedi <a href="#s46">cap. 46</a>.</li>
+  </ul>
 </section>
 
 <!-- ============================ S 42 ============================ -->
@@ -2751,44 +2885,68 @@
   <p class="subtitle">Cosa è cambiato nelle ultime versioni del sistema, raccontato come a una collega.</p>
 
   <div class="card">
-    <p><strong>Versione di questo manuale:</strong> v1.0 — 12/05/2026</p>
-    <p><strong>Sistema documentato:</strong> Build <code>2026-05-11c · close-buffer-rule</code></p>
+    <p><strong>Versione di questo manuale:</strong> v1.1 — 12/05/2026 (aggiornata in serata)</p>
+    <p><strong>Sistema documentato:</strong> Build <code>2026-05-12 · operatori-mgmt-v2</code></p>
     <p><strong>Autore:</strong> Antonio Gelormini (Ga Informatica) — tecnico.gelormini@gmail.com</p>
   </div>
 
-  <h2>Cosa è cambiato a maggio 2026</h2>
+  <h2>🆕 Novità della serata 12/05/2026 (v1.1)</h2>
+
+  <h3>👑 Super-admin protetto + permessi a 2 livelli</h3>
+  <p>La modale 👤 Operatori ora distingue <strong>super-admin</strong> (può tutto: invitare, resettare, bloccare, eliminare) da <strong>operatori normali</strong> (vedono solo sé stessi, possono solo richiedere reset propria password). Vedi <a href="#s36">cap. 36</a>.</p>
+
+  <h3>🚫 Bottoni Blocca / Sblocca / Elimina operatore</h3>
+  <p>Solo per super-admin. <strong>Blocca</strong> sospende reversibilmente, <strong>Elimina</strong> rimuove definitivamente (con doppia conferma + parola "ELIMINA" da digitare). Super-admin sono protetti: non si possono né bloccare né eliminare. Vedi <a href="#s36">cap. 36</a>.</p>
+
+  <h3>📧 Email invito + reset password in italiano</h3>
+  <p>I template email Supabase sono stati riscritti con design S2S, testo in italiano e link che porta direttamente al form di scelta password. Subject: "Sei stato invitato a Gestione Visitatori S2S" e "Reset password — Gestione Visitatori S2S".</p>
+
+  <h3>🔑 Reset password funzionante end-to-end</h3>
+  <p>Il flusso magic-link ora atterra sul nuovo form <strong>"Reimposta la password"</strong> nella pagina login. Scegli, conferma, salva, entri automaticamente. Vedi <a href="#s41">cap. 41</a>.</p>
+
+  <h3>👁️ Occhietti show/hide password</h3>
+  <p>Tutti i campi password (login, nuova password, conferma) hanno ora un pulsante 👁️/🙈 per mostrare o nascondere quello che digiti. Utile su tablet/touch quando vuoi controllare di non aver fatto errori.</p>
+
+  <h3>🔁 Tracciamento ultimo reset</h3>
+  <p>Nella modale 👤 Operatori, sotto "Ultimo accesso" di ogni collega compare la riga <em>"🔁 Reset inviato: gg/mm/aa hh:mm"</em> (o "Invitato"/"Re-invitato"). Permette di sapere a colpo d'occhio se è già stato fatto un intervento recente, senza aprire l'Audit.</p>
+
+  <h3>📱 Layout mobile ottimizzato</h3>
+  <p>Su cellulare/tablet verticale: tab orizzontalmente scrollabili (swipe invece di wrap), bottoni utility più compatti, stat cards più snelle. Il layout desktop è rimasto intatto.</p>
+
+  <h3>🔗 Link interni navigabili</h3>
+  <p>I richiami "vedi cap. N" nel manuale ora funzionano: cliccarli porta direttamente alla sezione, mostrandola subito (prima erano apparentemente "rotti" perché il sistema mostrava una sezione alla volta).</p>
+
+  <h2>Modifiche storiche di maggio 2026 (v1.0)</h2>
 
   <h3>🆕 Campo "Mansione" obbligatorio</h3>
-  <p>Da maggio 2026, sul tablet kiosk + nel modulo "Aggiungi ospite" admin, c'è un nuovo campo <strong>Mansione</strong> (es. "Direttore commerciale"). Compare anche nel CSV e nel dettaglio visitor.</p>
+  <p>Sul tablet kiosk + nel modulo "Aggiungi ospite" admin, campo <strong>Mansione</strong> obbligatorio (es. "Direttore commerciale"). Compare anche nel CSV e nel dettaglio visitor.</p>
 
   <h3>🆕 Documento davvero obbligatorio</h3>
-  <p>Il campo Documento non può più essere lasciato vuoto sul tablet. In casi eccezionali, l'admin può bypassare con la nuova checkbox "Procedo senza documento", tracciata nell'audit come <code>walkin_no_doc</code>.</p>
+  <p>Il campo Documento non può più essere lasciato vuoto sul tablet. In casi eccezionali, l'admin può bypassare con checkbox "Procedo senza documento", tracciata nell'audit come <code>walkin_no_doc</code>.</p>
 
   <h3>🆕 Banner regola d'oro chiusura evento</h3>
-  <p>In tab Eventi è apparso un banner giallo permanente: <em>"Chiudi l'evento 1 ora dopo l'orario di fine ufficiale"</em>. Ricorda il timing corretto.</p>
+  <p>In tab Eventi banner giallo permanente: <em>"Chiudi l'evento 1 ora dopo l'orario di fine ufficiale"</em>. Vedi <a href="#s29">cap. 29</a>.</p>
 
   <h3>🆕 Timeout sessione admin ridotto a 1 ora</h3>
-  <p>Per sicurezza, il logout automatico per inattività è passato da 2h a 1h. Se vai via dal PC per pranzo, al rientro devi rifare login.</p>
-
-  <h3>🆕 Gestione operatori live</h3>
-  <p>Bottone 👤 Utenti rinnovato: lista live delle collaboratrici + invito via email + reset password. Vedi <a href="#s36">cap. 36</a>.</p>
+  <p>Logout automatico per inattività passato da 2h a 1h. Se vai via dal PC per pranzo, al rientro devi rifare login.</p>
 
   <h3>🆕 Pool badge anonimo + miniature</h3>
-  <p>Il pool ora gestisce badge "neutri" (non legati a un'azienda specifica). Le miniature stampabili facilitano l'identificazione fisica.</p>
+  <p>Il pool gestisce badge "neutri" (non legati a un'azienda specifica). Le miniature stampabili facilitano l'identificazione fisica. Vedi <a href="#s20">cap. 20</a>.</p>
 
   <h3>🆕 Email QR personali con Microsoft 365</h3>
-  <p>L'invio email QR è passato da SMTP semplice a Microsoft 365 Graph API (OAuth). Più affidabile, ma serve token OAuth attivo. Vedi <a href="#s45">cap. 45</a> se hai problemi.</p>
+  <p>L'invio email QR è passato da SMTP semplice a Microsoft 365 Graph API (OAuth). Più affidabile. Vedi <a href="#s45">cap. 45</a> se hai problemi.</p>
 
   <h3>🆕 Modalità Acquisizione + Pair per badge</h3>
-  <p>Nuova tab 🔍 Acquisizione con due stadi: Scan (popolare pool col lettore RFID) + Pair (3 modalità di abbinamento). Vedi <a href="#s34">cap. 34</a>.</p>
+  <p>Tab 🔍 Acquisizione con due stadi: Scan (popolare pool col lettore RFID) + Pair (3 modalità di abbinamento). Vedi <a href="#s34">cap. 34</a>.</p>
 
   <h3>🆕 Pre-assegnazione multi-utente</h3>
   <p>3 collaboratrici possono lavorare in parallelo sulla stessa bozza, con cross-check anti-conflitto. Vedi <a href="#s17">cap. 17</a>.</p>
 
   <h2>Aggiornamenti del manuale</h2>
   <table class="simple">
-    <tr><th>Data</th><th>Modifiche</th></tr>
-    <tr><td>12/05/2026</td><td>Prima versione del manuale completo (56 sezioni).</td></tr>
+    <tr><th>Data</th><th>Versione</th><th>Modifiche</th></tr>
+    <tr><td>12/05/2026 (serata)</td><td>v1.1</td><td>Aggiornata sezione 36 (Modale Operatori) con super-admin + ban/unban/elimina; sezione 41 (Reset password) con flusso magic-link funzionante e occhietti 👁️; fix link inline navigabili.</td></tr>
+    <tr><td>12/05/2026 (mattino)</td><td>v1.0</td><td>Prima versione del manuale completo (56 sezioni).</td></tr>
   </table>
 
   <div class="callout info">
@@ -2799,7 +2957,7 @@
   <div class="meta">
     Service to Service Srl — Sistema Gestione Visitatori<br>
     Sviluppato da Antonio Gelormini · Ga Informatica<br>
-    Manuale Operatrici v1.0 · 12 maggio 2026 · build <code>2026-05-11c</code><br>
+    Manuale Operatrici v1.1 · 12 maggio 2026 (sera) · build <code>2026-05-12 · operatori-mgmt-v2</code><br>
     Per stampare il manuale completo: premi <kbd>Ctrl</kbd>+<kbd>P</kbd> in questa pagina.
   </div>
 </section>
@@ -2853,12 +3011,21 @@
     if(activeNav) activeNav.scrollIntoView({block:'nearest'});
   }
 
-  // click nav
+  // click nav (sidebar)
   navLinks.forEach(a=>{
     a.addEventListener('click', e=>{
       e.preventDefault();
       show(parseInt(a.dataset.i,10));
     });
+  });
+  // click su link inline href="#sN" nel contenuto (es. "vedi capitolo 42")
+  // Senza questo handler, il browser fa scroll all'elemento ma siccome la
+  // sezione è display:none l'utente non vede nulla → richiamo show(N).
+  document.addEventListener('click', e=>{
+    const a = e.target.closest('a[href^="#s"]');
+    if (!a) return;
+    const m = a.getAttribute('href').match(/^#s(\d+)$/);
+    if (m) { e.preventDefault(); show(parseInt(m[1], 10)); }
   });
   document.getElementById('prev').addEventListener('click', ()=>show(cur-1));
   document.getElementById('next').addEventListener('click', ()=>show(cur+1));
