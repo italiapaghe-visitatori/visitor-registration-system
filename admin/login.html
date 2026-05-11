@@ -199,8 +199,34 @@
     const SUPABASE_URL      = CONFIG.supabase.url;
     const SUPABASE_ANON_KEY = CONFIG.supabase.anonKey;
 
-    // Auto-redirect if session is still active
+    // Mostra banner "sessione scaduta" se l'admin ha forzato logout per inattività
+    (function showInactivityNotice() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('reason') === 'inactivity') {
+        const m = document.getElementById('message');
+        if (m) {
+          m.className = 'message warn';
+          m.textContent = '⏱ Sessione scaduta per inattività (oltre 2 ore senza utilizzo). Per sicurezza, rifai il login.';
+          m.style.display = 'block';
+          m.style.background = '#fffaf0';
+          m.style.color = '#744210';
+          m.style.borderLeft = '4px solid #d69e2e';
+          m.style.padding = '12px 14px';
+          m.style.borderRadius = '6px';
+          m.style.marginTop = '14px';
+          m.style.fontSize = '13px';
+        }
+      }
+    })();
+
+    // Auto-redirect SOLO se sessione attiva E utente non scaduto per inattività.
+    // Se l'admin ha forzato logout per inactivity, l'auto-redirect deve essere
+    // skippato per costringere il rifare login manualmente.
     (async function checkSession() {
+      // Skip auto-redirect se l'admin ci ha mandato qui per inattività
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('reason') === 'inactivity') return;
+
       const refreshToken = localStorage.getItem('sb-refresh-token');
       if (!refreshToken) return;
       try {
@@ -213,6 +239,9 @@
           const data = await res.json();
           localStorage.setItem('sb-access-token',  data.access_token);
           localStorage.setItem('sb-refresh-token', data.refresh_token);
+          // Setta il timestamp di "ultima attività" all'atto del refresh sessione
+          // così l'admin non scade subito se l'utente è appena tornato.
+          localStorage.setItem('vrs_admin_last_activity', String(Date.now()));
           window.location.href = 'index.html';
         }
       } catch (_) { /* no active session */ }
@@ -238,6 +267,9 @@
         if (res.ok) {
           localStorage.setItem('sb-access-token',  data.access_token);
           localStorage.setItem('sb-refresh-token', data.refresh_token);
+          // Timestamp iniziale "ultima attività" per il check di inattività
+          // nell'admin (logout forzato se > 2 ore senza touch).
+          localStorage.setItem('vrs_admin_last_activity', String(Date.now()));
           showMsg('success', 'Accesso effettuato. Reindirizzamento...');
           setTimeout(() => window.location.href = 'index.html', 800);
         } else {

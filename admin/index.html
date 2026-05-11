@@ -3341,7 +3341,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10l · operator-fluidity</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-10m · session-timeout</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -3384,6 +3384,24 @@
         }
       }, 10000);
 
+      // ── INACTIVITY TIMEOUT (sicurezza sessione) ─────────────────
+      // Se l'ultima attività dell'utente risale a più di 2 ore fa, forza il
+      // logout. Protezione contro PC reception lasciato aperto e poi usato da
+      // chiunque dopo qualche ora. Supabase tiene il refresh-token attivo per
+      // settimane, quindi senza questo check chiunque tornerebbe loggato.
+      const INACTIVITY_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 ore
+      const lastActivity = parseInt(localStorage.getItem('vrs_admin_last_activity') || '0', 10);
+      if (lastActivity && Date.now() - lastActivity > INACTIVITY_TIMEOUT_MS) {
+        clearTimeout(safetyTimer);
+        try {
+          localStorage.removeItem('sb-access-token');
+          localStorage.removeItem('sb-refresh-token');
+          localStorage.removeItem('vrs_admin_last_activity');
+        } catch (_) {}
+        window.location.href = 'login.html?reason=inactivity';
+        return;
+      }
+
       accessToken = localStorage.getItem('sb-access-token');
       if (!accessToken) { clearTimeout(safetyTimer); window.location.href = 'login.html'; return; }
 
@@ -3413,12 +3431,46 @@
       document.body.classList.remove('auth-pending');
       document.body.dataset.view = 'visitors';
 
+      // Inizializza tracking attività: timestamp iniziale + event listeners
+      // throttled (1 update ogni 30s, basta a tenere "viva" la sessione mentre
+      // l'utente lavora). Più check periodico ogni minuto per logout forzato
+      // se ci si allontana dal PC per 2+ ore.
+      _initInactivityTracking();
+
       loadData();
       refreshAgentStatus();
       refreshEmailQueueStatus();
       refreshActiveEventBanner();
       populateEventFilter();
     });
+
+    // ── INACTIVITY TRACKING ─────────────────────────────────
+    function _initInactivityTracking() {
+      const TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 ore
+      let lastUpdate = 0;
+      const bump = () => {
+        const now = Date.now();
+        if (now - lastUpdate < 30000) return; // throttle: max 1 update ogni 30s
+        lastUpdate = now;
+        try { localStorage.setItem('vrs_admin_last_activity', String(now)); } catch (_) {}
+      };
+      // Timestamp iniziale a login
+      try { localStorage.setItem('vrs_admin_last_activity', String(Date.now())); } catch (_) {}
+      lastUpdate = Date.now();
+      // Eventi che contano come "attività" dell'utente
+      ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(ev => {
+        document.addEventListener(ev, bump, { passive: true });
+      });
+      // Check periodico ogni 60s: se inattività > 2 ore, logout forzato
+      pollTimers.push(setInterval(() => {
+        const last = parseInt(localStorage.getItem('vrs_admin_last_activity') || '0', 10);
+        if (last && Date.now() - last > TIMEOUT_MS) {
+          alert('Sessione scaduta per inattività (oltre 2 ore senza utilizzo). Sarà richiesto di rifare il login.');
+          try { localStorage.removeItem('vrs_admin_last_activity'); } catch (_) {}
+          logout();
+        }
+      }, 60000));
+    }
 
     // Errore JS non catchato durante il caricamento iniziale → mostra il body
     // comunque con messaggio, invece di lasciare la pagina bianca.
@@ -3512,6 +3564,7 @@
       _stopAllPollTimers();
       localStorage.removeItem('sb-access-token');
       localStorage.removeItem('sb-refresh-token');
+      localStorage.removeItem('vrs_admin_last_activity');
       window.location.href = 'login.html';
     }
     // Stop timers anche su navigazione fuori dalla pagina (pagehide è più
