@@ -360,6 +360,7 @@
   <ol>
     <li><a href="#cosa-e">Cos'è questo sistema</a></li>
     <li><a href="#accesso">Come si accede</a></li>
+    <li><a href="#autorizza-tablet">Autorizzare un tablet aziendale</a></li>
     <li><a href="#mattina">La mattina dell'evento</a></li>
     <li><a href="#header">La barra in alto: cosa significa</a></li>
     <li><a href="#tab-visitatori">Tab Visitatori</a></li>
@@ -459,6 +460,102 @@
 </section>
 
 <!-- ============ 3 ============ -->
+<section id="autorizza-tablet">
+  <h2>Autorizzare un tablet aziendale al kiosk</h2>
+  <p class="lead">I tablet S2S al banco della reception devono essere "autorizzati" una sola volta per poter funzionare in modalità kiosk libera. Dopo, ricordano l'autorizzazione per sempre (anche se spegnete/riaccendete il tablet).</p>
+
+  <h3>Quando serve fare l'autorizzazione</h3>
+  <ul>
+    <li>🆕 <strong>Tablet nuovo</strong> appena consegnato dall'amministratore (prima volta).</li>
+    <li>🧹 <strong>Browser pulito</strong> sul tablet (es. qualcuno ha cancellato la cronologia/cache da Chrome).</li>
+    <li>📲 <strong>Tablet sostituito o resettato</strong> (es. cambio dispositivo, factory reset).</li>
+    <li>🕵️ <strong>Modalità incognito</strong>: se per errore si usa una finestra in incognito, non riconosce l'autorizzazione e mostra "Accesso non autorizzato" (basta chiudere e usare finestra normale).</li>
+  </ul>
+
+  <div class="callout info">Nel 99% del tempo NON dovete fare nulla: i tablet aziendali sono già autorizzati. Questa procedura serve solo nei casi sopra.</div>
+
+  <h3>La procedura — passo passo</h3>
+
+  <ol class="steps">
+    <li>Sul tablet, apri il browser (Chrome, Edge, Safari…).</li>
+    <li>Digita o incolla esattamente questo URL nella barra degli indirizzi:
+      <div style="background:#1a202c;color:#e2e8f0;padding:10px 14px;border-radius:6px;font-family:monospace;font-size:12px;margin:10px 0;word-break:break-all">
+      https://italiapaghe-visitatori.github.io/visitor-registration-system/frontend/index.html?kiosk_authorize=<span style="color:#fbbf24;font-weight:700">S2S-2026</span>
+      </div>
+    </li>
+    <li>Premi Invio. La pagina si carica per un istante mostrando la schermata di registrazione.</li>
+    <li>L'URL nella barra si "pulisce" automaticamente: il PIN sparisce per non lasciarlo nella cronologia.</li>
+    <li>Da questo momento il tablet è autorizzato. Puoi metterlo sul banco e lasciarlo aperto sulla pagina del kiosk.</li>
+    <li><strong>Test rapido</strong>: chiudi il browser, riaprilo, vai sulla pagina del kiosk senza il PIN nell'URL — deve mostrare il form di registrazione, non la schermata "🔒 Accesso non autorizzato".</li>
+  </ol>
+
+  <h3>Il PIN — cos'è e come va trattato</h3>
+
+  <table class="simple">
+    <tr><th>PIN attuale</th><td><kbd>S2S-2026</kbd></td></tr>
+    <tr><th>A chi va dato</th><td>Solo agli amministratori e alle responsabili di reception (chi autorizza i tablet)</td></tr>
+    <tr><th>NON va condiviso</th><td>Con i visitatori, in chat pubbliche, via email a indirizzi esterni</td></tr>
+    <tr><th>Se viene cambiato</th><td>Tutti i tablet già autorizzati restano autorizzati (il PIN serve solo all'atto dell'autorizzazione iniziale). Devono usare il NUOVO PIN solo i tablet ancora da autorizzare.</td></tr>
+  </table>
+
+  <div class="callout warn">Se digiti un PIN sbagliato, vedi la schermata "⛔ PIN errato — Il PIN inserito non è valido". Riprova con il PIN corretto.</div>
+
+  <h3>Verificare se un tablet è già autorizzato</h3>
+
+  <p>Apri la pagina del kiosk senza parametri nell'URL:</p>
+  <div style="background:#1a202c;color:#e2e8f0;padding:10px 14px;border-radius:6px;font-family:monospace;font-size:12px;margin:10px 0;word-break:break-all">
+  https://italiapaghe-visitatori.github.io/visitor-registration-system/frontend/index.html
+  </div>
+
+  <ul>
+    <li>✅ Se vedi il form di registrazione → <strong>tablet autorizzato</strong>, può essere usato dai visitatori.</li>
+    <li>🔒 Se vedi "Accesso non autorizzato" → <strong>tablet NON autorizzato</strong>, devi fare la procedura sopra.</li>
+  </ul>
+
+  <h3>Revocare l'autorizzazione (es. tablet che esce dall'azienda)</h3>
+
+  <p>Se un tablet aziendale deve essere dismesso/venduto/riassegnato a uso non aziendale, è buona prassi revocare la sua autorizzazione kiosk prima di consegnarlo:</p>
+
+  <ol class="steps">
+    <li>Sul tablet, apri il browser.</li>
+    <li>Vai sulla pagina del kiosk.</li>
+    <li>Premi <kbd>F12</kbd> (o tieni premuto e seleziona "Ispeziona") per aprire gli strumenti sviluppatore.</li>
+    <li>Vai sul tab <strong>Application</strong> (o <strong>Archiviazione</strong>) → <strong>Local Storage</strong>.</li>
+    <li>Trova la voce <code>vrs_kiosk_authorized</code> e cancellala.</li>
+    <li>Chiudi e riapri il browser: la pagina ora mostra "🔒 Accesso non autorizzato".</li>
+  </ol>
+
+  <div class="callout tip">Modo più rapido: <strong>cancella tutta la cronologia/cache</strong> del browser sul tablet. Sicuro al 100%, anche se cancella anche altre cose.</div>
+
+  <h3>Riepilogo visuale dei 3 scenari di accesso</h3>
+
+  <table class="simple">
+    <tr><th>Scenario</th><th>Esempio URL</th><th>Risultato</th></tr>
+    <tr>
+      <td>Tablet aziendale già autorizzato</td>
+      <td><code>…/frontend/index.html</code></td>
+      <td>✅ Form registrazione visitatore</td>
+    </tr>
+    <tr>
+      <td>Visitatore con QR personale via email</td>
+      <td><code>…/frontend/index.html?mode=qr&amp;event=X&amp;guest=Y</code></td>
+      <td>✅ Form pre-compilato con dati ospite</td>
+    </tr>
+    <tr>
+      <td>Tablet nuovo da autorizzare</td>
+      <td><code>…/frontend/index.html?kiosk_authorize=S2S-2026</code></td>
+      <td>✅ Autorizza + form registrazione (URL si pulisce)</td>
+    </tr>
+    <tr>
+      <td>Cellulare visitatore senza QR (URL digitato a mano)</td>
+      <td><code>…/frontend/index.html</code></td>
+      <td>🔒 Accesso non autorizzato — invitato ad usare email QR o desk</td>
+    </tr>
+  </table>
+
+</section>
+
+<!-- ============ 4 ============ -->
 <section id="mattina">
   <h2>La mattina dell'evento — 5 minuti di controllo</h2>
   <p class="lead">Prima dell'arrivo del primo visitatore, fai questi 5 controlli in ordine.</p>
