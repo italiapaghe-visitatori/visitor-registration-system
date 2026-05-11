@@ -206,7 +206,7 @@
         const m = document.getElementById('message');
         if (m) {
           m.className = 'message warn';
-          m.textContent = '⏱ Sessione scaduta per inattività (oltre 2 ore senza utilizzo). Per sicurezza, rifai il login.';
+          m.textContent = '⏱ Sessione scaduta per inattività (oltre 1 ora senza utilizzo). Per sicurezza, rifai il login.';
           m.style.display = 'block';
           m.style.background = '#fffaf0';
           m.style.color = '#744210';
@@ -268,7 +268,7 @@
           localStorage.setItem('sb-access-token',  data.access_token);
           localStorage.setItem('sb-refresh-token', data.refresh_token);
           // Timestamp iniziale "ultima attività" per il check di inattività
-          // nell'admin (logout forzato se > 2 ore senza touch).
+          // nell'admin (logout forzato se > 1 ora senza touch).
           localStorage.setItem('vrs_admin_last_activity', String(Date.now()));
           showMsg('success', 'Accesso effettuato. Reindirizzamento...');
           setTimeout(() => window.location.href = 'index.html', 800);
