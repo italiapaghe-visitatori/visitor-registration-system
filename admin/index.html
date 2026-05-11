@@ -1939,6 +1939,7 @@
     .user-status-confirmed { background: #bee3f8; color: #2c5282; }
     .user-status-banned    { background: #fed7d7; color: #742a2a; }
     .badge-super-admin     { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:10px; background:#fef3c7; color:#92400e; font-size:9.5px; font-weight:700; letter-spacing:.3px; vertical-align:middle; }
+    .user-last-reset       { font-size: 10.5px; color: #718096; margin-top: 3px; font-style: italic; }
     .user-display-name { font-weight: 700; color: #1a202c; }
     .user-row-actions { display: flex; gap: 4px; flex-wrap: wrap; }
     .btn-user-action { padding: 4px 9px; font-size: 11px; border-radius: 6px; border: 1.5px solid #e8ecf4; background: #fff; color: #4a5568; cursor: pointer; font-weight: 600; font-family: inherit; white-space: nowrap; }
@@ -2139,11 +2140,56 @@
     @media (max-width: 1200px) { .stats-bar.stats-4 { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 1024px) { .container { padding: 18px; } .stats-bar { grid-template-columns: repeat(3, 1fr); } .header h1 { font-size: 17px; } .header-credit { display: none; } }
     @media (max-width: 767px) {
-      .header { flex-direction: column; gap: 12px; padding: 14px; text-align: center; }
-      .header-right { flex-wrap: wrap; justify-content: center; }
+      .header { flex-direction: column; gap: 10px; padding: 12px; text-align: center; }
+      .header-right { flex-wrap: wrap; justify-content: center; gap: 8px; width: 100%; }
       .stats-bar { grid-template-columns: 1fr 1fr; }
       .stats-bar.stats-4 { grid-template-columns: 1fr 1fr; }
       #user-email { display: none; }
+
+      /* === Mobile chirurgico (solo <768px, desktop non toccato) === */
+      .header-logo { max-height: 38px; }
+      .header h1 { font-size: 16px; margin: 4px 0; }
+
+      /* Utility: agente/email/Operatori/CSV/🔄/Esci più compatti */
+      .header-utility { gap: 6px; justify-content: center; flex-wrap: wrap; }
+      .header-utility .btn { padding: 6px 10px; font-size: 12px; min-height: auto; }
+      .header-utility .agent-status { font-size: 11px; padding: 4px 9px; }
+
+      /* Tab: scroll orizzontale invece di wrap su 2-3 righe */
+      .header-tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x mandatory;
+        gap: 6px;
+        padding: 4px 2px;
+        margin: 0 -4px;
+        /* nasconde scrollbar ma mantiene scroll funzionante */
+        scrollbar-width: thin;
+      }
+      .header-tabs::-webkit-scrollbar { height: 4px; }
+      .header-tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,.3); border-radius: 2px; }
+      .header-tabs .btn {
+        flex-shrink: 0;
+        scroll-snap-align: start;
+        padding: 8px 14px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      /* Banner evento attivo: testo più piccolo */
+      .active-event-banner { font-size: 12px; padding: 6px 10px; }
+
+      /* Filtri visitatori: più compatti */
+      .filters { gap: 8px; }
+      .filters label { font-size: 11px; }
+      .filters input, .filters select { font-size: 14px; padding: 8px 10px; }
+
+      /* Stat cards: padding ridotto + numero più piccolo */
+      .stat-card { padding: 12px 14px; }
+      .stat-card .stat-value { font-size: 26px; }
+      .stat-card .stat-label { font-size: 11px; letter-spacing: .5px; }
     }
   </style>
 </head>
@@ -3877,6 +3923,23 @@
         countEl.textContent = isSuperAdmin(CURRENT_USER_EMAIL)
           ? `${users.length} operatori`
           : 'Il tuo account';
+
+        // Carica audit_log per ultime azioni reset/invio invito su ogni operatore.
+        // Mappa: email_lowercase → { ts: ISO, action: 'operator_reset_password' | ... }
+        const lastResetByEmail = {};
+        try {
+          const auditRes = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=created_at,details,action&action=in.(operator_reset_password,operator_resend_invite,operator_invite)&order=created_at.desc&limit=500`);
+          if (auditRes && auditRes.ok) {
+            const auditRows = await auditRes.json();
+            auditRows.forEach(r => {
+              const e = ((r.details && r.details.email) || '').toLowerCase();
+              if (!e) return;
+              if (!lastResetByEmail[e]) lastResetByEmail[e] = { ts: r.created_at, action: r.action };
+              // (la lista è già ordinata desc, quindi il primo che trovo è il più recente)
+            });
+          }
+        } catch (_) { /* audit_log opzionale: se fallisce, non blocco la lista */ }
+
         tbody.innerHTML = '';
         users.forEach(u => {
           const tr = document.createElement('tr');
@@ -3887,6 +3950,17 @@
           const isMe    = (u.email === CURRENT_USER_EMAIL);
           const isSuper = isSuperAdmin(u.email);
           const isBanned = u.status === 'banned';
+
+          // Ultimo reset/invio invito da audit_log (se disponibile)
+          const lastReset = lastResetByEmail[(u.email || '').toLowerCase()];
+          let lastResetHtml = '';
+          if (lastReset) {
+            const dt = new Date(lastReset.ts).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+            const lbl = lastReset.action === 'operator_invite' ? 'Invitato' :
+                        lastReset.action === 'operator_resend_invite' ? 'Re-invitato' :
+                        'Reset inviato';
+            lastResetHtml = `<div class="user-last-reset" title="Ultima azione amministrativa registrata in audit_log">🔁 ${lbl}: ${dt}</div>`;
+          }
 
           // Bottoni "primari" (reset/reinvio)
           let primaryBtn = '';
@@ -3911,7 +3985,7 @@
             <td><span class="user-display-name">${esc(u.display_name)}</span>${isMe ? ' <span style="color:#48bb78;font-size:10px;font-weight:700">(TU)</span>' : ''}${isSuper ? ' <span class="badge-super-admin">SUPER-ADMIN</span>' : ''}</td>
             <td>${esc(u.email)}</td>
             <td><span class="user-status user-status-${esc(u.status)}">${statusLabel}</span></td>
-            <td>${lastSign}</td>
+            <td>${lastSign}${lastResetHtml}</td>
             <td class="user-row-actions">
               ${primaryBtn}
               ${manageBtns}
