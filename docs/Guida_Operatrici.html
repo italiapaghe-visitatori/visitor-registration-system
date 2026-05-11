@@ -373,7 +373,7 @@
     <li><a href="#tab-audit">Tab Audit</a></li>
     <li><a href="#visitatore-qr">Visitatore con QR personale</a></li>
     <li><a href="#visitatore-senza-qr">Visitatore senza QR</a></li>
-    <li><a href="#walkin">Walk-in dal pool</a></li>
+    <li><a href="#walkin">Arrivo imprevisto (Aggiungi ospite + firma)</a></li>
     <li><a href="#troubleshoot">Risoluzione problemi</a></li>
     <li><a href="#concludi-visita">Concludere una visita</a></li>
     <li><a href="#chiudi-evento">Chiudere un evento</a></li>
@@ -630,7 +630,7 @@
     <li>Confronta: il numero scritto è uguale al numero stampato sul badge fisico? Se sì, il lettore funziona.</li>
   </ol>
 
-  <div class="callout info">A questo punto i badge sono già pre-assegnati a tutti gli ospiti (fatto Lun-Mar). Il lettore lo userai SOLO il giorno dell'evento per registrare eventuali walk-in (visitatori non in lista).</div>
+  <div class="callout info">A questo punto i badge sono già pre-assegnati a tutti gli ospiti (fatto Lun-Mar). Il lettore lo userai SOLO il giorno dell'evento per registrare eventuali arrivi imprevisti (visitatori non in lista, via Aggiungi ospite + firma).</div>
 
   <h3>🗓️ Giovedì sera — Invio email QR a tutti i partecipanti</h3>
   <p><strong>Chi:</strong> tu. <strong>Tempo:</strong> 5 minuti.</p>
@@ -733,16 +733,18 @@
     <li>Glielo consegni e lo indirizzi al tornello.</li>
   </ol>
 
-  <h3>🆘 Se l'ospite NON è in lista (walk-in imprevisto)</h3>
+  <h3>🆘 Se l'ospite NON è in lista (arrivo imprevisto)</h3>
   <ol class="steps">
-    <li>Tab Visitatori → click <strong>👤 Walk-in dal pool</strong> in alto.</li>
-    <li>Si apre una finestra. Scrivi: nome, cognome, azienda, motivo, persona da visitare.</li>
-    <li>Il sistema seleziona automaticamente il prossimo badge libero dal pool (es. 999097 se hai badge extra non assegnati, oppure uno restituito da chi è uscito).</li>
-    <li>Click <strong>Registra walk-in</strong>.</li>
-    <li>Verifica documento.</li>
-    <li>Consegna il badge mostrato nella finestra.</li>
-    <li>Indica il tablet per la firma dei consensi (è obbligatoria per legge anche per i walk-in).</li>
+    <li>Tab <strong>Ospiti Attesi</strong> → click <strong>➕ Aggiungi ospite</strong> in alto.</li>
+    <li>Compila i campi (nome, cognome, azienda, mansione, documento obbligatorio, persona da visitare, motivo). Spunta <strong>Associa a evento</strong> se attivo.</li>
+    <li>Se hai un badge libero nel pool da assegnare, scrivilo nel campo Badge. Altrimenti puoi farlo dopo.</li>
+    <li>Click <strong>Aggiungi ospite</strong>.</li>
+    <li>Si apre il dialog <strong>"Passa firma all'ospite"</strong> con 3 opzioni. Clicca <strong>📱 Passa il tablet kiosk</strong> (il tablet lampeggerà col nome dell'ospite in 8 secondi e suonerà un ding).</li>
+    <li>Verifica il documento dell'ospite.</li>
+    <li>Passa il tablet all'ospite, lui tocca il proprio nome (card verde lampeggiante), il modulo si auto-compila, lui firma in fondo.</li>
+    <li>Quando ha firmato, consegna il badge fisico e indirizzalo al tornello. L'agente attiva il badge in ~30 secondi.</li>
   </ol>
+  <div class="callout warn"><strong>Nessuno entra senza firma.</strong> Il vecchio bottone "Walk-in dal pool" è stato rimosso (creava visitatori senza firma legale = problema GDPR). Tutti gli ospiti, anche gli imprevisti, devono firmare sul tablet o sul proprio cellulare prima di entrare.</div>
 
   <h3>🔄 Se il tornello non legge un badge</h3>
   <ol class="steps">
@@ -776,7 +778,7 @@
     <tr><th>Scenario</th><th>Tempo a stazione</th><th>Smaltimento 96 ospiti</th></tr>
     <tr><td>Ospite con QR già firmato (70% dei casi attesi)</td><td>~30-45 sec</td><td>~22 min su 2 stazioni</td></tr>
     <tr><td>Ospite senza QR, firma al tablet (30% attesi)</td><td>~90-120 sec</td><td>~25 min su 2 stazioni</td></tr>
-    <tr><td>Walk-in non in lista (occasionale)</td><td>~2 min</td><td>variabile</td></tr>
+    <tr><td>Arrivo imprevisto (Aggiungi ospite + firma kiosk)</td><td>~2-3 min</td><td>variabile</td></tr>
     <tr><td><strong>Tempo totale realistico se tutti arrivano alle 9:00</strong></td><td></td><td><strong>~40 minuti</strong></td></tr>
   </table>
 
@@ -868,7 +870,7 @@
         <span><strong>Bianchi</strong> Anna</span><span>Bianchi Spa</span><span><span class="tag tag-active">Atteso</span></span><span><strong>754747</strong> <span class="tag tag-active">ACTIVE</span></span><span>ℹ️ ⏹</span>
       </div>
       <div class="mockup-row">
-        <span><strong>Verdi</strong> Lucia</span><span>Verdi Srl</span><span><span class="tag tag-walk">Walk-in</span></span><span><strong>999001</strong> <span class="tag tag-pending">PENDING</span></span><span>ℹ️ ⏹</span>
+        <span><strong>Verdi</strong> Lucia</span><span>Verdi Srl</span><span><span class="tag tag-walk">Imprevisto</span></span><span><strong>999001</strong> <span class="tag tag-pending">PENDING</span></span><span>ℹ️ ⏹</span>
       </div>
       <div class="mockup-row">
         <span><strong>Esposito</strong> Carlo</span><span>—</span><span><span class="tag tag-done">Concluso</span></span><span><strong>123456</strong></span><span>ℹ️</span>
@@ -879,7 +881,7 @@
   <h3>Cosa vuol dire "Tipo"</h3>
   <ul>
     <li><span class="tag tag-active">Atteso</span> — era nella lista degli ospiti, è arrivato regolarmente.</li>
-    <li><span class="tag tag-walk">Walk-in</span> — non era in lista, è stato registrato al desk al volo dal pool badge.</li>
+    <li><span class="tag tag-walk">Imprevisto</span> — non era in lista, è stato registrato al desk via Aggiungi ospite + firma kiosk al volo.</li>
     <li><span class="tag tag-done">Concluso</span> — ha terminato la visita (è uscito), il suo badge è libero e riassegnabile.</li>
   </ul>
 
@@ -962,7 +964,7 @@
   <h3>Quando creare un nuovo evento</h3>
   <ul>
     <li>Convegno, meeting con clienti esterni, corso di formazione → crea un evento dedicato.</li>
-    <li>Visite spot quotidiane (1 fornitore, 1 candidato) → non serve evento, basta registrarli walk-in.</li>
+    <li>Visite spot quotidiane (1 fornitore, 1 candidato) → non serve evento, basta usare Aggiungi ospite + firma kiosk.</li>
   </ul>
 
   <h3>Come creare un evento</h3>
@@ -1085,19 +1087,31 @@
 
 <!-- ============ 13 ============ -->
 <section id="walkin">
-  <h2>Walk-in dal pool — visitatore non in lista</h2>
-  <p class="lead">Arriva qualcuno che non era previsto (es. accompagnatore, fornitore non annunciato). Lo registri al volo con un badge dal pool anonimo.</p>
+  <h2>Arrivo imprevisto — Aggiungi ospite + Passa firma</h2>
+  <p class="lead">Arriva qualcuno che non era previsto (accompagnatore, fornitore non annunciato, dipendente di un cliente). Lo registri al volo, passi il tablet per la firma, gli consegni un badge dal pool.</p>
 
+  <div class="callout warn"><strong>Niente più "Walk-in dal pool".</strong> Il vecchio bottone è stato rimosso perché creava visitatori senza firma legale (gap GDPR). Ora usiamo un solo flusso unificato: <em>Aggiungi ospite → Passa firma → Badge</em>.</div>
+
+  <h3>Procedura passo-passo</h3>
   <ol class="steps">
-    <li>Vai in tab <strong>Visitatori</strong>, click <strong>👤 Walk-in dal pool</strong>.</li>
-    <li>Si apre una modale: compila nome, cognome, azienda, motivo visita, persona da visitare.</li>
-    <li>Il sistema seleziona automaticamente il primo badge libero dal pool.</li>
-    <li>Click <strong>Registra walk-in</strong>.</li>
-    <li>Consegnagli il badge fisico mostrato nella modale.</li>
-    <li>Lo accompagni al tablet per firmare i consensi GDPR.</li>
+    <li>Vai in tab <strong>Ospiti Attesi</strong>, click <strong>➕ Aggiungi ospite</strong> in alto.</li>
+    <li>Compila i campi (nome, cognome, azienda, mansione, documento obbligatorio, persona da visitare, motivo visita). Spunta <strong>Associa a evento</strong> se attivo.</li>
+    <li>Nel campo <strong>Badge</strong> scrivi il numero del badge fisico che gli consegnerai (puoi anche lasciare vuoto e assegnarlo dopo).</li>
+    <li>Click <strong>Aggiungi ospite</strong>.</li>
+    <li>Si apre il dialog <strong>"Passa firma all'ospite"</strong> con 3 opzioni:
+      <ul>
+        <li><strong>📱 Passa il tablet kiosk</strong> — il tablet entro 8 secondi farà <em>ding</em> e mostrerà la card dell'ospite lampeggiante in verde. Passa il tablet all'ospite, lui tocca la sua card, il form si auto-compila, lui firma in fondo.</li>
+        <li><strong>📲 QR per cellulare</strong> — se l'ospite preferisce firmare sul proprio telefono: appare un QR, lui lo scansiona, firma sul cellulare.</li>
+        <li><strong>✉️ Invia email QR</strong> — solo se l'ospite firmerà più tardi (non sul posto). Se non ha email registrata te la chiede al volo.</li>
+      </ul>
+    </li>
+    <li>Verifica il documento di identità mentre l'ospite firma.</li>
+    <li>Appena finisce la firma, l'agente attiva il badge in ~30 secondi. Consegna il badge fisico e indirizzalo al tornello.</li>
   </ol>
 
-  <div class="callout warn">Il walk-in funziona solo se hai badge disponibili nel <strong>pool</strong>. Se il pool è vuoto, ti compare un messaggio di errore. Devi aggiungere badge al pool dalla tab Pre-assegnazione o Acquisizione.</div>
+  <div class="callout info"><strong>E se non posso passare subito la firma?</strong> Sulla riga della tabella Ospiti Attesi c'è un bottone verde <strong>✍️ Firma</strong> che riapre lo stesso dialog in qualsiasi momento, finché l'ospite non ha firmato.</div>
+
+  <div class="callout warn">Senza firma l'ospite NON entra. Il badge resta nel pool e l'ospite resta in lista come "In attesa". Solo quando firma al kiosk il sistema crea il visitor e l'agente attiva il badge.</div>
 </section>
 
 <!-- ============ 14 ============ -->
@@ -1120,7 +1134,7 @@
   <h3>Il visitatore dice "Ho ricevuto il QR ma non si apre"</h3>
   <ul>
     <li>Verifica che lui clicchi <strong>dal link nell'email</strong>, non digiti l'URL a mano (la pagina diretta è bloccata).</li>
-    <li>Se il QR scade o non è valido, registralo come walk-in al tablet del desk (sezione 13).</li>
+    <li>Se il QR scade o non è valido, registralo come arrivo imprevisto: Aggiungi ospite + Passa firma (sezione 13).</li>
   </ul>
 
   <h3>"Badge in coda da > 5 minuti" (📧 rosso nell'header)</h3>
@@ -1252,7 +1266,7 @@
     <tr><td><strong>Agente</strong></td><td>Programmino sul PC reception che parla col tornello Zucchetti.</td></tr>
     <tr><td><strong>QR personale</strong></td><td>QR code univoco mandato via email a un ospite specifico.</td></tr>
     <tr><td><strong>Pool badge</strong></td><td>Insieme di badge fisici pre-caricati nel sistema, pronti per essere assegnati.</td></tr>
-    <tr><td><strong>Walk-in</strong></td><td>Visitatore non in lista, registrato al volo al desk.</td></tr>
+    <tr><td><strong>Arrivo imprevisto</strong></td><td>Visitatore non in lista, registrato al desk via Aggiungi ospite + firma kiosk (con badge dal pool).</td></tr>
     <tr><td><strong>Pending</strong></td><td>Badge in attesa di attivazione dall'agente (5-10 secondi).</td></tr>
     <tr><td><strong>Active</strong></td><td>Badge attivo, visitatore può passare il tornello.</td></tr>
     <tr><td><strong>Checked_out</strong></td><td>Visita conclusa, badge libero.</td></tr>

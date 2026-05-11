@@ -2447,7 +2447,7 @@
 
       <div class="modal-info-box" id="pool-info-default">
         <strong>Come funziona:</strong> aggiungi qui i numeri dei badge fisici che vuoi pre-attivare per l'evento.
-        L'agente li attiverà sui tornelli (preparing → available). Al desk, ogni walk-in prende il primo badge disponibile dalla pila — niente ricerca!
+        L'agente li attiverà sui tornelli (preparing → available). I badge disponibili nel pool saranno assegnati agli ospiti via Pre-assegna / Compila badge / firma al kiosk.
       </div>
       <div class="modal-info-box" id="pool-info-readonly" style="display:none;background:#fffaf0;border-left:4px solid #ed8936;color:#7c2d12">
         <strong>🔒 Evento chiuso — sola consultazione.</strong> Lo storico del pool resta visibile per audit, ma non è possibile aggiungere o rimuovere badge.
@@ -2469,7 +2469,7 @@
           </div>
         </div>
         <div class="modal-actions" style="justify-content:flex-start;">
-          <button type="button" class="btn-save" onclick="addBadgesToPool()" title="Aggiunge i badge specificati (range o lista) al pool dell'evento. L'agente Python li pre-attiva (preparing → available) creando utenti generici 'Pool Badge X' nei tornelli, pronti per walk-in al desk.">+ Aggiungi al pool</button>
+          <button type="button" class="btn-save" onclick="addBadgesToPool()" title="Aggiunge i badge specificati (range o lista) al pool dell'evento. L'agente Python li pre-attiva (preparing → available) creando utenti generici 'Pool Badge X' nei tornelli, pronti per essere assegnati agli ospiti.">+ Aggiungi al pool</button>
         </div>
       </div>
 
@@ -2495,89 +2495,6 @@
 
       <div class="modal-actions">
         <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi la modale.">Chiudi</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODALE WALK-IN CON POOL -->
-  <div class="modal-overlay" id="walkin-modal">
-    <div class="modal modal-wide">
-      <h2>👤 Registra Walk-in (Pool Badge)</h2>
-      <p class="modal-sub">Visitatore al desk senza pre-registrazione. Compila i dati e assegna un badge dal pool — è già attivo e pronto al tornello.</p>
-
-      <div id="walkin-no-pool" class="modal-info-box" style="display:none;background:#fed7d7;color:#742a2a;border-color:#fc8181;">
-        ⚠️ <strong>Nessun badge disponibile nel pool.</strong> Vai in Eventi → Gestione Pool per aggiungerne.
-      </div>
-
-      <div id="walkin-form-wrap">
-        <div class="modal-fields">
-          <div class="modal-field" id="wi-guest-picker-wrap">
-            <label>👥 Seleziona ospite dalla lista (se atteso) — facoltativo</label>
-            <select id="wi-guest-select" onchange="onWalkinGuestPicked()">
-              <option value="">— Walk-in non in lista (compila a mano) —</option>
-            </select>
-            <small id="wi-guest-info" class="wi-guest-info"></small>
-          </div>
-
-          <div class="modal-row-2">
-            <div class="modal-field">
-              <label>Nome <span class="req">*</span></label>
-              <input type="text" id="wi-first-name" autocomplete="off" placeholder="Mario">
-            </div>
-            <div class="modal-field">
-              <label>Cognome <span class="req">*</span></label>
-              <input type="text" id="wi-last-name" autocomplete="off" placeholder="Rossi">
-            </div>
-          </div>
-          <div class="modal-row-2">
-            <div class="modal-field">
-              <label>Tipo documento <span class="req">*</span></label>
-              <select id="wi-document-type">
-                <option value="">— Seleziona —</option>
-                <option value="CI">Carta d'Identità</option>
-                <option value="PATENTE">Patente</option>
-                <option value="PASSAPORTO">Passaporto</option>
-                <option value="ALTRO">Altro</option>
-              </select>
-            </div>
-            <div class="modal-field">
-              <label>Numero documento <span class="req">*</span></label>
-              <input type="text" id="wi-document-id" autocomplete="off" placeholder="Es. AB1234567" oninput="this.value = this.value.toUpperCase()" style="text-transform: uppercase;">
-            </div>
-          </div>
-          <div class="modal-row-2">
-            <div class="modal-field">
-              <label>Azienda</label>
-              <input type="text" id="wi-company" autocomplete="off" placeholder="Es. Rossi Srl">
-            </div>
-            <div class="modal-field">
-              <label>Mansione</label>
-              <input type="text" id="wi-job-title" autocomplete="off" placeholder="Es. Ingegnere, Direttore Marketing">
-            </div>
-          </div>
-          <div class="modal-field">
-            <label>Persona da visitare</label>
-            <input type="text" id="wi-person" autocomplete="off">
-          </div>
-          <div class="modal-field">
-            <label>Motivo visita</label>
-            <select id="wi-reason"></select>
-          </div>
-          <div class="modal-field badge-highlight">
-            <label>Badge dal pool (auto-selezionato)</label>
-            <select id="wi-badge-select"></select>
-          </div>
-          <div class="modal-field" style="margin-top:8px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#9b2c2c;cursor:pointer">
-              <input type="checkbox" id="wi-bypass-doc">
-              <span>⚠️ <strong>Forza salvataggio senza documento identità</strong> (solo se l'ospite non ha documento al momento — responsabilità admin)</span>
-            </label>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-save" onclick="saveWalkIn()" title="Registra il walk-in al volo: crea visitor 'active' con badge dal pool selezionato, pool entry passa a 'in_use'. L'agente rinominerà l'utente XAtlas dal generico 'Pool Badge X' al nome reale dell'ospite.">Registra e consegna badge</button>
-          <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi senza salvare le modifiche.">Annulla</button>
-        </div>
       </div>
     </div>
   </div>
@@ -2911,7 +2828,6 @@
           </div>
         </div>
         <div class="filters-secondary">
-          <button type="button" class="btn btn-success" onclick="openWalkInModal()" title="Registra al volo un visitatore walk-in usando un badge dal pool dell'evento attivo: form rapido (5 secondi) per ospiti non pre-registrati.">👤 Walk-in dal pool</button>
           <button type="button" class="btn btn-secondary btn-archive" id="btn-toggle-archived" onclick="toggleArchived()" title="Commuta tra visitatori attivi (xatlas_status pending/active) e archivio (xatlas_status='checked_out').">📦 Vai all'Archivio</button>
         </div>
       </div>
@@ -3563,7 +3479,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-11g · highlight-tablet</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-11h · no-more-walkin</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -6439,232 +6355,16 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       }
     }
 
-    // ── WALK-IN DAL POOL ─────────────────────────────
-    async function openWalkInModal() {
-      // Trova evento attivo
-      if (!activeEvent) {
-        alert('Nessun evento attivo. La modalità walk-in dal pool richiede un evento attivo.\n\nVai in tab Eventi e avvia un evento.');
-        return;
-      }
-      // Carica badge pool available per l'evento attivo
-      try {
-        const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool?event_id=eq.${activeEvent.id}&status=eq.available&select=*&order=badge_number.asc`);
-        const available = res && res.ok ? await res.json() : [];
-
-        const noPool = document.getElementById('walkin-no-pool');
-        const formWrap = document.getElementById('walkin-form-wrap');
-        if (available.length === 0) {
-          noPool.style.display = 'block';
-          formWrap.style.display = 'none';
-        } else {
-          noPool.style.display = 'none';
-          formWrap.style.display = 'block';
-        }
-
-        // Reset form
-        ['wi-first-name','wi-last-name','wi-document-id','wi-company','wi-job-title','wi-person'].forEach(id => {
-          const el = document.getElementById(id); if (el) el.value = '';
-        });
-        document.getElementById('wi-document-type').value = '';
-        const bypassEl = document.getElementById('wi-bypass-doc');
-        if (bypassEl) bypassEl.checked = false;
-        document.getElementById('wi-guest-info').textContent = '';
-
-        // Popola motivi visita (riusa CONFIG)
-        const reasonSel = document.getElementById('wi-reason');
-        if (reasonSel && reasonSel.options.length === 0) {
-          CONFIG.visitReasons.forEach(r => {
-            const opt = document.createElement('option');
-            opt.value = r.value; opt.textContent = r.label;
-            reasonSel.appendChild(opt);
-          });
-        }
-        if (reasonSel) reasonSel.value = '';
-
-        // Popola dropdown badge
-        const badgeSel = document.getElementById('wi-badge-select');
-        badgeSel.innerHTML = '';
-        available.forEach(p => {
-          const opt = document.createElement('option');
-          opt.value = JSON.stringify({ pool_id: p.id, badge: p.badge_number, xatlas_user_id: p.xatlas_user_id });
-          opt.textContent = `Badge ${p.badge_number}`;
-          badgeSel.appendChild(opt);
-        });
-
-        // Popola dropdown ospiti attesi (guest_list non ancora associati ad alcun visitor firmato)
-        await populateWalkinGuestPicker();
-
-        document.getElementById('walkin-modal').classList.add('active');
-      } catch (err) {
-        alert('Errore caricamento pool: ' + err.message);
-      }
-    }
-
-    let walkinGuestsCache = [];
-
-    async function populateWalkinGuestPicker() {
-      const sel = document.getElementById('wi-guest-select');
-      if (!sel) return;
-      sel.innerHTML = '<option value="">— Walk-in non in lista (compila a mano) —</option>';
-      try {
-        // Carica tutti i guest_list
-        const gRes = await api(`${SUPABASE_URL}/rest/v1/guest_list?select=*&order=last_name.asc,first_name.asc`);
-        const guests = gRes && gRes.ok ? await gRes.json() : [];
-        // Carica visitors firmati (signature non null) per filtrare ospiti già arrivati
-        const vRes = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id,signature&signature=not.is.null&guest_id=not.is.null`);
-        const signedVisitors = vRes && vRes.ok ? await vRes.json() : [];
-        const signedSet = new Set(signedVisitors.map(v => v.guest_id));
-
-        const eligible = guests.filter(g => !signedSet.has(g.id));
-        walkinGuestsCache = eligible;
-
-        eligible.forEach(g => {
-          const opt = document.createElement('option');
-          opt.value = g.id;
-          const dateStr = g.expected_date ? ` · ${fmtItDate(g.expected_date)}` : '';
-          const companyStr = g.company ? ` (${g.company})` : '';
-          opt.textContent = `${g.last_name} ${g.first_name}${companyStr}${dateStr}`;
-          sel.appendChild(opt);
-        });
-      } catch (err) {
-        // best-effort: niente lista, l'operatore compila a mano
-      }
-    }
-
-    function onWalkinGuestPicked() {
-      const sel = document.getElementById('wi-guest-select');
-      const info = document.getElementById('wi-guest-info');
-      const guestId = sel.value;
-      if (!guestId) {
-        // Reset (walk-in puro)
-        info.textContent = '';
-        return;
-      }
-      const g = walkinGuestsCache.find(x => x.id === guestId);
-      if (!g) return;
-      // Auto-compila i campi
-      const set = (id, val) => { const e = document.getElementById(id); if (e) e.value = val || ''; };
-      set('wi-first-name', g.first_name);
-      set('wi-last-name',  g.last_name);
-      set('wi-company',    g.company);
-      set('wi-person',     g.person_to_visit);
-      const reasonSel = document.getElementById('wi-reason');
-      if (reasonSel && g.visit_reason) {
-        // Verifica che il motivo esista nelle opzioni; altrimenti aggiungilo
-        if (![...reasonSel.options].some(o => o.value === g.visit_reason)) {
-          const opt = document.createElement('option');
-          opt.value = g.visit_reason; opt.textContent = g.visit_reason;
-          reasonSel.appendChild(opt);
-        }
-        reasonSel.value = g.visit_reason;
-      }
-      info.textContent = `✓ Ospite atteso selezionato. Compila solo Documento e clicca Registra.`;
-    }
-
-    async function saveWalkIn() {
-      const fn = document.getElementById('wi-first-name').value.trim();
-      const ln = document.getElementById('wi-last-name').value.trim();
-      const docType = document.getElementById('wi-document-type').value;
-      const docId   = document.getElementById('wi-document-id').value.trim().toUpperCase();
-      const bypassDoc = document.getElementById('wi-bypass-doc')?.checked || false;
-      if (!fn || !ln) {
-        alert('Compila Nome e Cognome (obbligatori).');
-        return;
-      }
-      if ((!docType || !docId) && !bypassDoc) {
-        alert('Numero documento di identità obbligatorio.\n\nSe l\'ospite non ha il documento al momento, puoi spuntare "Forza salvataggio senza documento" sotto sua responsabilità.');
-        return;
-      }
-      // Se admin ha forzato bypass MA doc parzialmente compilato, chiede ulteriore conferma
-      if (bypassDoc && (!docType || !docId)) {
-        if (!confirm('⚠️ ATTENZIONE: stai registrando un walk-in SENZA documento di identità.\n\nQuesto sarà tracciato nell\'audit log a tuo nome. Sei sicuro?')) return;
-        auditLog('walkin_no_doc', 'visitor', null, { first_name: fn, last_name: ln, admin: CURRENT_USER_EMAIL });
-      }
-      const badgeSel = document.getElementById('wi-badge-select');
-      if (!badgeSel.value) { alert('Nessun badge selezionato.'); return; }
-      let badgeData;
-      try { badgeData = JSON.parse(badgeSel.value); } catch (_) { alert('Selezione badge non valida.'); return; }
-
-      const saveBtn = document.querySelector('#walkin-modal .btn-save');
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Salvataggio...';
-
-      const today = todayLocalIso();
-      const guestId = document.getElementById('wi-guest-select')?.value || null;
-      const visitorPayload = {
-        first_name:      fn,
-        last_name:       ln,
-        company:         document.getElementById('wi-company').value.trim() || null,
-        job_title:       document.getElementById('wi-job-title').value.trim() || null,
-        person_to_visit: document.getElementById('wi-person').value.trim() || null,
-        visit_reason:    document.getElementById('wi-reason').value || 'Visita',
-        document_type:   docType || null,
-        document_id:     docId   || null,
-        visit_date:      today,
-        badge_number:    badgeData.badge,
-        xatlas_user_id:  badgeData.xatlas_user_id,
-        xatlas_status:   'active',
-        event_id:        activeEvent.id,
-        event_name:      activeEvent.name,
-        event_date:      activeEvent.event_start_date,
-        guest_id:        guestId || null,
-        assigned_by:     CURRENT_USER_EMAIL,
-        assigned_at:     new Date().toISOString(),
-        xatlas_renamed:  false,                           // l'agente rinomina l'utente XAtlas al primo ciclo
-        data_consent:    true,
-        badge_agreement: true,
-        signature:       null
-      };
-
-      try {
-        const res = await api(`${SUPABASE_URL}/rest/v1/visitors`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-          body: JSON.stringify(visitorPayload)
-        });
-        if (!res || !res.ok) {
-          const b = res ? await res.json().catch(()=>({})) : {};
-          throw new Error(await parseBadgeErrorRich(b, res?.status, badgeData.badge));
-        }
-        const created = await res.json();
-        const visitorId = Array.isArray(created) ? created[0].id : created.id;
-
-        // Aggiorna pool entry: status=in_use, visitor_id, assigned_at, assigned_by
-        await api(`${SUPABASE_URL}/rest/v1/badge_pool?id=eq.${badgeData.pool_id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify({
-            status: 'in_use',
-            visitor_id: visitorId,
-            assigned_at: new Date().toISOString(),
-            assigned_by: CURRENT_USER_EMAIL
-          })
-        });
-        auditLog('walkin_register', 'visitor', visitorId, {
-          badge: badgeData.badge, name: `${fn} ${ln}`, event: activeEvent.name, from_guest: guestId || null
-        });
-
-        // Se è un ospite atteso, marca il match in guest_list
-        if (guestId) {
-          try {
-            await api(`${SUPABASE_URL}/rest/v1/guest_list?id=eq.${guestId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-              body: JSON.stringify({ matched_visitor_id: visitorId })
-            });
-          } catch (_) { /* best-effort */ }
-        }
-
-        closeModal();
-        loadData();
-        alert(`✓ Walk-in registrato. Consegna il badge ${badgeData.badge} al visitatore.`);
-      } catch (err) {
-        alert('Errore: ' + err.message);
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Registra e consegna badge';
-      }
-    }
+    // ── WALK-IN RIMOSSO 2026-05-11 ────────────────────
+    // Il flusso "walk-in dal pool" creava visitor con signature=null, che
+    // permetteva l'accesso ai tornelli senza firma legale dell'ospite (gap GDPR).
+    // Sostituito dal flusso unificato "Aggiungi ospite + Passa firma":
+    //   1. Operatore clicca "Aggiungi ospite", compila il modulo
+    //   2. Salva → si apre il dialog Passa Firma
+    //   3. Tablet kiosk lampeggia + ding → ospite tocca il proprio nome → firma
+    //   4. Kiosk crea visitor con signature popolata → agente attiva badge
+    // Audit storico (walkin_register, walkin_no_doc) preservato nel filtro
+    // audit log per consultazione di registrazioni precedenti.
 
     function renderGuestTable(data, arrivedSet) {
       const visible = showArrived ? data : data.filter(g => !arrivedSet.has(g.id));
@@ -6784,7 +6484,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         label.textContent = `Associa a evento: ${activeEvent.name}`;
         cb.checked = true;
         cb.disabled = false;
-        hint.textContent = 'L\'ospite sarà parte di questo evento. Se walk-in, verrà taggato e visibile nei filtri evento.';
+        hint.textContent = 'L\'ospite sarà parte di questo evento e visibile nei filtri evento.';
       } else {
         evRow.style.display = 'none';
         cb.checked = false;
@@ -7111,7 +6811,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
             const p = rows[0];
             const statusLabel = {
               preparing:  'in preparazione (pool, agente attivazione in corso)',
-              available:  'disponibile nel pool (pronto per walk-in)',
+              available:  'disponibile nel pool (pronto per assegnazione)',
               in_use:     'in uso (pool, già consegnato a un visitatore)'
             }[p.status] || p.status;
             return {
