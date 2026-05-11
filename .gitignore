@@ -28,3 +28,7 @@ zucchetti_agent.log
 
 # Superpowers brainstorming workspace (sessioni mockup, locali)
 .superpowers/
+
+# Documenti RISERVATI (PIN, credenziali, segreti) — MAI committare
+docs/PIN_KIOSK.md
+docs/RESERVED_*.md
