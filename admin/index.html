@@ -7514,13 +7514,13 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
 
     // ── TEMPLATE DOWNLOAD ─────────────────────────────
     function downloadTemplate() {
-      const header = ['Nome','Cognome','Email','Azienda','Persona_da_Visitare','Motivo_Visita','Data_Prevista','Numero_Badge'];
+      const header = ['Nome','Cognome','Email','Azienda','Mansione','Persona_da_Visitare','Motivo_Visita','Data_Prevista','Numero_Badge'];
       const today  = todayLocalIso();
       // 3 righe esempio: 2 con badge pre-attivato, 1 senza badge (pre-attivare poi manualmente)
       const examples = [
-        ['Mario',  'Rossi',   'mario.rossi@esempio.it',   'Esempio Srl',  'Luca Verdi', 'Appuntamento di lavoro',     today, '241001'],
-        ['Anna',   'Bianchi', 'anna.bianchi@esempio.it',  'Bianchi Spa',  'Luca Verdi', 'Visita',                     today, ''      ],
-        ['Giulia', 'Ferrari', 'giulia.ferrari@esempio.it','Ferrari & Co', 'Luca Verdi', 'Corso di formazione in aula',today, '241002']
+        ['Mario',  'Rossi',   'mario.rossi@esempio.it',   'Esempio Srl',  'Direttore commerciale', 'Luca Verdi', 'Appuntamento di lavoro',     today, '241001'],
+        ['Anna',   'Bianchi', 'anna.bianchi@esempio.it',  'Bianchi Spa',  'Store leader',          'Luca Verdi', 'Visita',                     today, ''      ],
+        ['Giulia', 'Ferrari', 'giulia.ferrari@esempio.it','Ferrari & Co', 'HR Business Partner',   'Luca Verdi', 'Corso di formazione in aula',today, '241002']
       ];
       const csv = [header, ...examples].map(r => r.map(c => `"${c}"`).join(',')).join('\r\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
@@ -7545,7 +7545,8 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         const reader = new FileReader();
         reader.onload = e => {
           try {
-            const wb = XLSX.read(e.target.result, { type: 'array' });
+            // cellDates: true → leggi datetime come oggetti Date (no numero seriale Excel)
+            const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
             const ws = wb.Sheets[wb.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
             parseAndImportRows(rows);
@@ -7569,22 +7570,35 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     async function parseAndImportRows(rows) {
       if (rows.length < 2) { alert('Il file non contiene dati.'); return; }
 
-      // Normalizza intestazioni — campi guest_list + colonna speciale Numero_Badge
+      // Normalizza intestazioni — campi guest_list + colonna speciale Numero_Badge.
+      // Più alias per ogni campo: i clienti scrivono "Mail"/"E-mail"/"Email", "Ruolo"/"Mansione",
+      // "Persona"/"Referente", ecc. Il parser deve essere tollerante.
       const colMap = {
-        'nome': 'first_name', 'cognome': 'last_name',
-        'email': 'email', 'azienda': 'company',
-        'persona_da_visitare': 'person_to_visit',
-        'motivo_visita': 'visit_reason',
-        'data_prevista': 'expected_date'
+        // nome
+        'nome': 'first_name', 'name': 'first_name',
+        // cognome
+        'cognome': 'last_name', 'surname': 'last_name',
+        // email
+        'email': 'email', 'mail': 'email', 'e-mail': 'email', 'e_mail': 'email', 'posta': 'email',
+        // azienda
+        'azienda': 'company', 'ditta': 'company', 'società': 'company', 'societa': 'company', 'company': 'company',
+        // ruolo / mansione (job_title)
+        'ruolo': 'job_title', 'mansione': 'job_title', 'qualifica': 'job_title', 'posizione': 'job_title', 'job_title': 'job_title',
+        // persona da visitare
+        'persona_da_visitare': 'person_to_visit', 'persona': 'person_to_visit', 'referente': 'person_to_visit', 'da_visitare': 'person_to_visit',
+        // motivo visita
+        'motivo_visita': 'visit_reason', 'motivo': 'visit_reason', 'motivo_della_visita': 'visit_reason',
+        // data prevista
+        'data_prevista': 'expected_date', 'data': 'expected_date', 'data_visita': 'expected_date', 'data_di_visita': 'expected_date'
       };
-      const BADGE_COL = 'numero_badge';
+      const BADGE_COL_ALIASES = ['numero_badge', 'badge', 'n_badge', 'numero', 'card_number'];
 
-      const headers   = rows[0].map(h => h.toLowerCase().trim().replace(/ /g, '_'));
+      const headers   = rows[0].map(h => (h || '').toString().toLowerCase().trim().replace(/\s+/g, '_'));
       const colIdx    = {};
       let   badgeIdx  = -1;
       headers.forEach((h, i) => {
-        if (colMap[h]) colIdx[colMap[h]] = i;
-        if (h === BADGE_COL) badgeIdx = i;
+        if (colMap[h] && colIdx[colMap[h]] === undefined) colIdx[colMap[h]] = i;
+        if (BADGE_COL_ALIASES.includes(h) && badgeIdx === -1) badgeIdx = i;
       });
 
       if (colIdx.first_name === undefined || colIdx.last_name === undefined) {
@@ -7598,7 +7612,12 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       rows.slice(1).forEach(r => {
         const rec = {};
         Object.entries(colIdx).forEach(([field, idx]) => {
-          const val = r[idx] ? String(r[idx]).trim() : null;
+          let raw = r[idx];
+          // Datetime da Excel → ISO YYYY-MM-DD (campo expected_date è DATE in Supabase)
+          if (raw instanceof Date) {
+            raw = raw.toISOString().slice(0, 10);
+          }
+          const val = (raw == null || raw === '') ? null : String(raw).trim();
           rec[field] = val || null;
         });
         if (rec.first_name && rec.last_name) {
