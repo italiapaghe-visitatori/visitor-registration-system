@@ -1304,6 +1304,22 @@
     #dre-table tbody td { padding: 4px 6px; vertical-align: middle; }
     #dre-table tbody td:first-child { color: #a0aec0; font-size: 12px; text-align: center; padding: 4px; }
 
+    /* Header cliccabili per sort */
+    #dre-table thead th.dre-sort {
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.12s;
+    }
+    #dre-table thead th.dre-sort:hover { background: #edf2f7; }
+    #dre-table thead th.dre-sort.dre-sort-active { background: #e6fffa; color: #234e52; }
+    #dre-table thead th.dre-sort .dre-sort-ind {
+      display: inline-block;
+      margin-left: 4px;
+      font-size: 10px;
+      color: #4c51bf;
+      min-width: 10px;
+    }
+
     .dre-row-delete {
       background: transparent;
       border: none;
@@ -3375,15 +3391,15 @@
             <table id="dre-table">
               <thead>
                 <tr>
-                  <th class="no-sort" style="width:40px">#</th>
-                  <th class="no-sort">Cognome <span class="req">*</span></th>
-                  <th class="no-sort">Nome <span class="req">*</span></th>
-                  <th class="no-sort">Email</th>
-                  <th class="no-sort">Azienda</th>
-                  <th class="no-sort">Persona da visitare</th>
-                  <th class="no-sort">Motivo visita</th>
-                  <th class="no-sort">Data prevista</th>
-                  <th class="no-sort" style="background:#fffaf0">🎟️ Numero Badge</th>
+                  <th class="no-sort" style="width:40px" title="Numero riga progressivo (non ordinabile)">#</th>
+                  <th class="dre-sort" data-sort="last_name"       onclick="dreSortBy('last_name')"      title="Click per ordinare A-Z / Z-A">Cognome <span class="req">*</span><span class="dre-sort-ind" id="dre-sort-last_name"></span></th>
+                  <th class="dre-sort" data-sort="first_name"      onclick="dreSortBy('first_name')"     title="Click per ordinare A-Z / Z-A">Nome <span class="req">*</span><span class="dre-sort-ind" id="dre-sort-first_name"></span></th>
+                  <th class="dre-sort" data-sort="email"           onclick="dreSortBy('email')"          title="Click per ordinare A-Z / Z-A">Email<span class="dre-sort-ind" id="dre-sort-email"></span></th>
+                  <th class="dre-sort" data-sort="company"         onclick="dreSortBy('company')"        title="Click per ordinare A-Z / Z-A">Azienda<span class="dre-sort-ind" id="dre-sort-company"></span></th>
+                  <th class="dre-sort" data-sort="person_to_visit" onclick="dreSortBy('person_to_visit')" title="Click per ordinare A-Z / Z-A">Persona da visitare<span class="dre-sort-ind" id="dre-sort-person_to_visit"></span></th>
+                  <th class="dre-sort" data-sort="visit_reason"    onclick="dreSortBy('visit_reason')"   title="Click per ordinare A-Z / Z-A">Motivo visita<span class="dre-sort-ind" id="dre-sort-visit_reason"></span></th>
+                  <th class="dre-sort" data-sort="expected_date"   onclick="dreSortBy('expected_date')"  title="Click per ordinare cronologicamente">Data prevista<span class="dre-sort-ind" id="dre-sort-expected_date"></span></th>
+                  <th class="dre-sort" data-sort="badge_number"    onclick="dreSortBy('badge_number')"   style="background:#fffaf0" title="Click per ordinare per numero badge">🎟️ Numero Badge<span class="dre-sort-ind" id="dre-sort-badge_number"></span></th>
                   <th class="no-sort" style="width:50px"></th>
                 </tr>
               </thead>
@@ -3638,7 +3654,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-13c · import-mail-date-fix</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-13d · draft-sort-headers</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -8146,6 +8162,70 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       loadDrafts();
     }
 
+    // ── ORDINAMENTO COLONNE (click su intestazione) ──────
+    // Ordina activeRows in place, persiste via auto-save. Tre click ciclano:
+    // 1° click  → A-Z (asc), 2° click → Z-A (desc), 3° click → reset (ordine import)
+    let dreSortField = null;
+    let dreSortDir   = null;       // 'asc' | 'desc' | null
+    let dreOriginalOrder = null;   // snapshot per il reset
+    function dreSortBy(field) {
+      if (activeDraft && activeDraft.status !== 'editing') {
+        // Draft finalizzato: solo sort visivo senza persist (read-only)
+        // (per ora niente, eviterei di abilitarlo se non si puo' salvare)
+        return;
+      }
+      // Snapshot ordine import alla prima sort della sessione
+      if (!dreOriginalOrder) {
+        dreOriginalOrder = activeRows.map(r => ({ ...r }));
+      }
+      // Cicla direzione: stesso campo asc -> desc -> reset; campo diverso -> asc
+      if (dreSortField === field) {
+        if (dreSortDir === 'asc') dreSortDir = 'desc';
+        else if (dreSortDir === 'desc') { dreSortField = null; dreSortDir = null; }
+        else dreSortDir = 'asc';
+      } else {
+        dreSortField = field;
+        dreSortDir   = 'asc';
+      }
+      if (dreSortField === null) {
+        // Reset all'ordine di importazione
+        activeRows = dreOriginalOrder.map(r => ({ ...r }));
+      } else {
+        const dir = dreSortDir === 'asc' ? 1 : -1;
+        const numeric = ['expected_date', 'badge_number'].includes(field);
+        activeRows.sort((a, b) => {
+          const va = (a[field] || '').toString();
+          const vb = (b[field] || '').toString();
+          if (va === '' && vb !== '') return 1;
+          if (vb === '' && va !== '') return -1;
+          if (numeric) {
+            const na = Number(va.replace(/[^0-9.-]/g, ''));
+            const nb = Number(vb.replace(/[^0-9.-]/g, ''));
+            if (!isNaN(na) && !isNaN(nb) && na !== nb) return (na - nb) * dir;
+          }
+          return va.localeCompare(vb, 'it', { sensitivity: 'base' }) * dir;
+        });
+      }
+      renderDreTable();
+      updateDreSortIndicators();
+      markDraftDirty();
+      scheduleDraftSave();
+    }
+    function updateDreSortIndicators() {
+      document.querySelectorAll('#dre-table thead th.dre-sort').forEach(th => {
+        const f = th.dataset.sort;
+        const ind = document.getElementById('dre-sort-' + f);
+        if (!ind) return;
+        if (f === dreSortField) {
+          th.classList.add('dre-sort-active');
+          ind.textContent = dreSortDir === 'asc' ? '▲' : '▼';
+        } else {
+          th.classList.remove('dre-sort-active');
+          ind.textContent = '';
+        }
+      });
+    }
+
     // ── RENDER TABELLA EDITABILE ─────────────────────────
     function renderDreTable() {
       const empty = document.getElementById('dre-empty');
@@ -8166,6 +8246,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       // i dati arrivano da loadPoolForDraft async, ma se sono già in cache li usiamo subito.
       refreshBadgeIndicators();
       updatePoolStats();
+      updateDreSortIndicators();
     }
 
     function buildDreRow(r, idx) {
