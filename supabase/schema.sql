@@ -667,3 +667,22 @@ CREATE POLICY "vm_insert_agent" ON public.visitor_movements
 CREATE POLICY "vm_select_auth" ON public.visitor_movements
   FOR SELECT TO authenticated, service_role, anon
   USING (true);
+
+-- MIGRATION v18 — Fix indice UNIQUE su visitor_movements.raw_transaction_id
+-- ==========================================================================
+-- BUG identificato il 13/05/2026: l'indice 'visitor_movements_raw_tx_unique'
+-- era stato creato come UNIQUE PARTIAL INDEX (WHERE raw_transaction_id IS NOT NULL).
+-- PostgreSQL/PostgREST NON supportano ON CONFLICT su indici parziali → l'agente
+-- Python falliva con HTTP 400 (codice 42P10 "there is no unique or exclusion
+-- constraint matching the ON CONFLICT specification") ogni volta che provava a
+-- scrivere una timbratura. Sintomo: visitor_movements sempre vuoto nonostante
+-- entry_time/exit_time sui visitor fossero popolati.
+--
+-- Fix: ricreare l'indice come UNIQUE TOTALE (senza WHERE clause). In PostgreSQL
+-- UNIQUE permette righe multiple con NULL by default, quindi rimuovere il WHERE
+-- non degrada il comportamento. Combinato con la policy INSERT della v17,
+-- l'agente ora può scrivere correttamente con on_conflict=raw_transaction_id.
+
+DROP INDEX IF EXISTS public.visitor_movements_raw_tx_unique;
+CREATE UNIQUE INDEX visitor_movements_raw_tx_unique
+  ON public.visitor_movements (raw_transaction_id);
