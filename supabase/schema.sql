@@ -722,3 +722,26 @@ UPDATE public.guest_list g
   FROM public.visitors v
  WHERE v.guest_id = g.id
    AND g.matched_visitor_id IS NULL;
+
+-- MIGRATION v20 — Fix FK guest_list.matched_visitor_id ON DELETE SET NULL
+-- ========================================================================
+-- BUG: dopo la v19 (trigger auto-link guest↔visitor), il campo
+-- guest_list.matched_visitor_id è sempre popolato dopo firma. Però la FK
+-- verso visitors.id NON aveva ON DELETE clause → default è NO ACTION →
+-- impossibile eliminare un visitor dalla "Zona pericolosa" admin perché
+-- bloccato dalla foreign key.
+--
+-- Fix: cambia ON DELETE da NO ACTION a SET NULL. Quando si elimina un
+-- visitor, il campo guest_list.matched_visitor_id torna NULL e il guest
+-- ricompare nello stato "In attesa". Niente cascade su tutto il guest
+-- (vogliamo preservare la lista invitati anche se il visitor specifico
+-- viene cancellato per errore).
+
+ALTER TABLE public.guest_list
+  DROP CONSTRAINT IF EXISTS guest_list_matched_visitor_id_fkey;
+
+ALTER TABLE public.guest_list
+  ADD CONSTRAINT guest_list_matched_visitor_id_fkey
+  FOREIGN KEY (matched_visitor_id)
+  REFERENCES public.visitors(id)
+  ON DELETE SET NULL;
