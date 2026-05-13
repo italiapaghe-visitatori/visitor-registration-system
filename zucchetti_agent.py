@@ -16,6 +16,7 @@ import json
 import logging
 import logging.handlers
 import os
+import random
 import smtplib
 import ssl
 import sys
@@ -149,6 +150,22 @@ if SMTP_ENABLED:
     SMTP_FROM_NAME  = cfg["smtp"].get("from_name", "Service to Service")
     EMAIL_STRATEGY  = "smtp"
 
+# ── Throttling invio email (anti mail-bomb) ───────────────────────────────────
+# Sezione opzionale [email_throttle] in agent_config.ini per regolare il rate
+# di invio email QR senza ricompilare. Default conservativi sicuri per
+# Microsoft 365 Graph API (limite ~30/min per service principal).
+#
+# [email_throttle]
+# delay_secs    = 6        ; secondi tra un invio e il successivo (default 6 = ~10/min)
+# jitter_pct    = 0.30     ; randomness ±30% sul delay (4.2-7.8s con default)
+# batch_size    = 1        ; quante email pescare per ciclo dalla queue (era 5)
+# reply_to      = tecnico.gelormini@gmail.com  ; indirizzo Reply-To opzionale
+#
+EMAIL_THROTTLE_DELAY  = float(cfg.get("email_throttle", "delay_secs", fallback="6"))
+EMAIL_THROTTLE_JITTER = float(cfg.get("email_throttle", "jitter_pct", fallback="0.30"))
+EMAIL_BATCH_SIZE      = int(cfg.get("email_throttle", "batch_size", fallback="1"))
+EMAIL_REPLY_TO        = cfg.get("email_throttle", "reply_to", fallback="").strip() or None
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 
 # Log rotation: 10 MB max per file, mantieni 5 backup (totale max ~50 MB).
@@ -190,7 +207,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.5.1-email-m365"
+AGENT_VERSION = "1.5.2-email-throttle"
 
 
 def update_heartbeat(notes: str | None = None):
@@ -1264,15 +1281,27 @@ def _m365_graph_send(to_email, to_name, subject, body_html):
         recipients = [{"emailAddress": {"address": to_email}}]
         if to_name:
             recipients[0]["emailAddress"]["name"] = to_name
-        body = {
-            "message": {
-                "subject": subject,
-                "body":    {"contentType": "HTML", "content": body_html},
-                "toRecipients": recipients,
-                "from": {"emailAddress": {"address": M365_FROM_EMAIL, "name": M365_FROM_NAME}},
-            },
-            "saveToSentItems": "false",
+        message = {
+            "subject": subject,
+            "body":    {"contentType": "HTML", "content": body_html},
+            "toRecipients": recipients,
+            "from": {"emailAddress": {"address": M365_FROM_EMAIL, "name": M365_FROM_NAME}},
         }
+        # Reply-To (opzionale): se configurato in [email_throttle], imposta un
+        # indirizzo umano dove l'ospite possa rispondere → segnale "transazionale"
+        # legittimo, riduce probabilità di classificazione bulk dai filtri spam.
+        if EMAIL_REPLY_TO:
+            message["replyTo"] = [{"emailAddress": {"address": EMAIL_REPLY_TO}}]
+        # Headers identificativi (anti pattern bulk/spam): X-Mailer dichiara
+        # l'origine, X-Priority normale, X-VRS-Agent traccia il mittente
+        # software. Graph API li accetta come internetMessageHeaders custom
+        # (prefix X- obbligatorio).
+        message["internetMessageHeaders"] = [
+            {"name": "X-Mailer",   "value": f"S2S-VisitorRegistration/{AGENT_VERSION}"},
+            {"name": "X-Priority", "value": "3"},
+            {"name": "X-VRS-Agent","value": "zucchetti-bridge"},
+        ]
+        body = {"message": message, "saveToSentItems": "false"}
         r = requests.post(
             f"https://graph.microsoft.com/v1.0/users/{M365_FROM_EMAIL}/sendMail",
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
@@ -1324,7 +1353,13 @@ def _send_email(to_email, to_name, subject, body_html):
 def process_email_queue():
     """Processa email_queue: invio QR personali ai partecipanti.
     Strategia: M365 Graph API (Modern Auth) o SMTP basic, scelta da config.
-    Limite 5 email per ciclo per non saturare il provider."""
+
+    Anti mail-bomb (v1.5.2):
+    - batch_size = 1 per ciclo (era 5) → niente burst all'interno del loop
+    - delay EMAIL_THROTTLE_DELAY ± jitter tra email successive nello stesso batch
+    - per default 96 email vengono spedite in ~10 minuti a ~10/min (sotto soglia
+      throttling M365 di 30/min e pattern simil-umano per filtri anti-spam EOP)
+    """
     if not EMAIL_STRATEGY:
         return  # nessuna config email → silenzio (l'admin lo deve configurare a mano)
     try:
@@ -1332,7 +1367,7 @@ def process_email_queue():
             "status": "eq.pending",
             "select": "id,guest_id,event_id,to_email,to_name,subject,body_html,attempts",
             "order":  "scheduled_at.asc",
-            "limit":  "5",
+            "limit":  str(EMAIL_BATCH_SIZE),
         })
     except Exception as e:
         log.warning(f"process_email_queue: lettura coda fallita: {e}")
@@ -1341,8 +1376,8 @@ def process_email_queue():
     if not rows:
         return
 
-    log.info(f"process_email_queue: {len(rows)} email da inviare")
-    for r in rows:
+    log.info(f"process_email_queue: {len(rows)} email da inviare (throttle={EMAIL_THROTTLE_DELAY}s±{int(EMAIL_THROTTLE_JITTER*100)}%)")
+    for idx, r in enumerate(rows):
         eid = r["id"]
         # Marca status='sending' per evitare doppio invio se due cicli si sovrappongono
         try:
@@ -1374,6 +1409,12 @@ def process_email_queue():
                 log.warning(f"Email QR fallita ({attempts}/3): id={eid} to={r['to_email']} err={err[:120]}")
             except Exception as e:
                 log.warning(f"PATCH email_queue {eid} dopo send FAIL: {e}")
+        # Throttle inter-email: aspetta prima di inviare la prossima del batch
+        # (no delay dopo l'ultima del batch — basterà il POLL_INTERVAL del loop)
+        if idx < len(rows) - 1 and EMAIL_THROTTLE_DELAY > 0:
+            jitter = EMAIL_THROTTLE_DELAY * EMAIL_THROTTLE_JITTER
+            wait = EMAIL_THROTTLE_DELAY + random.uniform(-jitter, jitter)
+            time.sleep(max(0.5, wait))
 
 
 def cleanup_archived_visitors():
