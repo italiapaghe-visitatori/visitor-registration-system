@@ -3661,7 +3661,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14a · aggiungi-ospite-pool-dropdown</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14b · pool-dropdown-fallback-eventi-aperti</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -4824,11 +4824,11 @@
       setTimeout(() => document.getElementById('badge-number-input').focus(), 100);
     }
 
-    // Popola la dropdown coi badge available del pool dell'evento dato.
-    // Se non c'è event_id o il pool è vuoto, nasconde la dropdown e l'utente
-    // digita direttamente nel campo input.
-    // wrapId/selectId/inputId default a quelli del badge-modal; passabili
-    // per riusare la stessa logica in altre modali (es. aggiungi ospite).
+    // Popola la dropdown coi badge available del pool.
+    // - eventId valorizzato → filtra solo quel pool
+    // - eventId null → fallback: mostra tutti i badge available di eventi
+    //   non ancora chiusi (utile per walk-in prima che evento sia avviato)
+    // Se il pool e' vuoto, nasconde la dropdown e si digita manualmente.
     async function populateBadgePoolDropdown(eventId, wrapId = 'badge-pool-wrap', selectId = 'badge-pool-select') {
       const wrap = document.getElementById(wrapId);
       const sel  = document.getElementById(selectId);
@@ -4836,11 +4836,26 @@
       // Reset
       sel.innerHTML = '<option value="">— Selezionare un badge disponibile —</option>';
       wrap.style.display = 'none';
-      if (!eventId) return;
       try {
-        const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool?select=badge_number&event_id=eq.${encodeURIComponent(eventId)}&status=eq.available&order=badge_number.asc&limit=500`);
-        if (!res || !res.ok) return;
-        const pool = await res.json();
+        let pool;
+        if (eventId) {
+          // Caso specifico: pool del singolo evento
+          const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool?select=badge_number,event_id&event_id=eq.${encodeURIComponent(eventId)}&status=eq.available&order=badge_number.asc&limit=500`);
+          if (!res || !res.ok) return;
+          pool = await res.json();
+        } else {
+          // Fallback: badge available di TUTTI gli eventi non chiusi
+          // (utile quando non c'e' evento attivo ma vogliamo offrire i badge disponibili)
+          const evRes = await api(`${SUPABASE_URL}/rest/v1/events?select=id,name&closed_at=is.null&limit=50`);
+          if (!evRes || !evRes.ok) return;
+          const openEvents = await evRes.json();
+          const evIds = openEvents.map(e => e.id);
+          if (evIds.length === 0) return;
+          const inList = `(${evIds.map(id => `"${id}"`).join(',')})`;
+          const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool?select=badge_number,event_id&event_id=in.${encodeURIComponent(inList)}&status=eq.available&order=badge_number.asc&limit=500`);
+          if (!res || !res.ok) return;
+          pool = await res.json();
+        }
         if (!pool || pool.length === 0) return;
         pool.forEach(b => {
           const opt = document.createElement('option');
@@ -4852,7 +4867,8 @@
         const label = wrap.querySelector('label');
         if (label) {
           const emoji = label.textContent.match(/^[^\w\s]+\s*/)?.[0] || '📋 ';
-          label.textContent = `${emoji}Scegli da pool dell'evento (${pool.length} badge disponibili)`;
+          const scope = eventId ? "dell'evento" : 'di eventi aperti';
+          label.textContent = `${emoji}Scegli da pool ${scope} (${pool.length} badge disponibili)`;
         }
         wrap.style.display = '';
       } catch (_) { /* errore lettura pool: nasconde dropdown, fallback manuale */ }
