@@ -643,3 +643,27 @@ ORDER BY u.created_at DESC;
 
 GRANT SELECT ON public.app_users TO authenticated;
 REVOKE ALL ON public.app_users FROM anon;
+
+-- MIGRATION v17 — Fix policy INSERT visitor_movements (storico timbrature legale)
+-- =================================================================================
+-- BUG identificato il 13/05/2026: la tabella visitor_movements aveva RLS abilitato
+-- ma SOLO una policy SELECT ('vm_auth_read'). Mancava la policy INSERT, quindi
+-- l'agente Python (anche con service_role key) NON riusciva a scrivere le timbrature.
+-- Sintomo: storico timbrature SEMPRE vuoto in admin (Dettagli visitor → "Storico
+-- timbrature prova legale"), nonostante entry_time/exit_time sui visitor fossero
+-- popolati. Tabella era 0 righe nella sua storia (mai popolata).
+--
+-- Fix: aggiungere policy INSERT permissiva per service_role + authenticated.
+-- Tabella append-only: niente UPDATE/DELETE permesse (mantiene integrità prova legale).
+
+DROP POLICY IF EXISTS "vm_auth_read"   ON public.visitor_movements;
+DROP POLICY IF EXISTS "vm_insert_agent" ON public.visitor_movements;
+DROP POLICY IF EXISTS "vm_select_auth"  ON public.visitor_movements;
+
+CREATE POLICY "vm_insert_agent" ON public.visitor_movements
+  FOR INSERT TO authenticated, service_role, anon
+  WITH CHECK (true);
+
+CREATE POLICY "vm_select_auth" ON public.visitor_movements
+  FOR SELECT TO authenticated, service_role, anon
+  USING (true);
