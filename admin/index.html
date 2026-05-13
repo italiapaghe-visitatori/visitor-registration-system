@@ -3638,7 +3638,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-13b · rename-self + modal-drag-fix</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-13c · import-mail-date-fix</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -8816,7 +8816,8 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         const reader = new FileReader();
         reader.onload = e => {
           try {
-            const wb = XLSX.read(e.target.result, { type: 'array' });
+            // cellDates: true → converte i serial Excel (es. 46157) in JS Date
+            const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
             const ws = wb.Sheets[wb.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
             dreImportRows(rows);
@@ -8839,13 +8840,25 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
 
     function dreImportRows(rows) {
       if (rows.length < 2) { alert('Il file non contiene dati.'); return; }
+      // Alias colonne: tolleranti a varianti reali dei file forniti dai clienti
+      // (MAIL/Email/E-mail/posta, DATA PREVISTA con spazi, RUOLO/Mansione, ecc.)
       const colMap = {
-        'nome': 'first_name', 'cognome': 'last_name',
-        'email': 'email', 'azienda': 'company',
-        'persona_da_visitare': 'person_to_visit',
-        'motivo_visita': 'visit_reason',
-        'data_prevista': 'expected_date',
-        'numero_badge': 'badge_number'
+        // Anagrafica
+        'nome': 'first_name', 'name': 'first_name', 'first_name': 'first_name',
+        'cognome': 'last_name', 'surname': 'last_name', 'last_name': 'last_name',
+        // Email
+        'email': 'email', 'mail': 'email', 'e_mail': 'email', 'posta': 'email',
+        'indirizzo_email': 'email', 'indirizzo_mail': 'email',
+        // Azienda
+        'azienda': 'company', 'company': 'company', 'societa': 'company',
+        // Persona visita
+        'persona_da_visitare': 'person_to_visit', 'referente': 'person_to_visit',
+        // Motivo
+        'motivo_visita': 'visit_reason', 'motivo': 'visit_reason', 'oggetto': 'visit_reason',
+        // Data — anche con caratteri non standard (apostrofi, "del", ecc.)
+        'data_prevista': 'expected_date', 'data': 'expected_date', 'data_visita': 'expected_date',
+        // Badge
+        'numero_badge': 'badge_number', 'badge': 'badge_number', 'n_badge': 'badge_number'
       };
       const headers = rows[0].map(h => String(h || '').toLowerCase().trim().replace(/ /g, '_'));
       const colIdx = {};
@@ -8858,7 +8871,21 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       rows.slice(1).forEach(r => {
         const rec = { last_name:'', first_name:'', email:'', company:'', person_to_visit:'', visit_reason:'', expected_date:'', badge_number:'' };
         Object.entries(colIdx).forEach(([field, idx]) => {
-          const v = r[idx] != null ? String(r[idx]).trim() : '';
+          const raw = r[idx];
+          let v = '';
+          if (raw instanceof Date) {
+            // Date Excel: formato ISO YYYY-MM-DD per expected_date, altrimenti toString
+            if (field === 'expected_date') {
+              const yyyy = raw.getFullYear();
+              const mm   = String(raw.getMonth() + 1).padStart(2, '0');
+              const dd   = String(raw.getDate()).padStart(2, '0');
+              v = `${yyyy}-${mm}-${dd}`;
+            } else {
+              v = raw.toISOString().slice(0, 10);
+            }
+          } else if (raw != null) {
+            v = String(raw).trim();
+          }
           rec[field] = v;
         });
         if (rec.first_name || rec.last_name) newRows.push(rec);
