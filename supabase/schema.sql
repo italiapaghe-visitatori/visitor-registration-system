@@ -686,3 +686,39 @@ CREATE POLICY "vm_select_auth" ON public.visitor_movements
 DROP INDEX IF EXISTS public.visitor_movements_raw_tx_unique;
 CREATE UNIQUE INDEX visitor_movements_raw_tx_unique
   ON public.visitor_movements (raw_transaction_id);
+
+-- MIGRATION v19 — Trigger auto-link guest_list ↔ visitors
+-- =======================================================
+-- BUG identificato il 13/05/2026: quando un visitor veniva creato con guest_id
+-- valorizzato (firma da QR personale), il campo guest_list.matched_visitor_id
+-- restava NULL → la tab Ospiti Attesi mostrava sempre stato "In attesa" anche
+-- dopo che l'ospite aveva firmato.
+--
+-- Causa: né il client né l'agente popolavano matched_visitor_id sul guest_list.
+-- Soluzione: trigger DB AFTER INSERT/UPDATE su visitors che mantiene la
+-- relazione sincrona. SECURITY DEFINER per bypassare RLS lato anon (firma kiosk).
+
+CREATE OR REPLACE FUNCTION public.tg_link_guest_to_visitor()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.guest_id IS NOT NULL THEN
+    UPDATE public.guest_list
+       SET matched_visitor_id = NEW.id
+     WHERE id = NEW.guest_id
+       AND (matched_visitor_id IS NULL OR matched_visitor_id <> NEW.id);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS visitors_link_guest_aiu ON public.visitors;
+CREATE TRIGGER visitors_link_guest_aiu
+AFTER INSERT OR UPDATE OF guest_id ON public.visitors
+FOR EACH ROW EXECUTE FUNCTION public.tg_link_guest_to_visitor();
+
+-- Allineamento retroattivo dei record esistenti (idempotente, safe da rilanciare)
+UPDATE public.guest_list g
+   SET matched_visitor_id = v.id
+  FROM public.visitors v
+ WHERE v.guest_id = g.id
+   AND g.matched_visitor_id IS NULL;
