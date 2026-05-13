@@ -7011,6 +7011,45 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         return;
       }
 
+      // Controllo soft documento duplicato negli ultimi 30 giorni
+      // (case legittimi: stesso visitor torna, coincidenza casuale, errore digitazione altrui)
+      // Cerco sia in guest_list che in visitors per intercettare entrambi i flussi.
+      const docIdVal = document.getElementById('ag-document-id').value.trim().toUpperCase();
+      if (docIdVal) {
+        try {
+          const since = new Date(Date.now() - 30 * 86400 * 1000).toISOString();
+          const docEnc = encodeURIComponent(docIdVal);
+          const [vRes, gRes] = await Promise.all([
+            api(`${SUPABASE_URL}/rest/v1/visitors?select=first_name,last_name,company,visit_date,created_at&document_id=eq.${docEnc}&created_at=gte.${since}&order=created_at.desc&limit=5`),
+            api(`${SUPABASE_URL}/rest/v1/guest_list?select=first_name,last_name,company,expected_date,created_at&document_id=eq.${docEnc}&created_at=gte.${since}&order=created_at.desc&limit=5`),
+          ]);
+          const vList = vRes?.ok ? await vRes.json() : [];
+          const gList = gRes?.ok ? await gRes.json() : [];
+          const allHits = [...vList, ...gList];
+          if (allHits.length > 0) {
+            const lines = allHits.slice(0, 4).map(h => {
+              const dt = h.visit_date || h.expected_date || (h.created_at || '').slice(0, 10);
+              const dtFmt = dt ? dt.split('-').reverse().join('/') : '—';
+              return `  • ${h.first_name || ''} ${h.last_name || ''} — ${dtFmt}${h.company ? ' (' + h.company + ')' : ''}`;
+            }).join('\n');
+            const proceed = confirm(
+              `⚠️ Documento "${docIdVal}" già usato negli ultimi 30 giorni:\n\n${lines}${allHits.length > 4 ? '\n  • ... (altri ' + (allHits.length - 4) + ')' : ''}\n\nProcedere comunque?\n\nClicca OK per aggiungere lo stesso, Annulla per fermarsi.`
+            );
+            if (!proceed) {
+              saveBtn.disabled = false;
+              saveBtn.textContent = 'Aggiungi ospite';
+              return;
+            }
+            // Logga conferma per audit (utile in caso di indagini su accessi duplicati)
+            try {
+              auditLog('duplicate_doc_confirmed', 'guest_list', null, { document_id: docIdVal, existing_count: allHits.length });
+            } catch (_) { /* ignore */ }
+          }
+        } catch (_) {
+          // Errore query: non bloccare (il check è soft, opzionale)
+        }
+      }
+
       const attachToEvent = document.getElementById('ag-attach-event')?.checked;
       const payload = {
         first_name:      fn,
