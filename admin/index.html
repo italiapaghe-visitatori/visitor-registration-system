@@ -2538,6 +2538,13 @@
             <input type="text" id="ag-document-id" placeholder="Es. AB1234567" oninput="this.value = this.value.toUpperCase()" style="text-transform:uppercase">
           </div>
         </div>
+        <div class="modal-field" id="ag-badge-pool-wrap" style="display:none">
+          <label>🎟️ Scegli da pool dell'evento</label>
+          <select id="ag-badge-pool-select" onchange="onAgBadgePoolPick(this.value)" style="width:100%; height:42px; padding:0 12px; border:2px solid #e8ecf4; border-radius:8px; font-size:15px; background:#fff;">
+            <option value="">— Selezionare un badge disponibile —</option>
+          </select>
+          <p style="font-size:11px; color:#718096; margin:6px 0 0;">Oppure digita un numero qualsiasi nel campo qui sotto (anche fuori pool).</p>
+        </div>
         <div class="modal-field">
           <label>Numero badge pre-assegnato</label>
           <input type="text" id="ag-badge-number" placeholder="Solo numeri, da 3 a 12 cifre" inputmode="numeric" pattern="\d{3,12}" maxlength="12">
@@ -3654,7 +3661,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-13d · draft-sort-headers</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14a · aggiungi-ospite-pool-dropdown</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -4820,9 +4827,11 @@
     // Popola la dropdown coi badge available del pool dell'evento dato.
     // Se non c'è event_id o il pool è vuoto, nasconde la dropdown e l'utente
     // digita direttamente nel campo input.
-    async function populateBadgePoolDropdown(eventId) {
-      const wrap = document.getElementById('badge-pool-wrap');
-      const sel  = document.getElementById('badge-pool-select');
+    // wrapId/selectId/inputId default a quelli del badge-modal; passabili
+    // per riusare la stessa logica in altre modali (es. aggiungi ospite).
+    async function populateBadgePoolDropdown(eventId, wrapId = 'badge-pool-wrap', selectId = 'badge-pool-select') {
+      const wrap = document.getElementById(wrapId);
+      const sel  = document.getElementById(selectId);
       if (!wrap || !sel) return;
       // Reset
       sel.innerHTML = '<option value="">— Selezionare un badge disponibile —</option>';
@@ -4839,9 +4848,12 @@
           opt.textContent = b.badge_number;
           sel.appendChild(opt);
         });
-        // Aggiorna label con contatore
+        // Aggiorna label con contatore (mantiene l'emoji iniziale se presente)
         const label = wrap.querySelector('label');
-        if (label) label.textContent = `📋 Scegli da pool dell'evento (${pool.length} badge disponibili)`;
+        if (label) {
+          const emoji = label.textContent.match(/^[^\w\s]+\s*/)?.[0] || '📋 ';
+          label.textContent = `${emoji}Scegli da pool dell'evento (${pool.length} badge disponibili)`;
+        }
         wrap.style.display = '';
       } catch (_) { /* errore lettura pool: nasconde dropdown, fallback manuale */ }
     }
@@ -4851,6 +4863,13 @@
       if (!value) return;
       document.getElementById('badge-number-input').value = value;
       document.getElementById('badge-number-input').focus();
+    }
+
+    // Callback dropdown pool nella modale Aggiungi Ospite
+    function onAgBadgePoolPick(value) {
+      if (!value) return;
+      document.getElementById('ag-badge-number').value = value;
+      document.getElementById('ag-badge-number').focus();
     }
 
     // Validazione numero badge: solo cifre, 3-12 caratteri (formato 125kHz EM
@@ -7140,6 +7159,10 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         cb.checked = false;
       }
       document.getElementById('add-guest-modal').classList.add('active');
+      // Popola dropdown pool badge dell'evento attivo (se c'è).
+      // Cosi' l'operatrice puo' scegliere uno dei badge disponibili senza
+      // doppio passaggio (create ospite -> poi Pre-assegna).
+      populateBadgePoolDropdown(activeEvent?.id, 'ag-badge-pool-wrap', 'ag-badge-pool-select');
       setTimeout(() => document.getElementById('ag-first-name').focus(), 100);
     }
 
