@@ -1925,6 +1925,15 @@
 
     .section-heading { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #a0aec0; margin-bottom: 10px; }
 
+    /* Smart Badge Scan: feedback inline sotto l'input badge */
+    .badge-scan-status {
+      font-size: 12px; padding: 6px 10px; border-radius: 6px; margin-top: 6px;
+      display: none; line-height: 1.4;
+    }
+    .badge-scan-status.ok    { display: block; background: #f0fff4; color: #22543d; border: 1px solid #9ae6b4; }
+    .badge-scan-status.learn { display: block; background: #fffaf0; color: #7b341e; border: 1px solid #fbd38d; }
+    .badge-scan-status.err   { display: block; background: #fff5f5; color: #742a2a; border: 1px solid #feb2b2; }
+
     .btn-supabase-link {
       flex: 1; display: flex; align-items: center; justify-content: center;
       height: 46px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -2547,7 +2556,8 @@
         </div>
         <div class="modal-field">
           <label>Numero badge pre-assegnato</label>
-          <input type="text" id="ag-badge-number" placeholder="Solo numeri, da 3 a 12 cifre" inputmode="numeric" pattern="\d{3,12}" maxlength="12">
+          <input type="text" id="ag-badge-number" placeholder="📡 Appoggia il badge sul lettore HDWR oppure digita le 6 cifre" inputmode="numeric" pattern="\d{3,12}" maxlength="12">
+          <div id="ag-badge-scan-status" class="badge-scan-status"></div>
         </div>
         <hr class="divider">
         <div class="modal-field">
@@ -3661,7 +3671,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14b · pool-dropdown-fallback-eventi-aperti</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14c · smart-badge-scan + auto-learn</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -4886,6 +4896,89 @@
       if (!value) return;
       document.getElementById('ag-badge-number').value = value;
       document.getElementById('ag-badge-number').focus();
+      _agSetBadgeScanStatus('', '');
+      _agPendingUid = null;
+    }
+
+    // ── SMART BADGE SCAN — lettore HDWR HD-RD80 ────────────────
+    // Riconoscimento input lettore: l'HDWR emula tastiera e digita 10 cifre
+    // con leading zero (es. "0004214808") + Enter. Distinguiamo da una
+    // digitazione manuale di un clear_code (6 cifre, no leading zero).
+    //
+    // Comportamento:
+    //  1) UID riconosciuto in card_uid_mapping → input riempito col clear_code
+    //  2) UID nuovo  → input pulito, banner arancio "digita clear_code per
+    //     imparare", l'UID resta in stato pendente
+    //  3) Al saveGuest, se c'è UID pendente + clear_code valido nell'input,
+    //     INSERT nuova coppia in card_uid_mapping (auto-learn)
+    //
+    // Why: badge nuovi entreranno costantemente in azienda. Invece di tenere
+    // sessioni di "acquisizione batch", il sistema impara una coppia alla volta
+    // durante il flusso reale. Dopo qualche settimana, la mappa è completa.
+
+    let _agPendingUid = null;   // UID dell'ultimo scan non riconosciuto
+
+    function _agSetBadgeScanStatus(msg, kind) {
+      const el = document.getElementById('ag-badge-scan-status');
+      if (!el) return;
+      el.textContent = msg || '';
+      el.className = 'badge-scan-status' + (kind ? ' ' + kind : '');
+    }
+
+    function _isHdwrUid(s) {
+      // Pattern HDWR: 1+ zeri iniziali + cifre, totale 7-12 caratteri.
+      // Tipico HDWR HD-RD80 a 125kHz EM4102: 10 cifre con leading zero.
+      // Un clear_code di 6 cifre senza zero iniziale NON matcha.
+      return /^0\d{6,11}$/.test(s);
+    }
+
+    async function _agOnBadgeScanEnter(e) {
+      if (e.key !== 'Enter') return;
+      const input = e.target;
+      const raw = input.value.trim();
+      if (!_isHdwrUid(raw)) return; // digitazione manuale → lascia stare
+      e.preventDefault();
+      // Normalizza: strip leading zeros per allineare a card_uid_mapping
+      // (l'INSERT migration v21 ha rimosso gli zeri davanti dagli UID)
+      const uidNorm = raw.replace(/^0+/, '');
+      _agSetBadgeScanStatus('⏳ Lookup in corso...', '');
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/card_uid_mapping?uid=eq.${encodeURIComponent(uidNorm)}&select=clear_code,source,notes&limit=1`);
+        if (!res || !res.ok) throw new Error(`HTTP ${res?.status}`);
+        const rows = await res.json();
+        if (rows.length > 0) {
+          // HIT: badge in mappa → riempi col clear_code
+          input.value = rows[0].clear_code;
+          _agPendingUid = null;
+          _agSetBadgeScanStatus(`✓ Badge ${rows[0].clear_code} riconosciuto (UID ${uidNorm})`, 'ok');
+        } else {
+          // MISS: badge nuovo → memorizza UID, chiedi clear_code
+          _agPendingUid = uidNorm;
+          input.value = '';
+          input.focus();
+          _agSetBadgeScanStatus(`🆕 Badge nuovo (UID ${uidNorm}). Digita le 6 cifre stampate sul badge — le imparo per il futuro.`, 'learn');
+        }
+      } catch (err) {
+        _agSetBadgeScanStatus('⚠️ Errore lookup: ' + err.message + '. Digita manualmente.', 'err');
+      }
+    }
+
+    // Salva nuova coppia UID↔clear_code in card_uid_mapping (auto-learn)
+    async function _agSaveLearnedMapping(uid, clearCode) {
+      if (!uid || !clearCode) return;
+      try {
+        await api(`${SUPABASE_URL}/rest/v1/card_uid_mapping`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+          body: JSON.stringify({
+            uid: uid,
+            clear_code: clearCode,
+            source: 'auto_learn_walkin',
+            notes: `Appreso ${new Date().toISOString().slice(0, 10)} da Aggiungi Ospite`
+          })
+        });
+        auditLog('badge_mapping_learn', 'card_uid_mapping', null, { uid, clear_code: clearCode });
+      } catch (_) { /* non blocca il salvataggio del guest */ }
     }
 
     // Validazione numero badge: solo cifre, 3-12 caratteri (formato 125kHz EM
@@ -7179,6 +7272,14 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       // Cosi' l'operatrice puo' scegliere uno dei badge disponibili senza
       // doppio passaggio (create ospite -> poi Pre-assegna).
       populateBadgePoolDropdown(activeEvent?.id, 'ag-badge-pool-wrap', 'ag-badge-pool-select');
+      // Reset stato smart-scan + aggancia listener (una volta sola via flag dataset)
+      _agSetBadgeScanStatus('', '');
+      _agPendingUid = null;
+      const badgeInput = document.getElementById('ag-badge-number');
+      if (badgeInput && !badgeInput.dataset.smartScanBound) {
+        badgeInput.addEventListener('keydown', _agOnBadgeScanEnter);
+        badgeInput.dataset.smartScanBound = '1';
+      }
       setTimeout(() => document.getElementById('ag-first-name').focus(), 100);
     }
 
@@ -7269,6 +7370,14 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         const created = await res.json().catch(() => null);
         const newGuest = Array.isArray(created) ? created[0] : created;
         auditLog('guest_add', 'guest_list', newGuest?.id || null, { name: `${fn} ${ln}`, event_id: payload.event_id });
+        // Auto-learn: se l'operatrice ha scansionato un badge sconosciuto e poi
+        // ha digitato il clear_code, salviamo la coppia UID↔clear_code in
+        // card_uid_mapping. Cosi' la prossima volta il sistema lo riconoscera'
+        // automaticamente. Fire-and-forget (non blocca chiusura modale).
+        if (_agPendingUid && badgeVal && /^\d{3,12}$/.test(badgeVal)) {
+          _agSaveLearnedMapping(_agPendingUid, badgeVal);
+          _agPendingUid = null;
+        }
         closeModal();
         loadGuestList();
         // Apre il dialog "Passa firma all'ospite": il modulo compilato dall'operatore
