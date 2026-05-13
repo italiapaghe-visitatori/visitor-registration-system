@@ -4834,6 +4834,10 @@
 
       try {
         const nowIso = new Date().toISOString();
+        // Se badge era dal pool come 'available', dopo l'assegnazione lo passiamo
+        // direttamente a 'active' (è già pre-attivato XAtlas, non serve attendere agente).
+        const fromPool = !!inUse.from_available_pool;
+        const newStatus = fromPool ? 'active' : 'pending';
         const res = await api(
           `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(badgeCurrentId)}`,
           {
@@ -4841,7 +4845,7 @@
             headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
             body: JSON.stringify({
               badge_number: badgeNum,
-              xatlas_status: 'pending',
+              xatlas_status: newStatus,
               assigned_by: CURRENT_USER_EMAIL,
               assigned_at: nowIso
             })
@@ -4851,10 +4855,23 @@
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(await parseBadgeErrorRich(body, res.status, badgeNum));
 
+        // Se badge era dal pool: marca anche badge_pool come 'in_use' + visitor_id.
+        // Senza questa update, il pool resta "available" e nelle dropdown future
+        // continuerebbe a comparire come libero (= doppia assegnazione possibile).
+        if (fromPool && inUse.pool_id) {
+          try {
+            await api(`${SUPABASE_URL}/rest/v1/badge_pool?id=eq.${encodeURIComponent(inUse.pool_id)}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+              body: JSON.stringify({ status: 'in_use', visitor_id: badgeCurrentId })
+            });
+          } catch (e) { /* non bloccante: l'assegnazione visitor è già OK */ }
+        }
+
         const idx = currentData.findIndex(r => String(r.id) === String(badgeCurrentId));
-        if (idx !== -1) { currentData[idx].badge_number = badgeNum; currentData[idx].xatlas_status = 'pending'; }
+        if (idx !== -1) { currentData[idx].badge_number = badgeNum; currentData[idx].xatlas_status = newStatus; }
         renderTable(currentData);
-        auditLog('badge_assign', 'visitor', badgeCurrentId, { badge: badgeNum });
+        auditLog('badge_assign', 'visitor', badgeCurrentId, { badge: badgeNum, from_pool: fromPool });
         closeModal();
       } catch (err) {
         alert('Errore: ' + err.message);
@@ -7393,9 +7410,19 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           const rows = await res.json();
           if (rows.length > 0) {
             const p = rows[0];
+            // 'available' = pre-attivato e LIBERO → è proprio lo scopo del pool,
+            // restituiamo busy=false ma con info per il caller per aggiornare il pool a in_use.
+            if (p.status === 'available') {
+              return {
+                busy: false,
+                from_available_pool: true,
+                pool_id: p.id,
+                pool_event_id: p.event_id,
+              };
+            }
+            // 'preparing' o 'in_use' = busy
             const statusLabel = {
               preparing:  'in preparazione (pool, agente attivazione in corso)',
-              available:  'disponibile nel pool (pronto per assegnazione)',
               in_use:     'in uso (pool, già consegnato a un visitatore)'
             }[p.status] || p.status;
             return {
