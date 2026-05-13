@@ -1184,9 +1184,18 @@
 
     /* ── STATUS BADGES ── */
     .gtype { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .gtype-arrivo   { background: #fef3c7; color: #92400e; }   /* In arrivo: firmato/pre-attivato, non ancora entrato */
+    .gtype-dentro   { background: #c6f6d5; color: #22543d; }   /* Dentro: entry_time SET, exit_time NULL */
+    .gtype-fuori    { background: #e0e7ff; color: #3730a3; }   /* Fuori: entry+exit popolati (può rientrare) */
+    .gtype-concluso { background: #ebf8ff; color: #2c5282; }   /* Concluso: xatlas_status=checked_out */
+    .gtype-walkin-tag {
+      display: inline-block; padding: 1px 7px; border-radius: 10px;
+      font-size: 9.5px; font-weight: 700; background: #fde8d4; color: #9c4221;
+      margin-left: 4px; vertical-align: middle; letter-spacing: .3px; text-transform: uppercase;
+    }
+    /* Compatibilità retroattiva (codice JS legacy che usa ancora .gtype-atteso) */
     .gtype-atteso   { background: #c6f6d5; color: #22543d; }
     .gtype-walkin   { background: #e2e8f0; color: #718096; }
-    .gtype-concluso { background: #ebf8ff; color: #2c5282; }
 
     .xstatus { font-size: 12px; font-weight: 600; white-space: nowrap; }
     .xstatus-none     { color: #a0aec0; }
@@ -4508,14 +4517,26 @@
       data.forEach(row => {
         const tr = document.createElement('tr');
 
-        // TIPO visita
+        // TIPO visita — riflette LO STATO DINAMICO dell'ospite, non solo la classificazione.
+        // Stati in ordine di precedenza:
+        //   checked_out → "Concluso"   (visita finita, evento chiuso o ⏹ manuale)
+        //   entry + NO exit → "Dentro" (è fisicamente dentro adesso)
+        //   entry + exit    → "Fuori"  (è uscito, può rientrare durante evento attivo)
+        //   nessuna entry   → "In arrivo" (firmato/pre-attivato ma non ancora passato al tornello)
+        // Badge aggiuntivo "walk-in" se non era in lista guest_list (= imprevisto).
         let gTypeHtml;
         if (row.xatlas_status === 'checked_out') {
           gTypeHtml = '<span class="gtype gtype-concluso">Concluso</span>';
-        } else if (row.guest_id) {
-          gTypeHtml = '<span class="gtype gtype-atteso">Atteso</span>';
+        } else if (row.entry_time && !row.exit_time) {
+          gTypeHtml = '<span class="gtype gtype-dentro">Dentro</span>';
+        } else if (row.entry_time && row.exit_time) {
+          gTypeHtml = '<span class="gtype gtype-fuori">Fuori</span>';
         } else {
-          gTypeHtml = '<span class="gtype gtype-walkin">Walk-in</span>';
+          gTypeHtml = '<span class="gtype gtype-arrivo">In arrivo</span>';
+        }
+        // Marca walk-in (non in lista invitati) — solo se non già concluso
+        if (!row.guest_id && row.xatlas_status !== 'checked_out') {
+          gTypeHtml += ' <span class="gtype-walkin-tag" title="Aggiunto al banco (non era in lista invitati)">walk-in</span>';
         }
 
         const canAssign = !row.xatlas_status;
