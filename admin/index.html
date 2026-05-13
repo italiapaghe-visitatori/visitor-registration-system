@@ -2427,6 +2427,13 @@
       <h2>Associa Badge</h2>
       <p class="modal-sub" id="badge-visitor-name"></p>
       <div class="modal-fields">
+        <div class="modal-field" id="badge-pool-wrap" style="display:none">
+          <label>📋 Scegli da pool dell'evento (badge già pre-attivati)</label>
+          <select id="badge-pool-select" onchange="onBadgePoolPick(this.value)" style="width:100%; height:42px; padding:0 12px; border:2px solid #e8ecf4; border-radius:8px; font-size:15px; background:#fff;">
+            <option value="">— Selezionare un badge disponibile —</option>
+          </select>
+          <p style="font-size:11px; color:#718096; margin:6px 0 0;">Oppure digita un numero qualsiasi nel campo qui sotto (anche fuori pool).</p>
+        </div>
         <div class="modal-field badge-highlight">
           <label>N° badge fisico da consegnare al visitatore</label>
           <input type="text" id="badge-number-input" placeholder="Es. 259548" autocomplete="off" inputmode="numeric" pattern="\d{3,12}" maxlength="12" title="Solo numeri, da 3 a 12 cifre">
@@ -4751,7 +4758,45 @@
       document.getElementById('badge-visitor-name').textContent = `${row.first_name} ${row.last_name}`;
       document.getElementById('badge-number-input').value = '';
       document.getElementById('badge-modal').classList.add('active');
+      // Popola dropdown col pool dell'evento del visitor (se presente)
+      populateBadgePoolDropdown(row.event_id);
       setTimeout(() => document.getElementById('badge-number-input').focus(), 100);
+    }
+
+    // Popola la dropdown coi badge available del pool dell'evento dato.
+    // Se non c'è event_id o il pool è vuoto, nasconde la dropdown e l'utente
+    // digita direttamente nel campo input.
+    async function populateBadgePoolDropdown(eventId) {
+      const wrap = document.getElementById('badge-pool-wrap');
+      const sel  = document.getElementById('badge-pool-select');
+      if (!wrap || !sel) return;
+      // Reset
+      sel.innerHTML = '<option value="">— Selezionare un badge disponibile —</option>';
+      wrap.style.display = 'none';
+      if (!eventId) return;
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/badge_pool?select=badge_number&event_id=eq.${encodeURIComponent(eventId)}&status=eq.available&order=badge_number.asc&limit=500`);
+        if (!res || !res.ok) return;
+        const pool = await res.json();
+        if (!pool || pool.length === 0) return;
+        pool.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b.badge_number;
+          opt.textContent = b.badge_number;
+          sel.appendChild(opt);
+        });
+        // Aggiorna label con contatore
+        const label = wrap.querySelector('label');
+        if (label) label.textContent = `📋 Scegli da pool dell'evento (${pool.length} badge disponibili)`;
+        wrap.style.display = '';
+      } catch (_) { /* errore lettura pool: nasconde dropdown, fallback manuale */ }
+    }
+
+    // Callback quando l'utente sceglie un badge dalla dropdown → popola il campo input
+    function onBadgePoolPick(value) {
+      if (!value) return;
+      document.getElementById('badge-number-input').value = value;
+      document.getElementById('badge-number-input').focus();
     }
 
     // Validazione numero badge: solo cifre, 3-12 caratteri (formato 125kHz EM
