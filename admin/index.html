@@ -4836,19 +4836,28 @@
         const nowIso = new Date().toISOString();
         // Se badge era dal pool come 'available', dopo l'assegnazione lo passiamo
         // direttamente a 'active' (è già pre-attivato XAtlas, non serve attendere agente).
+        // Inoltre: copiamo xatlas_user_id dal pool al visitor + segniamo xatlas_renamed=false
+        // così l'agente Python al prossimo ciclo riconosce il visitor come "walk-in dal pool
+        // da rinominare" e fa delete+recreate dell'utente XAtlas col nome reale dell'ospite
+        // (altrimenti il tornello continua a mostrare "Badge XXX Pool").
         const fromPool = !!inUse.from_available_pool;
         const newStatus = fromPool ? 'active' : 'pending';
+        const patchBody = {
+          badge_number: badgeNum,
+          xatlas_status: newStatus,
+          assigned_by: CURRENT_USER_EMAIL,
+          assigned_at: nowIso,
+        };
+        if (fromPool) {
+          patchBody.xatlas_user_id = inUse.pool_xatlas_user_id || null;
+          patchBody.xatlas_renamed = false;
+        }
         const res = await api(
           `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(badgeCurrentId)}`,
           {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-            body: JSON.stringify({
-              badge_number: badgeNum,
-              xatlas_status: newStatus,
-              assigned_by: CURRENT_USER_EMAIL,
-              assigned_at: nowIso
-            })
+            body: JSON.stringify(patchBody)
           }
         );
         if (!res) return;
@@ -7413,11 +7422,23 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
             // 'available' = pre-attivato e LIBERO → è proprio lo scopo del pool,
             // restituiamo busy=false ma con info per il caller per aggiornare il pool a in_use.
             if (p.status === 'available') {
+              // Recupero anche xatlas_user_id del pool (utente generico "Pool Badge XXX")
+              // per permettere al caller di settarlo sul visitor + xatlas_renamed=false
+              // → l'agente Python rifarà delete+recreate XAtlas col nome reale dell'ospite.
+              let poolXatlasUserId = null;
+              try {
+                const r2 = await api(`${SUPABASE_URL}/rest/v1/badge_pool?select=xatlas_user_id&id=eq.${encodeURIComponent(p.id)}&limit=1`);
+                if (r2 && r2.ok) {
+                  const r2body = await r2.json();
+                  if (r2body.length > 0) poolXatlasUserId = r2body[0].xatlas_user_id || null;
+                }
+              } catch (_) { /* ignore */ }
               return {
                 busy: false,
                 from_available_pool: true,
                 pool_id: p.id,
                 pool_event_id: p.event_id,
+                pool_xatlas_user_id: poolXatlasUserId,
               };
             }
             // 'preparing' o 'in_use' = busy
