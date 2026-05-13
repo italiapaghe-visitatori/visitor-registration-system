@@ -3638,7 +3638,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-11i · operatori-mgmt</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-13a · ospiti-filtro-eventi-aperti</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -5274,7 +5274,22 @@
         const res = await api(`${SUPABASE_URL}/rest/v1/guest_list?select=*&order=expected_date.asc,last_name.asc`);
         if (!res) return;
         if (!res.ok) throw new Error(`Errore ${res.status}`);
-        guestData = await res.json();
+        let rawGuestData = await res.json();
+
+        // Filtro evento chiuso: nascondi ospiti collegati a eventi gia chiusi.
+        // Gli ospiti con event_id=NULL (non collegati a un evento) restano visibili.
+        // Why: dopo la chiusura di un evento, la guest_list deve diventare read-only/nascosta
+        // per evitare azioni (Firma, Pre-assegna, Rimuovi) su contesti non piu attivi.
+        try {
+          const evRes = await api(`${SUPABASE_URL}/rest/v1/events?select=id&closed_at=not.is.null`);
+          const evData = evRes?.ok ? await evRes.json() : [];
+          const closedIds = new Set(evData.map(e => e.id));
+          if (closedIds.size > 0) {
+            rawGuestData = rawGuestData.filter(g => !g.event_id || !closedIds.has(g.event_id));
+          }
+        } catch (_) { /* best-effort: se fallisce mostro tutti */ }
+
+        guestData = rawGuestData;
 
         // Carica visitor con guest_id (servono entry_time/exit_time per "dentro ora")
         const visitorRes  = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id,signature,badge_number,xatlas_status,entry_time,exit_time&guest_id=not.is.null`);
