@@ -3638,7 +3638,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-13a · ospiti-filtro-eventi-aperti</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-13b · rename-self + modal-drag-fix</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -3986,6 +3986,12 @@
             primaryBtn = `<button type="button" class="btn-user-action" onclick="sendResetPassword('${esc(u.email)}')" title="Manda all'operatore un'email con link per reimpostare la password">🔑 Reset password</button>`;
           }
 
+          // Rinomina: solo se stessi (usa l'API auth pubblica /auth/v1/user)
+          let renameBtn = '';
+          if (isMe) {
+            renameBtn = `<button type="button" class="btn-user-action" onclick="renameSelf('${esc(u.display_name || '')}')" title="Modifica il tuo nome visualizzato (es. 'Antonio Gelormini')">✏️ Rinomina</button>`;
+          }
+
           // Bottoni gestione (ban/unban/delete) — solo se NON sono io e NON è un super-admin
           let manageBtns = '';
           if (!isMe && !isSuper) {
@@ -4003,6 +4009,7 @@
             <td><span class="user-status user-status-${esc(u.status)}">${statusLabel}</span></td>
             <td>${lastSign}${lastResetHtml}</td>
             <td class="user-row-actions">
+              ${renameBtn}
               ${primaryBtn}
               ${manageBtns}
             </td>
@@ -4141,6 +4148,37 @@
     }
     function openSupabaseUserPanel() {
       window.open('https://supabase.com/dashboard/project/sebhatzxsxuafsmbdtsx/auth/users', '_blank', 'noopener');
+    }
+
+    // ── RINOMINA SE STESSI ──────────────────────────────
+    // Aggiorna raw_user_meta_data.display_name dell'utente loggato via
+    // PUT /auth/v1/user (API GoTrue pubblica, autenticata col proprio token).
+    // La vista app_users riprende il nuovo display_name al prossimo loadOperators.
+    async function renameSelf(currentName) {
+      const newName = prompt('Nome visualizzato (es. "Antonio Gelormini"):', currentName || '');
+      if (newName === null) return;
+      const trimmed = newName.trim();
+      if (!trimmed) { alert('Il nome non puo essere vuoto.'); return; }
+      if (trimmed === currentName) return;
+      try {
+        const token = localStorage.getItem('sb-access-token');
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'apikey': SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({ data: { display_name: trimmed } })
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.msg || body.error_description || `HTTP ${res.status}`);
+        auditLog('operator_rename_self', 'auth.users', null, { old_name: currentName, new_name: trimmed });
+        alert(`Nome aggiornato a: ${trimmed}`);
+        loadOperators();
+      } catch (err) {
+        alert('Errore rinomina: ' + err.message);
+      }
     }
 
     // ── BAN / UNBAN / DELETE OPERATORE ─────────────────
@@ -5202,8 +5240,18 @@
       detailsCurrentId = null;
     }
 
+    // Chiusura modale su click fuori: deve essere un click "pulito" sull'overlay,
+    // NON un mouseup arrivato sull'overlay dopo che il mousedown era partito DENTRO
+    // la modale (capita selezionando testo o trascinando fuori involontariamente).
+    let _modalMouseDownOnOverlay = false;
+    document.addEventListener('mousedown', e => {
+      _modalMouseDownOnOverlay = e.target.classList.contains('modal-overlay');
+    });
     document.addEventListener('click', e => {
-      if (e.target.classList.contains('modal-overlay')) closeModal();
+      if (e.target.classList.contains('modal-overlay') && _modalMouseDownOnOverlay) {
+        closeModal();
+      }
+      _modalMouseDownOnOverlay = false;
     });
 
     // ── QR EVENTO ────────────────────────────────────
