@@ -3138,8 +3138,8 @@
                 <th class="th-sort" data-col="expected_date"   onclick="sortGuestsBy('expected_date')" title="Clicca per ordinare per Data Prevista di arrivo.">Data Prevista</th>
                 <th class="th-sort" data-col="person_to_visit" onclick="sortGuestsBy('person_to_visit')" title="Clicca per ordinare per Persona da Visitare.">Persona da Visitare</th>
                 <th class="th-sort" data-col="visit_reason"    onclick="sortGuestsBy('visit_reason')" title="Clicca per ordinare per Motivo Visita.">Motivo</th>
-                <th class="no-sort">📧 QR</th>
-                <th class="no-sort">Stato</th>
+                <th class="th-sort" data-col="_qr_status"      onclick="sortGuestsBy('_qr_status')" title="Clicca per ordinare per stato QR: Fallite → In coda → Mai inviata → Inviata → Già firmato">📧 QR</th>
+                <th class="th-sort" data-col="_arrival_status" onclick="sortGuestsBy('_arrival_status')" title="Clicca per ordinare per stato Arrivo: Arrivato → Badge pronto → In attesa">Stato</th>
                 <th class="no-sort">Azioni</th>
               </tr>
             </thead>
@@ -3690,7 +3690,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14k · fix-script-tag-in-comment</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14l · sort-qr-stato</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -4746,7 +4746,30 @@
     function sortGuestsBy(col) {
       guestSortDir = (guestSortCol === col && guestSortDir === 'asc') ? 'desc' : 'asc';
       guestSortCol = col;
-      const sorted = [...guestData].sort((a, b) => compareForSort(a[col], b[col], guestSortDir));
+      // Colonne "virtuali" derivate da stato email / arrivedSet (non sono nel
+      // record guest_list). Le precalcolo come campo numerico per il sort.
+      const computeKey = g => {
+        if (col === '_qr_status') {
+          // Ordine asc: 0=failed, 1=pending/sending, 2=null (mai inviata),
+          // 3=sent (inviata ok), 4=already arrived (no QR — sparito)
+          if (arrivedSet.has(g.id)) return 4;
+          const e = emailStatusByGuest.get(g.id);
+          if (!e) return 2;
+          if (e.status === 'failed') return 0;
+          if (e.status === 'pending' || e.status === 'sending') return 1;
+          if (e.status === 'sent') return 3;
+          return 2;
+        }
+        if (col === '_arrival_status') {
+          // Ordine asc: 0=arrivato (firmato), 1=badge pronto (pre-assegnato),
+          // 2=in attesa (no badge ne firma)
+          if (arrivedSet.has(g.id)) return 0;
+          if (preAssignedMap.has(g.id)) return 1;
+          return 2;
+        }
+        return g[col];
+      };
+      const sorted = [...guestData].sort((a, b) => compareForSort(computeKey(a), computeKey(b), guestSortDir));
       renderGuestTable(sorted, arrivedSet);
       updateSortIndicators('#view-guests', guestSortCol, guestSortDir);
     }
