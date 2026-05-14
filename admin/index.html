@@ -2154,6 +2154,50 @@
     .guest-stat span { color: #667eea; }
 
     .guest-stats-bar { margin-bottom: 20px; }
+
+    /* Banner email fallite */
+    .email-failed-banner {
+      background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+      border: 2px solid #fc8181;
+      border-left: 6px solid #c53030;
+      border-radius: 10px;
+      padding: 12px 18px;
+      margin-bottom: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: #742a2a;
+      transition: all 0.18s ease;
+      animation: efbPulse 2s ease-in-out infinite;
+    }
+    .email-failed-banner:hover {
+      background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(197,48,48,0.18);
+    }
+    .email-failed-banner .efb-icon { font-size: 22px; flex-shrink: 0; }
+    .email-failed-banner .efb-text { flex: 1; }
+    .email-failed-banner .efb-text strong { color: #c53030; }
+    .email-failed-banner .efb-action {
+      font-weight: 700; color: #c53030; padding: 6px 12px;
+      background: #fff; border-radius: 6px; flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    @keyframes efbPulse {
+      0%, 100% { box-shadow: 0 2px 6px rgba(197,48,48,0.15); }
+      50%      { box-shadow: 0 2px 18px rgba(197,48,48,0.35); }
+    }
+
+    /* Riga "guest-row-failed-email": highlight quando viene scrollata */
+    tr.guest-row-highlight {
+      animation: rowFlash 1.4s ease-out 2;
+    }
+    @keyframes rowFlash {
+      0%, 100% { background: transparent; }
+      30%      { background: #fed7d7; }
+    }
     .stat-card-warning { border-top: 3px solid #f6ad55; }
     .stat-card-warning .value { color: #c05621; }
     .stat-card-success { border-top: 3px solid #68d391; }
@@ -3056,6 +3100,13 @@
     <!-- ── VIEW: OSPITI ATTESI ── -->
     <div class="view" id="view-guests">
 
+      <!-- Banner email fallite (visibile solo se status='failed' > 0) -->
+      <div id="email-failed-banner" class="email-failed-banner" style="display:none" onclick="scrollToFirstFailedEmail()" title="Click per scorrere alla prima riga con email fallita">
+        <span class="efb-icon">⚠️</span>
+        <span class="efb-text"><strong id="efb-count">0</strong> email QR fallite — clicca <strong>🔁 Riprova</strong> sulla riga per re-inviare (o correggi l'email prima)</span>
+        <span class="efb-action">Vai alla prima ↓</span>
+      </div>
+
       <!-- Riepilogo -->
       <div class="stats-bar stats-4 guest-stats-bar">
         <div class="stat-card stat-card-primary">
@@ -3671,7 +3722,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14c · smart-badge-scan + auto-learn</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14d · email-failed-banner</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -5449,6 +5500,44 @@
       renderGuestTable(guestData, arrivedSet);
     }
 
+    // ── BANNER EMAIL FALLITE ──────────────────────────────
+    // Conta ospiti (NON arrivati) con email_queue.status='failed' nella mappa
+    // emailStatusByGuest. Se >0, mostra il banner rosso lampeggiante in cima
+    // alla tab Ospiti Attesi. Click → scrolla al primo fallito + highlight.
+    function updateFailedEmailBanner() {
+      const banner = document.getElementById('email-failed-banner');
+      const countEl = document.getElementById('efb-count');
+      if (!banner || !countEl) return;
+      let failed = 0;
+      try {
+        guestData.forEach(g => {
+          if (arrivedSet.has(g.id)) return; // ignora arrivati
+          const e = emailStatusByGuest.get(g.id);
+          if (e && e.status === 'failed') failed++;
+        });
+      } catch (_) { failed = 0; }
+      if (failed > 0) {
+        countEl.textContent = failed;
+        banner.style.display = '';
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+
+    // Scroll alla prima riga con email fallita + highlight visivo per 2 lampeggi
+    function scrollToFirstFailedEmail() {
+      const firstFailed = guestData.find(g =>
+        !arrivedSet.has(g.id) &&
+        emailStatusByGuest.get(g.id)?.status === 'failed'
+      );
+      if (!firstFailed) return;
+      const tr = document.querySelector(`#guest-table-body tr[data-id="${CSS.escape(String(firstFailed.id))}"]`);
+      if (!tr) return;
+      tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      tr.classList.add('guest-row-highlight');
+      setTimeout(() => tr.classList.remove('guest-row-highlight'), 3000);
+    }
+
     async function loadGuestList(silent = false) {
       if (!silent) {
         document.getElementById('guest-table-container').classList.add('table-hidden');
@@ -5540,6 +5629,10 @@
         document.getElementById('g-stat-waiting').textContent = attesa;
         document.getElementById('g-stat-inside').textContent  = dentro;
         document.getElementById('g-stat-out').textContent     = usciti;
+
+        // Banner email fallite: mostra count se ci sono email_queue.status='failed'
+        // associate a ospiti ancora visibili (escludo arrivati per evitare rumore)
+        updateFailedEmailBanner();
 
         if (silent) {
           requestAnimationFrame(() => {
@@ -7222,6 +7315,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           </div>`;
 
         const tr = document.createElement('tr');
+        tr.dataset.id = g.id;
         tr.innerHTML = `
           <td><strong>${esc(g.first_name)}</strong></td>
           <td><strong>${esc(g.last_name)}</strong></td>
