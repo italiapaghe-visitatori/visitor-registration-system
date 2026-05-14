@@ -2096,14 +2096,19 @@
         // (escludi dalla lista) | signature NULL = pre-attivato (stub da PATCHare).
         // 14 giorni: gli stub di pre-assegnazione vengono creati 1-7 giorni
         // prima dell'evento, quindi serve una finestra ampia per intercettarli.
+        // limit=5000 esplicito per evitare cutoff a 1000 (default Supabase) se
+        // il sistema accumula molti visitatori storici (eventi ricorrenti).
+        // Filtro per event_id se CURRENT_EVENT e' caricato (QR mode) — riduce
+        // ulteriormente il volume e garantisce match sicuro sul pool corrente.
         const todayStart = new Date();
         todayStart.setDate(todayStart.getDate() - 14);
         todayStart.setHours(0, 0, 0, 0);
         const todayIso = todayStart.toISOString();
-        const vRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/visitors?select=id,guest_id,first_name,last_name,signature&created_at=gte.${encodeURIComponent(todayIso)}`,
-          { headers: hdrs }
-        );
+        let vUrl = `${SUPABASE_URL}/rest/v1/visitors?select=id,guest_id,first_name,last_name,signature&created_at=gte.${encodeURIComponent(todayIso)}&limit=5000`;
+        if (typeof CURRENT_EVENT !== 'undefined' && CURRENT_EVENT && CURRENT_EVENT.id) {
+          vUrl += `&event_id=eq.${encodeURIComponent(CURRENT_EVENT.id)}`;
+        }
+        const vRes = await fetch(vUrl, { headers: hdrs });
         const vData = vRes.ok ? await vRes.json() : [];
 
         // Già firmati al kiosk → escludi dalla lista
@@ -2632,13 +2637,13 @@
       // Se l'ospite era già pre-attivato (stub creato dall'admin), aggiorna invece di creare nuovo
       const existingStubId = (payload.guest_id && preAssignedVisitorByGuest.get(payload.guest_id)) || null;
 
-      // Timeout 30s sul submit: senza, se Supabase risponde lento o cade, il
+      // Timeout 60s sul submit: senza, se Supabase risponde lento o cade, il
       // bottone resta disabilitato all'infinito e l'ospite non sa se la
-      // registrazione è andata. Con AbortController dopo 30s lanciamo errore
-      // chiaro così l'ospite può ritentare (non genera doppia registrazione
-      // perché il PATCH è idempotente sull'id, e l'INSERT pre-fail).
+      // registrazione è andata. 60s e' tollerante anche su WiFi guest lenta.
+      // Trigger v22 server-side previene duplicati anche in caso di doppio
+      // submit accidentale dell'ospite.
       const submitController = new AbortController();
-      const submitTimeout = setTimeout(() => submitController.abort(), 30000);
+      const submitTimeout = setTimeout(() => submitController.abort(), 60000);
       try {
         let res;
         if (existingStubId) {
@@ -2699,9 +2704,9 @@
         }
       } catch (err) {
         if (err.name === 'AbortError') {
-          showMsg('error', 'Timeout: il server non ha risposto entro 30 secondi. Riprova o avvisa il personale.');
+          showMsg('error', '⏱️ Il server impiega più del previsto. Premi "Registra Visita" UNA sola volta per riprovare — eventuali doppi invii vengono filtrati automaticamente.');
         } else {
-          showMsg('error', 'Errore: ' + err.message);
+          showMsg('error', 'Errore: ' + err.message + '. Riprova oppure avvisa il personale al desk.');
         }
       } finally {
         clearTimeout(submitTimeout);
