@@ -2085,7 +2085,7 @@
         // Tutti gli ospiti registrati (filtrati poi per chi non ha ancora passato il tornello)
         const gRes = await fetch(
           `${SUPABASE_URL}/rest/v1/guest_list` +
-          `?select=id,first_name,last_name,email,company,job_title,person_to_visit,visit_reason,expected_date` +
+          `?select=id,first_name,last_name,email,company,job_title,person_to_visit,visit_reason,expected_date,handoff_requested_at` +
           `&order=last_name.asc`,
           { headers: hdrs }
         );
@@ -2254,7 +2254,7 @@
       }
       let highlightedBtn = null;
       guests.forEach(g => {
-        const initials = ((g.last_name[0] || '') + (g.first_name[0] || '')).toUpperCase();
+        const initials = (((g.last_name || '')[0] || '') + ((g.first_name || '')[0] || '')).toUpperCase();
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'guest-tile';
@@ -2326,7 +2326,7 @@
     function buildAlphaKeyboard() {
       const kb = document.getElementById('alpha-keyboard');
       kb.innerHTML = '';
-      const letters = [...new Set(allGuests.map(g => g.last_name[0]?.toUpperCase()).filter(Boolean))].sort();
+      const letters = [...new Set(allGuests.map(g => (g.last_name || '')[0]?.toUpperCase()).filter(Boolean))].sort();
       letters.forEach(l => {
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -2352,7 +2352,7 @@
         return;
       }
       let filtered = allGuests;
-      if (activeAlpha) filtered = filtered.filter(g => g.last_name[0]?.toUpperCase() === activeAlpha);
+      if (activeAlpha) filtered = filtered.filter(g => (g.last_name || '')[0]?.toUpperCase() === activeAlpha);
       if (q) {
         activeAlpha = '';
         document.querySelectorAll('.alpha-key').forEach(b => b.classList.remove('active'));

@@ -745,3 +745,128 @@ ALTER TABLE public.guest_list
   FOREIGN KEY (matched_visitor_id)
   REFERENCES public.visitors(id)
   ON DELETE SET NULL;
+
+
+-- MIGRATION v21 — Lookup table UID lettore RFID -> clear_code badge stampato
+-- ========================================================================
+-- Why: il lettore HDWR HD-RD80 legge l'UID di fabbrica del chip EM4102
+-- (es. 4214808), che NON ha relazione matematica con il clear_code stampato
+-- sul badge Zucchetti (es. 241089). Brute force con 158 formule su 28 coppie
+-- reali → 0 match. Quindi serve una lookup table.
+--
+-- Popolata 13/05/2026 con 99 coppie reali pre-evento MD 15/05/2026.
+-- Cresce nel tempo: ogni nuovo badge aggiunto via tab Acquisizione viene
+-- salvato qui e riutilizzabile per eventi futuri.
+--
+-- I dati INSERT specifici del primo bulk (99 coppie) sono in
+-- supabase/migration_v21_card_uid_mapping.sql (separato per non inquinare
+-- schema.sql con dati sensibili — clear_code dei badge fisici).
+
+CREATE TABLE IF NOT EXISTS public.card_uid_mapping (
+  uid          TEXT PRIMARY KEY,
+  clear_code   TEXT NOT NULL,
+  source       TEXT,
+  notes        TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS card_uid_mapping_clear_code_idx
+  ON public.card_uid_mapping(clear_code);
+
+CREATE OR REPLACE FUNCTION public.tg_card_uid_mapping_touch()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS card_uid_mapping_touch_bu ON public.card_uid_mapping;
+CREATE TRIGGER card_uid_mapping_touch_bu
+BEFORE UPDATE ON public.card_uid_mapping
+FOR EACH ROW EXECUTE FUNCTION public.tg_card_uid_mapping_touch();
+
+ALTER TABLE public.card_uid_mapping ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "service role all on card_uid_mapping" ON public.card_uid_mapping;
+CREATE POLICY "service role all on card_uid_mapping"
+  ON public.card_uid_mapping FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "authenticated read card_uid_mapping" ON public.card_uid_mapping;
+CREATE POLICY "authenticated read card_uid_mapping"
+  ON public.card_uid_mapping FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "authenticated insert card_uid_mapping" ON public.card_uid_mapping;
+CREATE POLICY "authenticated insert card_uid_mapping"
+  ON public.card_uid_mapping FOR INSERT TO authenticated WITH CHECK (true);
+
+DROP POLICY IF EXISTS "authenticated update card_uid_mapping" ON public.card_uid_mapping;
+CREATE POLICY "authenticated update card_uid_mapping"
+  ON public.card_uid_mapping FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "authenticated delete card_uid_mapping" ON public.card_uid_mapping;
+CREATE POLICY "authenticated delete card_uid_mapping"
+  ON public.card_uid_mapping FOR DELETE TO authenticated USING (true);
+
+
+-- MIGRATION v22 — Trigger anti-duplicato firme (BEFORE INSERT visitors)
+-- ========================================================================
+-- Applicata live 14/05/2026 durante evento MD per fixare bug duplicati.
+-- File completo in supabase/migration_v22_v23_anti_dup_visitors.sql
+
+CREATE OR REPLACE FUNCTION public.tg_prevent_visitor_dup()
+RETURNS TRIGGER AS $$
+DECLARE
+  existing_stub_id UUID;
+BEGIN
+  IF NEW.guest_id IS NULL OR NEW.signature IS NULL THEN
+    RETURN NEW;
+  END IF;
+  SELECT id INTO existing_stub_id
+    FROM public.visitors
+   WHERE guest_id = NEW.guest_id
+     AND signature IS NULL
+     AND badge_number IS NOT NULL
+   LIMIT 1;
+  IF existing_stub_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+  UPDATE public.visitors
+     SET signature             = NEW.signature,
+         document_id           = COALESCE(NEW.document_id,           document_id),
+         document_type         = COALESCE(NEW.document_type,         document_type),
+         email                 = COALESCE(NEW.email,                 email),
+         phone                 = COALESCE(NEW.phone,                 phone),
+         data_consent          = COALESCE(NEW.data_consent,          data_consent),
+         badge_agreement       = COALESCE(NEW.badge_agreement,       badge_agreement),
+         access_rules_consent  = COALESCE(NEW.access_rules_consent,  access_rules_consent),
+         access_rules_at       = COALESCE(NEW.access_rules_at,       access_rules_at),
+         access_rules_version  = COALESCE(NEW.access_rules_version,  access_rules_version),
+         access_rules_opened   = COALESCE(NEW.access_rules_opened,   access_rules_opened),
+         consent_ip            = COALESCE(NEW.consent_ip,            consent_ip),
+         consent_user_agent    = COALESCE(NEW.consent_user_agent,    consent_user_agent),
+         access_rules_pdf_hash = COALESCE(NEW.access_rules_pdf_hash, access_rules_pdf_hash),
+         access_rules_pdf_size = COALESCE(NEW.access_rules_pdf_size, access_rules_pdf_size)
+   WHERE id = existing_stub_id;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS visitors_prevent_dup_bi ON public.visitors;
+CREATE TRIGGER visitors_prevent_dup_bi
+BEFORE INSERT ON public.visitors
+FOR EACH ROW EXECUTE FUNCTION public.tg_prevent_visitor_dup();
+
+
+-- MIGRATION v23 — Policy anon SELECT su visitors
+-- ========================================================================
+-- Applicata live 14/05/2026. Necessaria perché frontend QR (anon) deve
+-- leggere visitors per signedIds e preAssignedVisitorByGuest.
+
+DROP POLICY IF EXISTS "anon_select_visitors" ON public.visitors;
+CREATE POLICY "anon_select_visitors"
+  ON public.visitors
+  FOR SELECT
+  USING (true);

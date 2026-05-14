@@ -32,3 +32,10 @@ zucchetti_agent.log
 # Documenti RISERVATI (PIN, credenziali, segreti) — MAI committare
 docs/PIN_KIOSK.md
 docs/RESERVED_*.md
+
+# File badge mapping (UID lettore <-> clear_code stampato) — riservato per evento
+badge_mapping_*.txt
+badge_mapping_*.csv
+
+# Migration v21+ con dati badge reali (contiene clear_code, non pushare)
+supabase/migration_v21_card_uid_mapping.sql
