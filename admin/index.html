@@ -2909,15 +2909,15 @@
     </div>
 
     <div class="header-right">
-      <!-- Riga 1: utility (status, email, azioni globali) -->
+      <!-- Riga 1: utility (operatore in evidenza, status agente, azioni globali) -->
       <div class="header-utility">
+        <span id="user-email" style="font-weight:700;"></span>
         <span id="agent-status" class="agent-status unknown" title="Stato agente XAtlas">
           <span class="dot"></span><span id="agent-status-text">Agente: …</span>
         </span>
         <span id="email-queue-status" class="agent-status" style="display:none" title="Email QR in coda">
           <span id="email-queue-text">📧 0</span>
         </span>
-        <span id="user-email"></span>
         <button type="button" class="btn btn-light" onclick="openUsersModal()" title="Gestione operatori admin: lista, invito via email, reset password">👤 Operatori</button>
         <button type="button" class="btn btn-light" onclick="exportCSV()" title="Esporta CSV visitatori">📊 CSV</button>
         <button type="button" class="btn btn-light" onclick="refreshCurrentView()" title="Ricarica dati della tab attiva">🔄</button>
@@ -3698,7 +3698,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14r · toolbar-1-row</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14s · header-user-first</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
