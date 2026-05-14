@@ -3743,7 +3743,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14e · miniature-print-fix</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14f · miniature-include-signed</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -6913,10 +6913,11 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
 
     // ── STAMPA MINIATURE BADGE ──────────────────────
     async function openMiniLabelsModal() {
-      // Cerca i visitor stub (signature IS NULL) con badge_number assegnato.
-      // Sono i pre-attivati: serve incollare le miniature sui badge fisici.
+      // Cerca i visitor con badge_number assegnato (firmati o no): la miniatura
+      // serve per identificare il badge fisico al desk anche per chi ha gia'
+      // firmato da casa via QR email. Esclude solo i checked_out (visita conclusa).
       try {
-        const url = `${SUPABASE_URL}/rest/v1/visitors?signature=is.null&badge_number=not.is.null&xatlas_status=in.(pending,active)&select=first_name,last_name,company,badge_number,event_name&order=last_name.asc`;
+        const url = `${SUPABASE_URL}/rest/v1/visitors?badge_number=not.is.null&xatlas_status=in.(pending,active)&select=first_name,last_name,company,badge_number,event_name&order=last_name.asc`;
         const res = await api(url);
         if (!res || !res.ok) throw new Error('Errore caricamento pre-assegnati');
         const list = await res.json();
