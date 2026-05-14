@@ -3690,7 +3690,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14j · fix-script-tag-close</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14k · fix-script-tag-in-comment</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -6901,9 +6901,9 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         alert('Popup bloccato. Permetti i popup di questo sito (icona in alto a destra della barra URL) e riprova.');
         return;
       }
-      // NB: il tag </script> deve essere splittato (<\/script>) altrimenti
-      // il parser HTML della pagina admin chiude il <script> attuale e
-      // rompe tutto il JS dell'admin.
+      // NB: il tag di chiusura script deve essere splittato (con backslash)
+      // altrimenti il parser HTML della pagina admin chiude il blocco
+      // script attuale e rompe tutto il JS dell'admin.
       const html = '<!DOCTYPE html>\n' +
         '<html lang="it"><head><meta charset="UTF-8"><title>Miniature Badge</title>\n' +
         '<style>\n' +
