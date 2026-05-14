@@ -2092,8 +2092,12 @@
         if (!gRes.ok) return;
         const allToday = await gRes.json();
 
-        // Visitatori di oggi: signature SET = già firmato (escludi) | signature NULL = pre-attivato (mostra ancora)
+        // Visitatori recenti (ultimi 14 giorni): signature SET = già firmato
+        // (escludi dalla lista) | signature NULL = pre-attivato (stub da PATCHare).
+        // 14 giorni: gli stub di pre-assegnazione vengono creati 1-7 giorni
+        // prima dell'evento, quindi serve una finestra ampia per intercettarli.
         const todayStart = new Date();
+        todayStart.setDate(todayStart.getDate() - 14);
         todayStart.setHours(0, 0, 0, 0);
         const todayIso = todayStart.toISOString();
         const vRes = await fetch(
