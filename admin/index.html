@@ -877,6 +877,7 @@
     }
 
     .stats-bar.stats-4 { grid-template-columns: repeat(4, 1fr); }
+    .stats-bar.stats-5 { grid-template-columns: repeat(5, 1fr); }
 
     .stat-card {
       background: #fff;
@@ -3076,16 +3077,21 @@
       </div>
 
       <!-- Riepilogo -->
-      <div class="stats-bar stats-4 guest-stats-bar">
+      <div class="stats-bar stats-5 guest-stats-bar">
         <div class="stat-card stat-card-primary">
           <h3>Totale ospiti</h3>
           <div class="value" id="g-stat-total">—</div>
           <div class="sub">in lista</div>
         </div>
+        <div class="stat-card" style="background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%); border-left:6px solid #38b2ac">
+          <h3 style="color:#234e52">Firmati</h3>
+          <div class="value" id="g-stat-signed" style="color:#234e52">—</div>
+          <div class="sub" style="color:#234e52">QR da casa o kiosk</div>
+        </div>
         <div class="stat-card stat-card-warning">
           <h3>Da arrivare</h3>
           <div class="value" id="g-stat-waiting">—</div>
-          <div class="sub">non ancora al kiosk</div>
+          <div class="sub">non ancora al tornello</div>
         </div>
         <div class="stat-card stat-card-success">
           <h3>Dentro ora</h3>
@@ -3690,7 +3696,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14l · sort-qr-stato</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14m · stat-firmati</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -5617,6 +5623,9 @@
         renderGuestTable(guestData, arrivedSet);
 
         document.getElementById('g-stat-total').textContent   = totale;
+        const firmati = arrivedSet ? arrivedSet.size : 0;
+        const signedEl = document.getElementById('g-stat-signed');
+        if (signedEl) signedEl.textContent = firmati;
         document.getElementById('g-stat-waiting').textContent = attesa;
         document.getElementById('g-stat-inside').textContent  = dentro;
         document.getElementById('g-stat-out').textContent     = usciti;
