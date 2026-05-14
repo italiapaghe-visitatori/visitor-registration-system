@@ -717,6 +717,23 @@
       white-space: nowrap;
     }
     .agent-status:hover { background: rgba(255,255,255,0.28); }
+
+    /* Label operatore loggato: evidenziato per riconoscere subito chi è collegato */
+    .operator-label {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.22);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.2px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.18);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .operator-label:empty { display: none; }
     .agent-status .dot {
       width: 9px; height: 9px;
       border-radius: 50%;
@@ -2911,7 +2928,7 @@
     <div class="header-right">
       <!-- Riga 1: utility (operatore in evidenza, status agente, azioni globali) -->
       <div class="header-utility">
-        <span id="user-email" style="font-weight:700;"></span>
+        <span id="user-email" class="operator-label" title="Operatore attualmente collegato"></span>
         <span id="agent-status" class="agent-status unknown" title="Stato agente XAtlas">
           <span class="dot"></span><span id="agent-status-text">Agente: …</span>
         </span>
@@ -3698,7 +3715,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14s · header-user-first</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14t · operator-pill</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -3762,13 +3779,26 @@
       accessToken = localStorage.getItem('sb-access-token');
       if (!accessToken) { clearTimeout(safetyTimer); window.location.href = 'login.html'; return; }
 
+      // Helper: estrae nome operatore da auth user. Preferisce display_name
+      // (settato via tab Operatori → Rinomina), fallback alla parte locale
+      // dell'email capitalizzata, fallback all'email completa.
+      const _operatorLabel = (u) => {
+        const dn = u?.user_metadata?.display_name?.trim();
+        if (dn) return `Operatore: ${dn}`;
+        if (u?.email) {
+          const local = u.email.split('@')[0].replace(/[._-]/g, ' ');
+          const pretty = local.split(' ').map(p => p ? p[0].toUpperCase() + p.slice(1) : '').join(' ').trim();
+          return `Operatore: ${pretty || u.email}`;
+        }
+        return 'Operatore';
+      };
       try {
         const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
           headers: { 'Authorization': `Bearer ${accessToken}`, 'apikey': SUPABASE_ANON_KEY }
         });
         if (!res.ok) throw new Error('token-expired');
         const user = await res.json();
-        document.getElementById('user-email').textContent = user.email;
+        document.getElementById('user-email').textContent = _operatorLabel(user);
         CURRENT_USER_EMAIL = user.email;
       } catch (_) {
         const refreshed = await tryRefreshToken();
@@ -3778,7 +3808,7 @@
             headers: { 'Authorization': `Bearer ${accessToken}`, 'apikey': SUPABASE_ANON_KEY }
           });
           const user = await res.json();
-          document.getElementById('user-email').textContent = user.email;
+          document.getElementById('user-email').textContent = _operatorLabel(user);
           CURRENT_USER_EMAIL = user.email;
         } catch (_) { clearTimeout(safetyTimer); logout(); return; }
       }
