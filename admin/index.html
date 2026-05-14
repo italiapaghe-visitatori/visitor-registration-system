@@ -3121,6 +3121,7 @@
         <button type="button" class="btn btn-primary" onclick="openFillBadgesModal()" title="Griglia editabile per assegnare badge ai nominativi importati senza usare Excel">📝 Compila</button>
         <button type="button" class="btn btn-warning" onclick="startBulkPreAssign()" title="Wizard sequenziale: pre-assegna badge a tutti gli ospiti senza badge">⚡ Pre-assegna</button>
         <button type="button" class="btn btn-secondary" onclick="openMiniLabelsModal()" title="Stampa miniature da incollare sui badge fisici dei pre-assegnati">🏷️ Miniature</button>
+        <button type="button" class="btn btn-secondary" onclick="openCardListText()" title="Lista testuale copia-incolla (cognome + nome + badge) per design cartoncini esterni con loghi.">📋 Lista per cartoncini</button>
 
         <span class="toolbar-divider"></span>
         <span class="toolbar-label">QR</span>
@@ -3696,7 +3697,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14m · stat-firmati</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14n · lista-cartoncini-copia</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -6887,6 +6888,74 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       } finally {
         saveBtn.disabled = false;
         saveBtn.textContent = '💾 Salva tutti & ⚡ Pre-attiva';
+      }
+    }
+
+    // ── LISTA TESTUALE COPIA-INCOLLA PER CARTONCINI ESTERNI ────
+    // Apre una nuova finestra con la lista degli ospiti pre-assegnati in
+    // formato puro testo, selezionabile/copiabile. Usata da chi disegna
+    // i cartoncini badge con loghi in Word/PowerPoint/Canva.
+    // Tre formati offerti: TXT puro, CSV (per Excel), tabella allineata.
+    async function openCardListText() {
+      try {
+        const url = `${SUPABASE_URL}/rest/v1/visitors?badge_number=not.is.null&xatlas_status=in.(pending,active)&select=first_name,last_name,company,badge_number,event_name&order=last_name.asc&limit=5000`;
+        const res = await api(url);
+        if (!res || !res.ok) throw new Error('Errore caricamento lista');
+        const list = await res.json();
+        if (list.length === 0) {
+          alert('Nessun ospite pre-assegnato con badge da esportare.');
+          return;
+        }
+        // Costruisci 3 formati
+        const padLen = list.reduce((m, p) => Math.max(m, ((p.last_name || '') + ' ' + (p.first_name || '')).length), 0);
+        const txtLines = list.map(p => `${(p.last_name || '').padEnd(padLen, ' ')}  ${(p.first_name || '')}  —  Badge ${p.badge_number || ''}`);
+        const csvLines = ['Cognome,Nome,Azienda,Badge'];
+        list.forEach(p => csvLines.push(`"${p.last_name || ''}","${p.first_name || ''}","${p.company || ''}","${p.badge_number || ''}"`));
+        const txtSimple = list.map(p => `${p.last_name || ''} ${p.first_name || ''}\tBadge ${p.badge_number || ''}`).join('\n');
+
+        const w = window.open('', 'cardlist_text', 'width=900,height=900');
+        if (!w) { alert('Popup bloccato. Permetti i popup di questo sito e riprova.'); return; }
+        const html = '<!DOCTYPE html>\n' +
+          '<html lang="it"><head><meta charset="UTF-8"><title>Lista cartoncini badge</title>\n' +
+          '<style>\n' +
+          '  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; padding: 20px; max-width: 920px; margin: 0 auto; background:#f7fafc; color:#1a202c; }\n' +
+          '  h1 { font-size: 18pt; color: #2d3748; margin-bottom: 6px; }\n' +
+          '  .sub { color:#718096; font-size:12pt; margin-bottom:16px; }\n' +
+          '  .section { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:14px 16px; margin-bottom: 14px; }\n' +
+          '  .section h2 { font-size:13pt; color:#2d3748; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }\n' +
+          '  .btn-copy { background:#4c51bf; color:#fff; border:none; padding:6px 14px; border-radius:6px; font-size:12pt; cursor:pointer; font-weight:600; }\n' +
+          '  .btn-copy:hover { background:#434190; }\n' +
+          '  .btn-copy.copied { background:#22543d; }\n' +
+          '  textarea { width:100%; min-height:200px; font-family: ui-monospace, "Cascadia Code", Menlo, monospace; font-size:11pt; padding:10px; border:1px solid #cbd5e0; border-radius:6px; background:#fafafa; resize:vertical; box-sizing:border-box; }\n' +
+          '  .hint { font-size:11pt; color:#4a5568; margin-top:4px; }\n' +
+          '</style></head><body>\n' +
+          '<h1>📋 Lista per cartoncini badge</h1>\n' +
+          '<div class="sub">' + list.length + ' ospiti pre-assegnati. Seleziona il formato che preferisci e copia (Ctrl+A → Ctrl+C oppure click sul bottone).</div>\n' +
+
+          '<div class="section">\n' +
+          '<h2>📝 Formato semplice (cognome + nome + badge) <button class="btn-copy" onclick="cp(this,\'txt1\')">📋 Copia</button></h2>\n' +
+          '<textarea id="txt1" readonly>' + txtLines.join('\n').replace(/</g, '&lt;') + '</textarea>\n' +
+          '<div class="hint">Adatto a inserimenti rapidi in Word, PowerPoint, blocco note. Allineato con padding.</div>\n' +
+          '</div>\n' +
+
+          '<div class="section">\n' +
+          '<h2>📊 CSV per Excel/Numbers <button class="btn-copy" onclick="cp(this,\'txt2\')">📋 Copia</button></h2>\n' +
+          '<textarea id="txt2" readonly>' + csvLines.join('\n').replace(/</g, '&lt;') + '</textarea>\n' +
+          '<div class="hint">Incolla in una cella di Excel/Numbers: si distribuisce in 4 colonne (Cognome, Nome, Azienda, Badge). Perfetto per design tool che leggono CSV (Canva, InDesign, ecc).</div>\n' +
+          '</div>\n' +
+
+          '<div class="section">\n' +
+          '<h2>📌 Tab-separated (per merge in Word) <button class="btn-copy" onclick="cp(this,\'txt3\')">📋 Copia</button></h2>\n' +
+          '<textarea id="txt3" readonly>' + txtSimple.replace(/</g, '&lt;') + '</textarea>\n' +
+          '<div class="hint">Tab tra cognome e badge. Adatto per Mail Merge in Word per generare cartoncini personalizzati.</div>\n' +
+          '</div>\n' +
+
+          '<script>function cp(btn,id){var t=document.getElementById(id);t.select();document.execCommand("copy");var o=btn.textContent;btn.textContent="✓ Copiato!";btn.classList.add("copied");setTimeout(function(){btn.textContent=o;btn.classList.remove("copied");},2000);}<\/script>\n' +
+          '</body></html>';
+        w.document.write(html);
+        w.document.close();
+      } catch (err) {
+        alert('Errore: ' + err.message);
       }
     }
 
