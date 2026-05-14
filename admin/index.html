@@ -322,35 +322,56 @@
       font-size: 13px;
     }
 
-    /* Stampa miniature: 8 per A4 */
+    /* Stampa miniature: griglia 2 colonne, ~10 etichette per A4 portrait.
+       Reset completo del flusso documento per evitare margin/padding del
+       modale che spingono giù i contenuti e creano spazio vuoto in alto. */
     @media print {
+      @page { size: A4 portrait; margin: 10mm; }
+
+      body.printing-minilabels { background: #fff !important; margin: 0 !important; padding: 0 !important; }
       body.printing-minilabels * { visibility: hidden; }
       body.printing-minilabels #minilabels-modal,
       body.printing-minilabels #minilabels-modal * { visibility: visible; }
+
+      /* Sgancia il modale dal flusso flex centrato del modal-overlay */
       body.printing-minilabels #minilabels-modal {
-        position: absolute !important; inset: 0 !important;
-        background: #fff !important; display: block !important;
+        position: static !important;
+        display: block !important;
+        background: #fff !important;
+        padding: 0 !important; margin: 0 !important;
+        width: 100% !important; height: auto !important;
       }
       body.printing-minilabels #minilabels-modal-content {
+        position: static !important;
         box-shadow: none !important; border: none !important;
-        padding: 0 !important; max-width: 100% !important; width: 100% !important;
+        padding: 0 !important; margin: 0 !important;
+        max-width: 100% !important; width: 100% !important;
+        max-height: none !important; overflow: visible !important;
+        transform: none !important; border-radius: 0 !important;
       }
+      /* Nascondi header modale: titolo, sottotitolo, info, pulsanti */
+      body.printing-minilabels #minilabels-modal > .modal > h2,
+      body.printing-minilabels #minilabels-modal > .modal > .modal-sub,
+      body.printing-minilabels #minilabels-modal > .modal > .modal-info-box,
+      body.printing-minilabels #minilabels-modal > .modal > .modal-actions,
       body.printing-minilabels #minilabels-modal h2,
       body.printing-minilabels #minilabels-modal .modal-sub,
       body.printing-minilabels #minilabels-modal .modal-info-box,
       body.printing-minilabels #minilabels-modal .modal-actions { display: none !important; }
+
       body.printing-minilabels #minilabels-grid {
         display: grid !important;
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 4mm !important;
-        padding: 0 !important;
+        padding: 0 !important; margin: 0 !important;
         background: transparent !important;
         max-height: none !important;
         overflow: visible !important;
       }
       body.printing-minilabels .minilabel {
         page-break-inside: avoid;
-        padding: 8mm !important;
+        break-inside: avoid;
+        padding: 6mm !important;
         border: 1px dashed #999 !important;
         font-size: 11pt !important;
       }
@@ -3722,7 +3743,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14d · email-failed-banner</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14e · miniature-print-fix</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
