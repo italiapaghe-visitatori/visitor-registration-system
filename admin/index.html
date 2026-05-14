@@ -323,10 +323,9 @@
     }
 
     /* Stampa miniature: griglia 2 colonne, ~10 etichette per A4 portrait.
-       Strategia: display:none su TUTTI i figli diretti del body tranne il
-       modal-overlay miniature. Cosi' non resta nulla che occupi spazio
-       sopra/sotto e la prima pagina parte direttamente dalla prima card.
-       (visibility:hidden lasciava lo spazio occupato → pagina 1 bianca.) */
+       Strategia: durante print, JS clona la griglia in #minilabels-print-clone
+       come figlio diretto del body. CSS nasconde TUTTO tranne il clone,
+       eliminando ogni spazio residuo (pagina 1 bianca, ecc.). */
     @media print {
       @page { size: A4 portrait; margin: 10mm; }
 
@@ -335,54 +334,42 @@
         margin: 0 !important;
         padding: 0 !important;
       }
-      body.printing-minilabels > *:not(#minilabels-modal) {
+      body.printing-minilabels > *:not(#minilabels-print-clone) {
         display: none !important;
       }
-
-      /* Modal: ridotto a wrapper trasparente in flusso normale */
-      body.printing-minilabels #minilabels-modal {
-        position: static !important;
-        display: block !important;
-        background: #fff !important;
-        padding: 0 !important; margin: 0 !important;
-        width: 100% !important; height: auto !important;
-        inset: auto !important;
-      }
-      body.printing-minilabels #minilabels-modal-content {
-        position: static !important;
-        box-shadow: none !important; border: none !important;
-        padding: 0 !important; margin: 0 !important;
-        max-width: 100% !important; width: 100% !important;
-        max-height: none !important; overflow: visible !important;
-        transform: none !important; border-radius: 0 !important;
-      }
-      /* Nascondi tutto dentro il modale tranne la griglia delle miniature */
-      body.printing-minilabels #minilabels-modal h2,
-      body.printing-minilabels #minilabels-modal .modal-sub,
-      body.printing-minilabels #minilabels-modal .modal-info-box,
-      body.printing-minilabels #minilabels-modal .modal-actions {
-        display: none !important;
-      }
-
-      body.printing-minilabels #minilabels-grid {
+      body.printing-minilabels #minilabels-print-clone {
         display: grid !important;
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 4mm !important;
         padding: 0 !important; margin: 0 !important;
         background: transparent !important;
-        max-height: none !important;
-        overflow: visible !important;
+        width: 100% !important;
       }
-      body.printing-minilabels .minilabel {
+      body.printing-minilabels #minilabels-print-clone .minilabel {
         page-break-inside: avoid;
         break-inside: avoid;
         padding: 6mm !important;
         border: 1px dashed #999 !important;
         font-size: 11pt !important;
         background: #fff !important;
+        border-radius: 8px;
       }
-      body.printing-minilabels .minilabel-name { font-size: 14pt !important; }
-      body.printing-minilabels .minilabel-badge { font-size: 13pt !important; }
+      body.printing-minilabels #minilabels-print-clone .minilabel-name {
+        font-size: 14pt !important;
+        font-weight: 800;
+        color: #2d3748;
+      }
+      body.printing-minilabels #minilabels-print-clone .minilabel-company {
+        color: #4a5568;
+        margin-top: 2px;
+      }
+      body.printing-minilabels #minilabels-print-clone .minilabel-badge {
+        font-size: 13pt !important;
+        margin-top: 4px;
+        font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+        font-weight: 700;
+        color: #c05621;
+      }
     }
 
     /* ── COMPILA BADGE GRID ── */
@@ -3749,7 +3736,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14g · miniature-no-empty-page1</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14h · miniature-js-clone</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -6946,14 +6933,31 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       }
     }
 
-    // Print mode toggle: aggiunge classe al body per CSS @media print mirato
+    // Print mode toggle: la sola classe @media print non basta a evitare
+    // pagine bianche/spazi quando il body e' lungo. Strategia robusta:
+    // 1) Clono il contenuto del minilabels-grid in un container dedicato
+    //    inserito direttamente come figlio diretto del body
+    // 2) Aggiungo classe al body che con CSS @media print nasconde TUTTO
+    //    tranne quel container clone, riducendo il documento di stampa al
+    //    minimo indispensabile.
+    // 3) Dopo print, rimuovo il clone e la classe.
     window.addEventListener('beforeprint', () => {
       const open = document.getElementById('minilabels-modal');
-      if (open && open.classList.contains('active')) {
-        document.body.classList.add('printing-minilabels');
-      }
+      if (!open || !open.classList.contains('active')) return;
+      const grid = document.getElementById('minilabels-grid');
+      if (!grid) return;
+      // Crea container clone univoco
+      let clone = document.getElementById('minilabels-print-clone');
+      if (clone) clone.remove();
+      clone = document.createElement('div');
+      clone.id = 'minilabels-print-clone';
+      clone.innerHTML = grid.innerHTML;
+      document.body.appendChild(clone);
+      document.body.classList.add('printing-minilabels');
     });
     window.addEventListener('afterprint', () => {
+      const clone = document.getElementById('minilabels-print-clone');
+      if (clone) clone.remove();
       document.body.classList.remove('printing-minilabels');
     });
 
