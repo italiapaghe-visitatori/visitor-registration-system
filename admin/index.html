@@ -3690,7 +3690,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14i · miniature-popup-window</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14j · fix-script-tag-close</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -6901,57 +6901,25 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         alert('Popup bloccato. Permetti i popup di questo sito (icona in alto a destra della barra URL) e riprova.');
         return;
       }
-      w.document.write(`<!DOCTYPE html>
-<html lang="it">
-<head>
-<meta charset="UTF-8">
-<title>Miniature Badge</title>
-<style>
-  @page { size: A4 portrait; margin: 10mm; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 0;
-    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
-    background: #fff;
-    color: #1a202c;
-  }
-  #grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 4mm;
-  }
-  .minilabel {
-    page-break-inside: avoid;
-    break-inside: avoid;
-    padding: 6mm;
-    border: 1px dashed #999;
-    border-radius: 8px;
-    background: #fff;
-    font-size: 11pt;
-    line-height: 1.35;
-  }
-  .minilabel-name { font-weight: 800; font-size: 14pt; color: #2d3748; }
-  .minilabel-company { color: #4a5568; margin-top: 2px; }
-  .minilabel-badge {
-    font-size: 13pt; margin-top: 4px;
-    font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
-    font-weight: 700; color: #c05621;
-  }
-</style>
-</head>
-<body>
-  <div id="grid">${grid.innerHTML}</div>
-  <script>
-    // Avvia stampa automaticamente al load + chiudi finestra dopo print
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        window.print();
-        window.addEventListener('afterprint', () => window.close());
-      }, 200);
-    });
-  </script>
-</body>
-</html>`);
+      // NB: il tag </script> deve essere splittato (<\/script>) altrimenti
+      // il parser HTML della pagina admin chiude il <script> attuale e
+      // rompe tutto il JS dell'admin.
+      const html = '<!DOCTYPE html>\n' +
+        '<html lang="it"><head><meta charset="UTF-8"><title>Miniature Badge</title>\n' +
+        '<style>\n' +
+        '  @page { size: A4 portrait; margin: 10mm; }\n' +
+        '  * { box-sizing: border-box; }\n' +
+        '  body { margin:0; padding:0; font-family: -apple-system, "Segoe UI", Arial, sans-serif; background:#fff; color:#1a202c; }\n' +
+        '  #grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4mm; }\n' +
+        '  .minilabel { page-break-inside: avoid; break-inside: avoid; padding: 6mm; border: 1px dashed #999; border-radius: 8px; background:#fff; font-size: 11pt; line-height: 1.35; }\n' +
+        '  .minilabel-name { font-weight: 800; font-size: 14pt; color: #2d3748; }\n' +
+        '  .minilabel-company { color: #4a5568; margin-top: 2px; }\n' +
+        '  .minilabel-badge { font-size: 13pt; margin-top: 4px; font-family: ui-monospace, "Cascadia Code", Menlo, monospace; font-weight: 700; color: #c05621; }\n' +
+        '</style></head><body>\n' +
+        '<div id="grid">' + grid.innerHTML + '</div>\n' +
+        '<script>window.addEventListener("load",function(){setTimeout(function(){window.print();window.addEventListener("afterprint",function(){window.close();});},200);});<\/script>\n' +
+        '</body></html>';
+      w.document.write(html);
       w.document.close();
     }
 
