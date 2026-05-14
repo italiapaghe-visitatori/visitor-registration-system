@@ -907,6 +907,57 @@
        su una sola riga. I bottoni sono auto-descrittivi (emoji + testo breve). */
     .toolbar-actions .toolbar-label { display: none; }
 
+    /* Campo ricerca ospite in toolbar */
+    .guest-search-wrap {
+      display: inline-flex;
+      align-items: center;
+      position: relative;
+      flex: 0 1 240px;
+      min-width: 180px;
+    }
+    .guest-search-wrap .guest-search-icon {
+      position: absolute;
+      left: 10px;
+      font-size: 13px;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+    .guest-search-wrap input[type="search"] {
+      width: 100%;
+      height: 32px;
+      padding: 0 28px 0 30px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 999px;
+      font-size: 12.5px;
+      background: #f7fafc;
+      transition: border-color 0.18s, background 0.18s;
+      outline: none;
+    }
+    .guest-search-wrap input[type="search"]:focus {
+      border-color: #4c51bf;
+      background: #fff;
+      box-shadow: 0 0 0 2px rgba(76,81,191,0.15);
+    }
+    .guest-search-wrap input[type="search"]::-webkit-search-cancel-button { display: none; }
+    .guest-search-clear {
+      position: absolute;
+      right: 8px;
+      width: 18px;
+      height: 18px;
+      border: none;
+      background: #cbd5e0;
+      color: #fff;
+      border-radius: 50%;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .guest-search-clear:hover { background: #a0aec0; }
+
     /* ── CONTAINER ── */
     .container { max-width: 1600px; margin: 0 auto; padding: 14px 28px; display: flex; flex-direction: column; }
 
@@ -3192,6 +3243,13 @@
         <span class="toolbar-label">QR</span>
         <button type="button" class="btn btn-info" onclick="openQrModal()" title="Genera QR generico al desk per registrazione self-service">📱 Genera QR</button>
         <button type="button" class="btn btn-info" onclick="bulkSendQrEmail()" title="Invia QR personale via email a tutti gli ospiti dell'evento attivo">📧 Invia QR a tutti</button>
+
+        <span class="toolbar-divider"></span>
+        <span class="guest-search-wrap">
+          <span class="guest-search-icon">🔍</span>
+          <input type="search" id="guest-search-input" placeholder="Cerca cognome/nome..." oninput="onGuestSearchInput(this.value)" aria-label="Ricerca ospite per nome o cognome">
+          <button type="button" class="guest-search-clear" id="guest-search-clear" onclick="clearGuestSearch()" title="Pulisci ricerca" style="display:none">×</button>
+        </span>
       </div>
 
       <div class="table-wrap">
@@ -3759,7 +3817,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14v · operator-pill-fit</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14w · guest-search</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -5564,6 +5622,24 @@
     let preAssignedMap = new Map();   // guest_id → badge_number per ospiti pre-attivati
     let emailStatusByGuest = new Map(); // guest_id → ultimo status email_queue ('pending'/'sent'/'failed')
     let showArrived    = false;
+
+    // ── RICERCA OSPITE (filtro client-side su nome/cognome/email/azienda) ──
+    let guestSearchTerm = '';
+    function onGuestSearchInput(val) {
+      guestSearchTerm = (val || '').toLowerCase().trim();
+      const clearBtn = document.getElementById('guest-search-clear');
+      if (clearBtn) clearBtn.style.display = guestSearchTerm ? '' : 'none';
+      renderGuestTable(guestData, arrivedSet);
+    }
+    function clearGuestSearch() {
+      const inp = document.getElementById('guest-search-input');
+      if (inp) inp.value = '';
+      guestSearchTerm = '';
+      const clearBtn = document.getElementById('guest-search-clear');
+      if (clearBtn) clearBtn.style.display = 'none';
+      renderGuestTable(guestData, arrivedSet);
+      if (inp) inp.focus();
+    }
 
     function toggleArrivedFilter() {
       showArrived = !showArrived;
@@ -7422,10 +7498,23 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     // audit log per consultazione di registrazioni precedenti.
 
     function renderGuestTable(data, arrivedSet) {
-      const visible = showArrived ? data : data.filter(g => !arrivedSet.has(g.id));
+      let visible = showArrived ? data : data.filter(g => !arrivedSet.has(g.id));
+
+      // Filtro ricerca: match su nome, cognome, email, azienda (case-insensitive)
+      if (guestSearchTerm) {
+        visible = visible.filter(g => {
+          const blob = [
+            g.first_name || '', g.last_name || '',
+            g.email || '', g.company || ''
+          ].join(' ').toLowerCase();
+          return blob.includes(guestSearchTerm);
+        });
+      }
 
       if (visible.length === 0) {
-        const msg = showArrived ? 'Nessun ospite in lista.' : 'Tutti gli ospiti sono già arrivati.';
+        const msg = guestSearchTerm
+          ? `Nessun ospite corrisponde a "${guestSearchTerm}"`
+          : (showArrived ? 'Nessun ospite in lista.' : 'Tutti gli ospiti sono già arrivati.');
         document.getElementById('guest-table-status').textContent = msg;
         document.getElementById('guest-table-status').style.display = 'block';
         document.getElementById('guest-table-container').classList.add('table-hidden');
