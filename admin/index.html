@@ -718,22 +718,55 @@
     }
     .agent-status:hover { background: rgba(255,255,255,0.28); }
 
-    /* Label operatore loggato: evidenziato per riconoscere subito chi è collegato */
+    /* Label operatore loggato: pill arancione contrastante per riconoscere
+       subito chi e' collegato sul header viola. */
     .operator-label {
       display: inline-flex;
       align-items: center;
-      padding: 6px 14px;
-      background: rgba(255,255,255,0.22);
-      border: 1.5px solid rgba(255,255,255,0.35);
+      padding: 7px 18px;
+      background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+      border: 2px solid rgba(255,255,255,0.55);
+      border-radius: 999px;
+      font-size: 15px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 0.3px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.28);
+      box-shadow: 0 2px 8px rgba(237,137,54,0.45), 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .operator-label:empty { display: none; }
+
+    /* Bottone "Torna su" floating bottom-right. Visibile solo dopo scroll. */
+    .back-to-top-btn {
+      position: fixed;
+      bottom: 22px;
+      right: 22px;
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 18px;
+      background: linear-gradient(135deg, #4c51bf 0%, #6b46c1 100%);
+      color: #fff;
+      border: 2px solid rgba(255,255,255,0.45);
       border-radius: 999px;
       font-size: 14px;
       font-weight: 700;
-      color: #fff;
-      letter-spacing: 0.2px;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.18);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(76,81,191,0.4);
+      transition: transform 0.15s, box-shadow 0.18s, background 0.18s;
     }
-    .operator-label:empty { display: none; }
+    .back-to-top-btn.visible { display: inline-flex; }
+    .back-to-top-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(76,81,191,0.55);
+      background: linear-gradient(135deg, #434190 0%, #553c9a 100%);
+    }
+    .back-to-top-btn .bt-icon { font-size: 18px; line-height: 1; }
+    .back-to-top-btn .bt-text { line-height: 1; }
+    @media (max-width: 640px) {
+      .back-to-top-btn { padding: 10px 14px; font-size: 13px; bottom: 14px; right: 14px; }
+    }
     .agent-status .dot {
       width: 9px; height: 9px;
       border-radius: 50%;
@@ -2260,6 +2293,12 @@
 </head>
 <body class="auth-pending">
 
+  <!-- Bottone Torna Su: appare solo dopo aver scrollato 400px+ -->
+  <button type="button" id="back-to-top" class="back-to-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Torna in cima alla pagina" aria-label="Torna su">
+    <span class="bt-icon">↑</span>
+    <span class="bt-text">Su</span>
+  </button>
+
   <!-- MODALE DETTAGLI / MODIFICA -->
   <div class="modal-overlay" id="details-modal">
     <div class="modal modal-wide">
@@ -3715,7 +3754,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14t · operator-pill</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14u · operator-orange + back-to-top</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -5780,6 +5819,20 @@
       }
     }
     pollTimers.push(setInterval(refreshEmailQueueStatus, 10000));
+
+    // ── BOTTONE "TORNA SU" ───────────────────────────
+    // Visibile solo dopo aver scrollato oltre 400px. Click → smooth scroll
+    // al top della pagina. Utile per liste lunghe (96+ ospiti, audit log, ecc.).
+    (function() {
+      const btn = document.getElementById('back-to-top');
+      if (!btn) return;
+      const onScroll = () => {
+        if (window.scrollY > 400) btn.classList.add('visible');
+        else btn.classList.remove('visible');
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll(); // check iniziale
+    })();
 
     // ── EVENTI ───────────────────────────────────────
     let eventsData = [];
