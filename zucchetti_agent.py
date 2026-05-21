@@ -858,7 +858,7 @@ def process_pending_badges():
     try:
         pending = sb_get("visitors", params={
             "xatlas_status": "eq.pending",
-            "select": "id,first_name,last_name,badge_number",
+            "select": "id,first_name,last_name,badge_number,event_id",
         })
     except Exception as e:
         log.error(f"Errore lettura pending da Supabase: {e}")
@@ -869,6 +869,7 @@ def process_pending_badges():
         badge = v.get("badge_number")
         fn    = v.get("first_name", "")
         ln    = v.get("last_name",  "")
+        eid   = v.get("event_id")
 
         if not badge:
             log.warning(f"Visitor {vid} in pending ma senza badge_number, skip")
@@ -876,7 +877,7 @@ def process_pending_badges():
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                xid, cid = create_xatlas_user(badge, fn, ln)
+                xid, cid = create_xatlas_user(badge, fn, ln, event_id=eid)
                 sb_patch(f"visitors?id=eq.{vid}", {
                     "xatlas_status":  "active",
                     "xatlas_user_id": xid,
