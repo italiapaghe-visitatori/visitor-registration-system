@@ -626,6 +626,11 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tu
     start_ms, end_ms = _today_ms()
     end_of_use_ms = 4133977199999  # 31/12/2099 come Baudo Pippo
     identifier = f"VIS{badge_number}"
+    # Difesa in profondità: garantisce che l'agente non possa creare utenti
+    # XAtlas fuori dal namespace VIS, anche dopo modifiche future al codice.
+    # Vedi spec B1, sezione "Asserzioni e vincoli di sicurezza".
+    assert identifier.startswith("VIS"), \
+        f"REFUSED: tentativo di creare utente non-VIS, identifier={identifier!r}"
 
     # IDEMPOTENZA: se l'agente è crashato dopo INSERT user_identifier ma prima
     # di PATCH visitors.xatlas_status='active', al restart riprocessa lo stesso
