@@ -3817,7 +3817,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-14w · guest-search</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-21 · egress-opt</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -4540,9 +4540,13 @@
     }
 
     function buildUrl() {
+      // OPTIMIZE EGRESS: esplicito invece di select=* per ESCLUDERE `signature`
+      // (base64 ~50KB l'una): non serve nella tabella, viene lazy-loaded dal
+      // detail modal su click. Risparmio: 50 righe × 50KB × refresh = MB per load.
+      const VISITOR_COLS = 'id,first_name,last_name,email,phone,company,document_id,document_type,visit_reason,visit_date,person_to_visit,badge_number,entry_time,exit_time,xatlas_status,xatlas_user_id,xatlas_renamed,assigned_by,assigned_at,guest_id,event_id,event_name,event_date,job_title,created_at,updated_at,consent_at,gdpr_consent,norms_consent,notes,badge_agreement';
       // nullslast: i record con valore NULL nella colonna di ordinamento finiscono in fondo
       // (utile per visit_date/entry_time/event_name/badge_number che spesso sono NULL per gli "Attesi")
-      let url = `${SUPABASE_URL}/rest/v1/visitors?select=*&order=${sortCol}.${sortDir}.nullslast`;
+      let url = `${SUPABASE_URL}/rest/v1/visitors?select=${VISITOR_COLS}&order=${sortCol}.${sortDir}.nullslast`;
       if (showArchived) {
         // Mostra SOLO archivio (xatlas_status='checked_out')
         url += `&xatlas_status=eq.checked_out`;
@@ -5399,17 +5403,29 @@
       }
 
       // Visualizza la firma autografa del visitor (prova grafologica per audit legale).
-      // Se manca (record stub pre-attivato non ancora firmato dall'ospite al kiosk),
-      // mostriamo un placeholder esplicito.
+      // OPTIMIZE EGRESS: signature NON è più nel SELECT della tabella (era ~50KB l'una
+      // × 50 righe × ogni refresh = MB). Lazy-fetch on-demand solo quando si apre
+      // il dettaglio. Se manca (stub pre-attivato), placeholder esplicito.
       const sigWrap = document.getElementById('det-signature-wrap');
       if (sigWrap) {
-        if (row.signature && typeof row.signature === 'string' && row.signature.startsWith('data:image')) {
-          sigWrap.innerHTML = `<img src="${esc(row.signature)}" alt="Firma autografa visitatore" class="sig-preview-img">
-            <div class="sig-preview-meta">Firma raccolta al momento della registrazione (kiosk/QR self-service).
-            ${row.consent_at ? 'Timestamp: ' + esc(new Date(row.consent_at).toLocaleString('it-IT')) : ''}</div>`;
-        } else {
-          sigWrap.innerHTML = '<div class="sig-preview-empty">⚠️ Firma non disponibile (record pre-attivato, ospite non ancora passato al kiosk).</div>';
-        }
+        sigWrap.innerHTML = '<div class="sig-preview-empty">⏳ Caricamento firma…</div>';
+        (async () => {
+          try {
+            const r = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(row.id)}&select=signature,consent_at&limit=1`);
+            const arr = r?.ok ? await r.json() : [];
+            const sig = arr[0]?.signature;
+            const consent = arr[0]?.consent_at || row.consent_at;
+            if (sig && typeof sig === 'string' && sig.startsWith('data:image')) {
+              sigWrap.innerHTML = `<img src="${esc(sig)}" alt="Firma autografa visitatore" class="sig-preview-img">
+                <div class="sig-preview-meta">Firma raccolta al momento della registrazione (kiosk/QR self-service).
+                ${consent ? 'Timestamp: ' + esc(new Date(consent).toLocaleString('it-IT')) : ''}</div>`;
+            } else {
+              sigWrap.innerHTML = '<div class="sig-preview-empty">⚠️ Firma non disponibile (record pre-attivato, ospite non ancora passato al kiosk).</div>';
+            }
+          } catch (_) {
+            sigWrap.innerHTML = '<div class="sig-preview-empty">⚠️ Errore caricamento firma.</div>';
+          }
+        })();
       }
 
       // Carica storico timbrature da visitor_movements
@@ -5547,12 +5563,20 @@
         return;
       }
 
-      // Audit log PRIMA dell'eliminazione (perché dopo il record non esiste più)
+      // Audit log PRIMA dell'eliminazione (perché dopo il record non esiste più).
+      // OPTIMIZE EGRESS: signature non e' piu' in currentData. Mini-fetch one-shot
+      // su evento raro (hard delete) per preservare il flag had_signature in audit.
+      let hadSig = false;
+      try {
+        const r = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(detailsCurrentId)}&select=signature&limit=1`);
+        const arr = r?.ok ? await r.json() : [];
+        hadSig = !!(arr[0]?.signature);
+      } catch (_) { /* best-effort */ }
       auditLog('hard_delete_visitor', 'visitor', detailsCurrentId, {
         name: `${row?.first_name} ${row?.last_name}`,
         badge: row?.badge_number,
         event: row?.event_name,
-        had_signature: !!(row?.signature),
+        had_signature: hadSig,
       });
 
       try {
@@ -5743,14 +5767,21 @@
         guestData = rawGuestData;
 
         // Carica visitor con guest_id (servono entry_time/exit_time per "dentro ora")
-        const visitorRes  = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id,signature,badge_number,xatlas_status,entry_time,exit_time&guest_id=not.is.null`);
+        // OPTIMIZE EGRESS: NON pullare colonna `signature` (base64 ~50KB l'una): serve
+        // solo come boolean "ha firmato?". Usiamo query separata filtrata server-side
+        // su signature=not.is.null che ritorna solo guest_id (~30 bytes ciascuno).
+        // Risparmio: 96 visitor × 50KB = ~5MB per refresh × auto-poll 10s = enorme.
+        const visitorRes  = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id,badge_number,xatlas_status,entry_time,exit_time&guest_id=not.is.null`);
         const visitorData = visitorRes?.ok ? await visitorRes.json() : [];
-        arrivedSet     = new Set(visitorData.filter(v => v.signature).map(v => v.guest_id));
-        // Pre-assegnazione: solo visitor stub che sono ancora attivi (escludo checked_out:
-        // erano vecchie pre-assegnazioni archiviate, il loro badge è già stato riusato altrove)
+        // Query lean: solo guest_id dei visitor che hanno firmato.
+        const signedRes = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id&guest_id=not.is.null&signature=not.is.null`);
+        const signedData = signedRes?.ok ? await signedRes.json() : [];
+        arrivedSet = new Set(signedData.map(v => v.guest_id));
+        // Pre-assegnazione: visitor stub ancora attivi (non checked_out) e NON firmati.
+        // "Non firmato" = guest_id presente in visitorData ma NON in arrivedSet.
         preAssignedMap = new Map(
           visitorData
-            .filter(v => !v.signature && v.xatlas_status !== 'checked_out')
+            .filter(v => !arrivedSet.has(v.guest_id) && v.xatlas_status !== 'checked_out')
             .map(v => [v.guest_id, { badge: v.badge_number, status: v.xatlas_status }])
         );
 
@@ -5835,18 +5866,20 @@
     // page-stay lungo. La protezione esistente (currentView + visibilityState
     // guard) impedisce le fetch inutili, ma il timer JS gira comunque.
     // Post: registro pollTimers + cleanup esplicito a logout()/unload.
+    // OPTIMIZE EGRESS: polling 10s → 20s. Latenza accettabile (UI mostra firme nuove
+    // entro 20s vs 10s) e dimezza il traffico dei refresh automatici.
     const pollTimers = [];
     pollTimers.push(setInterval(() => {
       if (currentView === 'guests' && document.visibilityState !== 'hidden') {
         loadGuestList(true);
       }
-    }, 10000));
+    }, 20000));
 
     pollTimers.push(setInterval(() => {
       if (currentView === 'visitors' && document.visibilityState !== 'hidden') {
         loadData(true);
       }
-    }, 10000));
+    }, 20000));
 
     // ── AGENT STATUS INDICATOR ───────────────────────────────
     // Legge agent_status.last_heartbeat e aggiorna il pill nell'header.
@@ -5885,8 +5918,9 @@
       pill.title = tooltip;
       document.getElementById('agent-status-text').textContent = text;
     }
-    // Aggiorna ogni 5s (lieve)
-    pollTimers.push(setInterval(refreshAgentStatus, 5000));
+    // OPTIMIZE EGRESS: 5s → 15s. Heartbeat agente è 30s comunque, e i livelli di soglia
+    // ok/warn/offline (30s/120s) tollerano latenza UI di 15s senza falsi allarmi.
+    pollTimers.push(setInterval(refreshAgentStatus, 15000));
 
     // ── EMAIL QUEUE STATUS INDICATOR ─────────────────────────
     // Mostra un pill nell'header con il numero di email QR ancora in coda.
@@ -6020,20 +6054,23 @@
 
     async function loadAuditStats() {
       try {
+        // OPTIMIZE EGRESS: limit=0 → solo header Content-Range con count, NO body.
+        // Prima: pullava tutti gli id (~36 bytes l'uno × migliaia di righe = KB-MB).
         // Totale azioni (count exact via Prefer count)
-        const t = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=id`, { headers: { 'Prefer': 'count=exact' } });
+        const t = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=id&limit=0`, { headers: { 'Prefer': 'count=exact' } });
         const totalCount = parseInt(t.headers.get('content-range')?.split('/')[1] || '0', 10);
         document.getElementById('au-stat-total').textContent = totalCount;
 
         // Oggi
         const todayIso = todayLocalIso();
-        const td = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=id&created_at=gte.${todayIso}T00:00:00`, { headers: { 'Prefer': 'count=exact' } });
+        const td = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=id&created_at=gte.${todayIso}T00:00:00&limit=0`, { headers: { 'Prefer': 'count=exact' } });
         const todayCount = parseInt(td.headers.get('content-range')?.split('/')[1] || '0', 10);
         document.getElementById('au-stat-today').textContent = todayCount;
 
-        // Operatori distinti negli ultimi 7 giorni
+        // Operatori distinti negli ultimi 7 giorni — cap a 2000 righe (mai più di
+        // ~10 operatori distinti, 2000 righe sono ampiamente sufficienti per il set).
         const d7 = new Date(Date.now() - 7 * 86400000).toISOString();
-        const u7 = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=user_email&created_at=gte.${d7}`);
+        const u7 = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=user_email&created_at=gte.${d7}&limit=2000`);
         const distinct = new Set((await u7.json()).map(r => r.user_email));
         document.getElementById('au-stat-users').textContent = distinct.size;
 
@@ -6055,7 +6092,11 @@
       if (!sel) return;
       const cur = sel.value;
       try {
-        const res = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=user_email`);
+        // OPTIMIZE EGRESS: prima pullava TUTTO l'audit_log solo per estrarre user_email
+        // distinti (~30 bytes × migliaia di righe = MB). Limitiamo a ultimi 90 giorni
+        // (operatori "vecchi" non rilevanti per filtro UI) e cap a 5000 righe.
+        const since90 = new Date(Date.now() - 90 * 86400000).toISOString();
+        const res = await api(`${SUPABASE_URL}/rest/v1/audit_log?select=user_email&created_at=gte.${since90}&limit=5000`);
         const data = res?.ok ? await res.json() : [];
         const users = [...new Set(data.map(r => r.user_email))].filter(Boolean).sort();
         if (sel.options.length - 1 !== users.length) {
@@ -10332,8 +10373,10 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         // Visitor stub correlati (per sapere chi è già pre-assegnato)
         if (acqState.eventGuestList.length > 0) {
           const ids = acqState.eventGuestList.map(g => `"${g.id}"`).join(',');
+          // OPTIMIZE EGRESS: NON pullare `signature` (base64): non viene usato downstream
+          // (preAssignedMap.has(id) e' solo un check di presenza, mai .signature).
           const vRes = await api(
-            `${SUPABASE_URL}/rest/v1/visitors?select=id,guest_id,badge_number,xatlas_status,signature` +
+            `${SUPABASE_URL}/rest/v1/visitors?select=id,guest_id,badge_number,xatlas_status` +
             `&guest_id=in.(${ids})&xatlas_status=in.(pending,active)`
           );
           const visitors = vRes && vRes.ok ? await vRes.json() : [];
@@ -10341,7 +10384,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           visitors.forEach(v => {
             if (v.guest_id) {
               acqState.preAssignedMap.set(v.guest_id, {
-                visitor_id: v.id, badge: v.badge_number, status: v.xatlas_status, signature: v.signature
+                visitor_id: v.id, badge: v.badge_number, status: v.xatlas_status
               });
             }
           });

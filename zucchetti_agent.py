@@ -104,7 +104,10 @@ SITE_ID                     = 176
 ORGANIZATIONAL_STRUCTURE_ID = 173
 AUTH_GROUP_ID               = 249   # gruppo VISITATORI
 
-POLL_INTERVAL = 5    # secondi tra ogni ciclo (era 10, ridotto per latenza minima badge)
+POLL_INTERVAL = 10   # secondi tra ogni ciclo. Era 5 (latenza minima badge), portato a 10
+                     # per dimezzare il traffico egress verso Supabase (agente 24/7 = principale
+                     # consumatore). Latenza badge accettabile: utente preme RFID → entro 10s
+                     # il tornello apre. Per evento critico, abbassare temporaneamente a 5.
 MAX_RETRIES   = 3    # tentativi prima di loggare errore e passare oltre
 
 # ── Configurazione INVIO EMAIL (SMTP basic OPPURE Microsoft Graph M365) ─────
@@ -208,7 +211,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.5.2-email-throttle"
+AGENT_VERSION = "1.5.3-egress-opt"
 
 
 def update_heartbeat(notes: str | None = None):

@@ -2097,28 +2097,42 @@
         // (escludi dalla lista) | signature NULL = pre-attivato (stub da PATCHare).
         // 14 giorni: gli stub di pre-assegnazione vengono creati 1-7 giorni
         // prima dell'evento, quindi serve una finestra ampia per intercettarli.
-        // limit=5000 esplicito per evitare cutoff a 1000 (default Supabase) se
-        // il sistema accumula molti visitatori storici (eventi ricorrenti).
-        // Filtro per event_id se CURRENT_EVENT e' caricato (QR mode) — riduce
-        // ulteriormente il volume e garantisce match sicuro sul pool corrente.
+        //
+        // OPTIMIZE EGRESS (21/05/2026): in precedenza pullavamo `signature` (base64
+        // ~50KB l'una) anche se serviva solo come boolean. Con 96 visitor × ogni
+        // polling 8s × 4h evento = GB di traffico per singolo tablet. FIX: due query
+        // separate filtrate server-side su signature is/is not null, MAI tirare giu'
+        // il blob base64.
         const todayStart = new Date();
         todayStart.setDate(todayStart.getDate() - 14);
         todayStart.setHours(0, 0, 0, 0);
         const todayIso = todayStart.toISOString();
-        let vUrl = `${SUPABASE_URL}/rest/v1/visitors?select=id,guest_id,first_name,last_name,signature&created_at=gte.${encodeURIComponent(todayIso)}&limit=5000`;
-        if (typeof CURRENT_EVENT !== 'undefined' && CURRENT_EVENT && CURRENT_EVENT.id) {
-          vUrl += `&event_id=eq.${encodeURIComponent(CURRENT_EVENT.id)}`;
-        }
-        const vRes = await fetch(vUrl, { headers: hdrs });
-        const vData = vRes.ok ? await vRes.json() : [];
+        const eventFilter = (typeof CURRENT_EVENT !== 'undefined' && CURRENT_EVENT && CURRENT_EVENT.id)
+          ? `&event_id=eq.${encodeURIComponent(CURRENT_EVENT.id)}`
+          : '';
+
+        // Query 1: visitor STUB non firmati (pre-attivati) — serve per PATCH al submit
+        const stubUrl = `${SUPABASE_URL}/rest/v1/visitors?select=id,guest_id` +
+          `&signature=is.null&created_at=gte.${encodeURIComponent(todayIso)}&limit=5000${eventFilter}`;
+        // Query 2: visitor GIA' FIRMATI — serve solo per escludere dalla lista
+        // (ID + nomi per fallback match cognome)
+        const signedUrl = `${SUPABASE_URL}/rest/v1/visitors?select=guest_id,first_name,last_name` +
+          `&signature=not.is.null&created_at=gte.${encodeURIComponent(todayIso)}&limit=5000${eventFilter}`;
+
+        const [stubRes, signedRes] = await Promise.all([
+          fetch(stubUrl, { headers: hdrs }),
+          fetch(signedUrl, { headers: hdrs }),
+        ]);
+        const stubData   = stubRes.ok   ? await stubRes.json()   : [];
+        const signedData = signedRes.ok ? await signedRes.json() : [];
 
         // Già firmati al kiosk → escludi dalla lista
-        const signedIds = new Set(vData.filter(v => v.signature).map(v => v.guest_id).filter(Boolean));
+        const signedIds = new Set(signedData.map(v => v.guest_id).filter(Boolean));
         const norm = (s) => (s || '').toLowerCase().trim();
-        const signedNames = new Set(vData.filter(v => v.signature).map(v => norm(v.first_name) + '|' + norm(v.last_name)));
+        const signedNames = new Set(signedData.map(v => norm(v.first_name) + '|' + norm(v.last_name)));
 
         // Pre-attivati (stub senza firma): map guest_id → visitor_id per fare PATCH al submit
-        preAssignedVisitorByGuest = new Map(vData.filter(v => !v.signature && v.guest_id).map(v => [v.guest_id, v.id]));
+        preAssignedVisitorByGuest = new Map(stubData.filter(v => v.guest_id).map(v => [v.guest_id, v.id]));
 
         allGuests = allToday.filter(g => {
           if (signedIds.has(g.id)) return false;
