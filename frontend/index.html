@@ -2076,6 +2076,7 @@
     // ── GUEST LOOKUP ─────────────────────────────────
     let allGuests                 = [];
     let selectedGuestId           = null;
+    let selectedGuestRow          = null;   // C1: salviamo l'intero record per guard nome digitato
     let preAssignedVisitorByGuest = new Map();
 
     async function loadGuestList() {
@@ -2367,7 +2368,28 @@
     document.getElementById('guest-search').addEventListener('input', applyFilters);
 
     function selectGuest(g) {
+      // C1 — Doppia conferma in modalita' QR GENERICO (no QR_GUEST_ID).
+      // Pattern noto di mis-aggancio (POLVERINO->TREVISONE, FRANCO->LUCIANI,
+      // SICILIANO->ROMANO ELISA il 15/05/2026): nella lista generica l'ospite
+      // selezionava il nome sbagliato e la sua firma si agganciava al
+      // guest_id di un altro invitato. Con QR personale (QR_GUEST_ID) il
+      // problema non puo' esistere. In generic mode, chiediamo conferma
+      // esplicita prima di proseguire — riduce drasticamente l'errore.
+      if (!QR_GUEST_ID) {
+        const fullName = `${(g.first_name || '').trim()} ${(g.last_name || '').trim()}`.trim();
+        const confirmed = confirm(
+          `Confermi di essere:\n\n    ${fullName}\n\n` +
+          `⚠️ Solo questa persona puo' firmare con questo nome.\n` +
+          `Premere ANNULLA se il nome non e' tuo o se hai sbagliato selezione.`
+        );
+        if (!confirmed) {
+          // L'utente ha negato. Reset selezione e torna alla lista.
+          selectedGuestId = null;
+          return;
+        }
+      }
       selectedGuestId = g.id;
+      selectedGuestRow = g;  // C1: salva il record originale per il guard
       const fnEl = document.getElementById('first_name');
       const lnEl = document.getElementById('last_name');
       fnEl.value                                       = g.first_name      || '';
@@ -2392,6 +2414,7 @@
 
     function skipLookup() {
       selectedGuestId = null;
+      selectedGuestRow = null;  // C1
       document.getElementById('guest-lookup-wrap').style.display = 'none';
       document.getElementById('guest-confirm').style.display     = 'none';
     }
@@ -2400,6 +2423,7 @@
 
     document.getElementById('change-guest-btn').addEventListener('click', function () {
       selectedGuestId = null;
+      selectedGuestRow = null;  // C1
       document.getElementById('guest-confirm').style.display     = 'none';
       document.getElementById('guest-search').value              = '';
       document.getElementById('first_name').value                = '';
@@ -2609,6 +2633,24 @@
         payload.event_id   = CURRENT_EVENT.id;
         payload.event_name = CURRENT_EVENT.name;
         payload.event_date = CURRENT_EVENT.event_start_date;
+      }
+
+      // C1 — Difesa in profondita' contro mis-aggancio QR generico.
+      // Se in modalita' generic (no QR_GUEST_ID) l'utente ha selezionato un guest
+      // dalla lista MA poi ha modificato a mano nome/cognome con qualcosa di
+      // diverso, NON aggancia al guest_id selezionato — la firma andrebbe sul
+      // record sbagliato (pattern 15/05/2026). Resettiamo selectedGuestId e
+      // lasciamo che il fallback per-nome (sotto) faccia il match corretto.
+      if (selectedGuestId && !QR_GUEST_ID) {
+        const guestNameSelected = (selectedGuestRow
+          ? `${(selectedGuestRow.first_name || '').trim().toLowerCase()} ${(selectedGuestRow.last_name || '').trim().toLowerCase()}`
+          : '').trim();
+        const typedName = `${firstName.toLowerCase()} ${lastName.toLowerCase()}`.trim();
+        if (guestNameSelected && typedName && guestNameSelected !== typedName) {
+          console.warn('[C1 guard] selectedGuestId resettato: nome digitato != nome guest selezionato',
+                        { selected: guestNameSelected, typed: typedName });
+          selectedGuestId = null;
+        }
       }
 
       // Usa guest_id dalla selezione utente; fallback silenzioso per nome/email se non selezionato
