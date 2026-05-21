@@ -870,3 +870,89 @@ CREATE POLICY "anon_select_visitors"
   ON public.visitors
   FOR SELECT
   USING (true);
+
+-- ============================================================
+-- v24 — Fix advisor 'auth_users_exposed': view -> function RPC
+-- ============================================================
+-- 2026-05-21 — Chiude Supabase advisor critico (security_definer view su auth.users).
+-- Replace public.app_users (view) con public.list_app_users() (function RPC con
+-- controllo ruolo server-side). Migration applicata via SQL Editor; vedi spec
+-- docs/superpowers/specs/2026-05-21-fix-supabase-auth-users-exposed-design.md
+-- e file standalone supabase/migration_v24_app_users_function.sql
+
+DROP VIEW IF EXISTS public.app_users CASCADE;
+
+CREATE OR REPLACE FUNCTION public.list_app_users()
+RETURNS TABLE (
+  id                  uuid,
+  email               text,
+  created_at          timestamptz,
+  email_confirmed_at  timestamptz,
+  last_sign_in_at     timestamptz,
+  banned_until        timestamptz,
+  display_name        text,
+  status              text
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  caller_email text;
+  is_super_admin boolean;
+BEGIN
+  IF (SELECT auth.role()) <> 'authenticated' THEN
+    RAISE EXCEPTION 'list_app_users: caller non autenticato'
+      USING HINT = 'login richiesto';
+  END IF;
+
+  caller_email := (auth.jwt() ->> 'email');
+  IF caller_email IS NULL THEN
+    RAISE EXCEPTION 'list_app_users: email caller non disponibile nel JWT';
+  END IF;
+
+  is_super_admin := caller_email IN ('tecnico.gelormini@gmail.com');
+
+  IF is_super_admin THEN
+    RETURN QUERY
+    SELECT
+      u.id,
+      u.email::text,
+      u.created_at,
+      u.email_confirmed_at,
+      u.last_sign_in_at,
+      u.banned_until,
+      COALESCE(u.raw_user_meta_data->>'display_name', split_part(u.email::text, '@', 1))::text AS display_name,
+      CASE
+        WHEN u.banned_until IS NOT NULL AND u.banned_until > now() THEN 'banned'
+        WHEN u.email_confirmed_at IS NULL THEN 'invited'
+        WHEN u.last_sign_in_at IS NULL THEN 'confirmed'
+        ELSE 'active'
+      END::text AS status
+    FROM auth.users u
+    ORDER BY u.created_at DESC;
+  ELSE
+    RETURN QUERY
+    SELECT
+      u.id,
+      u.email::text,
+      u.created_at,
+      u.email_confirmed_at,
+      u.last_sign_in_at,
+      u.banned_until,
+      COALESCE(u.raw_user_meta_data->>'display_name', split_part(u.email::text, '@', 1))::text AS display_name,
+      CASE
+        WHEN u.banned_until IS NOT NULL AND u.banned_until > now() THEN 'banned'
+        WHEN u.email_confirmed_at IS NULL THEN 'invited'
+        WHEN u.last_sign_in_at IS NULL THEN 'confirmed'
+        ELSE 'active'
+      END::text AS status
+    FROM auth.users u
+    WHERE u.id = auth.uid();
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.list_app_users() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.list_app_users() FROM anon;
+GRANT EXECUTE ON FUNCTION public.list_app_users() TO authenticated;
