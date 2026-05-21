@@ -25,6 +25,7 @@ from datetime import date, datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
+from zoneinfo import ZoneInfo
 
 import psycopg2
 from psycopg2 import pool as _pg_pool
@@ -300,13 +301,93 @@ def xatlas_request(method, path, **kwargs):
 
 # ── XAtlas: crea utente esterno ───────────────────────────────────────────────
 
+_ROME = ZoneInfo("Europe/Rome")
+
+
+def _today_rome():
+    """Restituisce la data corrente ancorata al fuso Europe/Rome.
+
+    Indipendente dal fuso del sistema operativo: protegge da configurazioni
+    server errate (es. server con TZ=UTC) che causerebbero shift di validita.
+    Patchabile nei test per scenari deterministici.
+    """
+    return datetime.now(_ROME).date()
+
+
 def _today_ms():
-    """Restituisce (start_ms, end_ms) del giorno corrente in millisecondi epoch."""
-    today = date.today()
-    start = datetime(today.year, today.month, today.day, 0, 0, 0)
-    end   = datetime(today.year, today.month, today.day, 23, 59, 59)
-    epoch = datetime(1970, 1, 1)
-    return int((start - epoch).total_seconds() * 1000), int((end - epoch).total_seconds() * 1000)
+    """Finestra (oggi 00:00, oggi 23:59:59) in epoch ms, ancorata Europe/Rome.
+
+    Usata come fallback per walk-in senza event_id (visitor non legato a evento
+    gestito). Per visitor legati a evento, l'agente usa event_window_ms().
+    """
+    today = _today_rome()
+    start = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=_ROME)
+    end   = datetime(today.year, today.month, today.day, 23, 59, 59, tzinfo=_ROME)
+    return int(start.timestamp() * 1000), int(end.timestamp() * 1000)
+
+
+def event_window_ms(event_id):
+    """Finestra validita XAtlas legata alla data dell'evento.
+
+    Spec: docs/superpowers/specs/2026-05-18-fix-validita-evento-design.md
+
+    Politica:
+    - event_id is None -> _today_ms() (fallback walk-in legacy, comportamento invariato)
+    - altrimenti lookup events su Supabase:
+        - evento non trovato      -> raise RuntimeError (fail-fast, retry ciclo dopo)
+        - evento chiuso           -> raise RuntimeError (fail-fast, no provisioning)
+        - event_end_date passato  -> raise RuntimeError (fail-fast, evento scaduto)
+        - altrimenti:
+            start = oggi 00:00:00 Europe/Rome
+            end   = max(event_end + 7gg, oggi + 1gg) 23:59:59 Europe/Rome
+    """
+    if event_id is None:
+        return _today_ms()
+
+    try:
+        rows = sb_get("events", params={
+            "id":     f"eq.{event_id}",
+            "select": "event_end_date,closed_at",
+            "limit":  "1",
+        })
+    except Exception as e:
+        raise RuntimeError(
+            f"event_window_ms: lookup events fallito per event_id={event_id}: {e}"
+        )
+
+    if not rows:
+        raise RuntimeError(
+            f"event_window_ms: event_id={event_id} non trovato in events"
+        )
+
+    event = rows[0]
+    if event.get("closed_at") is not None:
+        raise RuntimeError(
+            f"event_window_ms: event_id={event_id} e' chiuso "
+            f"(closed_at={event['closed_at']}), no provisioning"
+        )
+
+    event_end_str = event.get("event_end_date")
+    if not event_end_str:
+        raise RuntimeError(
+            f"event_window_ms: event_id={event_id} senza event_end_date valorizzato"
+        )
+
+    today = _today_rome()
+    event_end = date.fromisoformat(event_end_str)
+
+    if event_end < today:
+        raise RuntimeError(
+            f"event_window_ms: event_id={event_id} scaduto "
+            f"(event_end_date={event_end} < oggi {today})"
+        )
+
+    candidate_end = max(event_end + timedelta(days=7), today + timedelta(days=1))
+
+    start_dt = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=_ROME)
+    end_dt   = datetime(candidate_end.year, candidate_end.month, candidate_end.day,
+                        23, 59, 59, tzinfo=_ROME)
+    return int(start_dt.timestamp() * 1000), int(end_dt.timestamp() * 1000)
 
 
 def _find_external_user_by_identifier(identifier: str) -> int | None:
@@ -521,10 +602,26 @@ def find_or_create_card_id(clear_code: str) -> int | None:
             axs_release(conn)
 
 
-def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tuple[int, int]:
+def create_xatlas_user(badge_number: str, first_name: str, last_name: str,
+                      event_id: str | None = None,
+                      source: str = "unknown") -> tuple[int, int]:
     """
     Crea utente esterno in XAtlas e assegna la tessera.
+
+    Argomenti:
+      badge_number: numero badge stampato sul cartoncino (sara' l'identifier VIS<badge>).
+      first_name, last_name: nome reale dell'ospite (o "Pool"/"Badge<n>" per spare pool).
+      event_id: ID dell'evento Supabase a cui il visitor e' legato. Se None, l'utente
+        XAtlas riceve validita' di un giorno (fallback walk-in legacy). Se valorizzato,
+        la validita' e' (oggi, event_end_date + 7gg) -- vedi event_window_ms.
+      source: etichetta della funzione chiamante per il log strutturato
+        (es. "pending", "pool_prep", "recreate"). Aiuta il post-mortem.
+
     Restituisce (xatlas_user_id, card_id).
+
+    Solleva RuntimeError fail-fast se event_id e' valorizzato ma l'evento e' non trovato,
+    chiuso, o scaduto. Il chiamante deve catturare e lasciare il visitor in stato pending
+    per il retry al ciclo successivo dell'agente.
     """
     # 1) Trova card o creala se non esiste (sempre con user_id=NULL)
     card_id = find_or_create_card_id(badge_number)
@@ -542,9 +639,26 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tu
         )
 
     # 2) Crea utente esterno (con idempotenza: salta se identifier già esistente)
-    start_ms, end_ms = _today_ms()
-    end_of_use_ms = 4133977199999  # 31/12/2099 come Baudo Pippo
+    start_ms, end_ms = event_window_ms(event_id)
     identifier = f"VIS{badge_number}"
+    # Difesa in profondità: garantisce che l'agente non possa creare utenti
+    # XAtlas fuori dal namespace VIS, anche dopo modifiche future al codice.
+    # Usa if/raise (NON assert) per resistere a python -O / PYTHONOPTIMIZE
+    # che striperebbe gli assert. Vedi spec B1 + code review M2/B2.
+    if not identifier.startswith("VIS"):
+        raise RuntimeError(
+            f"REFUSED: tentativo di creare utente non-VIS, identifier={identifier!r}"
+        )
+    # Log strutturato: tracciabilita' validita' per audit post-incidente
+    start_iso = datetime.fromtimestamp(start_ms / 1000, tz=_ROME).isoformat()
+    end_iso   = datetime.fromtimestamp(end_ms / 1000, tz=_ROME).isoformat()
+    log.info(
+        f"create_xatlas_user: identifier={identifier} "
+        f"validity={start_iso}..{end_iso} "
+        f"event_id={event_id or 'WALK-IN'} "
+        f"source={source}"
+    )
+    end_of_use_ms = 4133977199999  # 31/12/2099 come Baudo Pippo
 
     # IDEMPOTENZA: se l'agente è crashato dopo INSERT user_identifier ma prima
     # di PATCH visitors.xatlas_status='active', al restart riprocessa lo stesso
@@ -751,7 +865,7 @@ def process_pending_badges():
     try:
         pending = sb_get("visitors", params={
             "xatlas_status": "eq.pending",
-            "select": "id,first_name,last_name,badge_number",
+            "select": "id,first_name,last_name,badge_number,event_id",
         })
     except Exception as e:
         log.error(f"Errore lettura pending da Supabase: {e}")
@@ -762,6 +876,7 @@ def process_pending_badges():
         badge = v.get("badge_number")
         fn    = v.get("first_name", "")
         ln    = v.get("last_name",  "")
+        eid   = v.get("event_id")
 
         if not badge:
             log.warning(f"Visitor {vid} in pending ma senza badge_number, skip")
@@ -769,7 +884,8 @@ def process_pending_badges():
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                xid, cid = create_xatlas_user(badge, fn, ln)
+                xid, cid = create_xatlas_user(badge, fn, ln,
+                                              event_id=eid, source="pending")
                 sb_patch(f"visitors?id=eq.{vid}", {
                     "xatlas_status":  "active",
                     "xatlas_user_id": xid,
@@ -808,7 +924,9 @@ def process_pool_preparation():
             continue
         try:
             # Identifier "POOL{badge}" per distinguere da utenti VIS normali
-            xid, cid = create_xatlas_user(badge, "Pool", f"Badge{badge}")
+            xid, cid = create_xatlas_user(badge, "Pool", f"Badge{badge}",
+                                          event_id=p.get("event_id"),
+                                          source="pool_prep")
             sb_patch(f"badge_pool?id=eq.{pid}", {
                 "status":         "available",
                 "xatlas_user_id": xid,
@@ -1143,7 +1261,7 @@ def process_pool_walkin_recreate():
             "xatlas_user_id": "not.is.null",
             "xatlas_renamed": "is.false",
             "xatlas_status":  "eq.active",
-            "select": "id,first_name,last_name,xatlas_user_id,badge_number",
+            "select": "id,first_name,last_name,xatlas_user_id,badge_number,event_id",
             "limit": "5",
         })
     except Exception as e:
@@ -1197,7 +1315,9 @@ def process_pool_walkin_recreate():
                 # prosegui: il create sotto userà _find_external_user_by_identifier
 
             # Step 3: create nuovo user con nome reale + assign card (single call)
-            new_xid, new_cid = create_xatlas_user(badge, fn, ln)
+            new_xid, new_cid = create_xatlas_user(badge, fn, ln,
+                                                  event_id=v.get("event_id"),
+                                                  source="recreate")
 
             # Step 4: PATCH visitor + badge_pool con nuovo xatlas_user_id
             sb_patch(f"visitors?id=eq.{vid}", {
