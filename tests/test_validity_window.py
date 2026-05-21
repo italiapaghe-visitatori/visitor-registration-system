@@ -164,16 +164,24 @@ def test_today_ms_is_europe_rome_anchored():
     assert (end_dt.hour, end_dt.minute, end_dt.second) == (23, 59, 59)
 
 
-# --- 13) Guardia statica VIS-only nel sorgente ---------------------------
-def test_source_contains_vis_only_assertion():
-    """Difesa in profondita: il sorgente DEVE contenere l'asserzione VIS-only.
+# --- 13) Guardia statica VIS-only nel sorgente (if/raise, NON assert) ----
+def test_source_contains_vis_only_guard():
+    """Difesa in profondita: il sorgente DEVE contenere la guardia VIS-only
+    in forma if/raise (NON assert).
 
-    Questo test scatta se una modifica futura rimuove la guardia hardcoded
-    che protegge i dipendenti -- e un canarino statico, non un controllo runtime."""
+    Motivo: `assert` viene strippato da `python -O` / PYTHONOPTIMIZE=1,
+    facendo sparire silenziosamente la guardia. La forma if/raise resiste
+    a qualsiasi modalita' di esecuzione. Canarino statico.
+    """
     import os
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     src_path = os.path.join(repo_root, "zucchetti_agent.py")
     with open(src_path, encoding="utf-8") as f:
         src = f.read()
-    assert 'assert identifier.startswith("VIS")' in src, \
-        "Asserzione VIS-only mancante in create_xatlas_user (regressione di sicurezza)"
+    assert 'if not identifier.startswith("VIS")' in src, \
+        "Guardia VIS-only (forma if/raise) mancante in create_xatlas_user"
+    # Sanity: dopo l'if ci deve essere un raise (non un log debole)
+    guard_idx = src.find('if not identifier.startswith("VIS")')
+    block_after = src[guard_idx:guard_idx + 300]
+    assert "raise " in block_after, \
+        "La guardia VIS-only deve sollevare eccezione (no log debole)"

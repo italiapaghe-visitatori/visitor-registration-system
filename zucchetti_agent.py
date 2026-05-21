@@ -603,7 +603,8 @@ def find_or_create_card_id(clear_code: str) -> int | None:
 
 
 def create_xatlas_user(badge_number: str, first_name: str, last_name: str,
-                      event_id: str | None = None) -> tuple[int, int]:
+                      event_id: str | None = None,
+                      source: str = "unknown") -> tuple[int, int]:
     """
     Crea utente esterno in XAtlas e assegna la tessera.
 
@@ -613,6 +614,8 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str,
       event_id: ID dell'evento Supabase a cui il visitor e' legato. Se None, l'utente
         XAtlas riceve validita' di un giorno (fallback walk-in legacy). Se valorizzato,
         la validita' e' (oggi, event_end_date + 7gg) -- vedi event_window_ms.
+      source: etichetta della funzione chiamante per il log strutturato
+        (es. "pending", "pool_prep", "recreate"). Aiuta il post-mortem.
 
     Restituisce (xatlas_user_id, card_id).
 
@@ -637,21 +640,25 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str,
 
     # 2) Crea utente esterno (con idempotenza: salta se identifier già esistente)
     start_ms, end_ms = event_window_ms(event_id)
+    identifier = f"VIS{badge_number}"
+    # Difesa in profondità: garantisce che l'agente non possa creare utenti
+    # XAtlas fuori dal namespace VIS, anche dopo modifiche future al codice.
+    # Usa if/raise (NON assert) per resistere a python -O / PYTHONOPTIMIZE
+    # che striperebbe gli assert. Vedi spec B1 + code review M2/B2.
+    if not identifier.startswith("VIS"):
+        raise RuntimeError(
+            f"REFUSED: tentativo di creare utente non-VIS, identifier={identifier!r}"
+        )
     # Log strutturato: tracciabilita' validita' per audit post-incidente
     start_iso = datetime.fromtimestamp(start_ms / 1000, tz=_ROME).isoformat()
     end_iso   = datetime.fromtimestamp(end_ms / 1000, tz=_ROME).isoformat()
     log.info(
-        f"create_xatlas_user: identifier=VIS{badge_number} "
+        f"create_xatlas_user: identifier={identifier} "
         f"validity={start_iso}..{end_iso} "
-        f"event_id={event_id or 'WALK-IN'}"
+        f"event_id={event_id or 'WALK-IN'} "
+        f"source={source}"
     )
     end_of_use_ms = 4133977199999  # 31/12/2099 come Baudo Pippo
-    identifier = f"VIS{badge_number}"
-    # Difesa in profondità: garantisce che l'agente non possa creare utenti
-    # XAtlas fuori dal namespace VIS, anche dopo modifiche future al codice.
-    # Vedi spec B1, sezione "Asserzioni e vincoli di sicurezza".
-    assert identifier.startswith("VIS"), \
-        f"REFUSED: tentativo di creare utente non-VIS, identifier={identifier!r}"
 
     # IDEMPOTENZA: se l'agente è crashato dopo INSERT user_identifier ma prima
     # di PATCH visitors.xatlas_status='active', al restart riprocessa lo stesso
@@ -877,7 +884,8 @@ def process_pending_badges():
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                xid, cid = create_xatlas_user(badge, fn, ln, event_id=eid)
+                xid, cid = create_xatlas_user(badge, fn, ln,
+                                              event_id=eid, source="pending")
                 sb_patch(f"visitors?id=eq.{vid}", {
                     "xatlas_status":  "active",
                     "xatlas_user_id": xid,
@@ -917,7 +925,8 @@ def process_pool_preparation():
         try:
             # Identifier "POOL{badge}" per distinguere da utenti VIS normali
             xid, cid = create_xatlas_user(badge, "Pool", f"Badge{badge}",
-                                          event_id=p.get("event_id"))
+                                          event_id=p.get("event_id"),
+                                          source="pool_prep")
             sb_patch(f"badge_pool?id=eq.{pid}", {
                 "status":         "available",
                 "xatlas_user_id": xid,
@@ -1307,7 +1316,8 @@ def process_pool_walkin_recreate():
 
             # Step 3: create nuovo user con nome reale + assign card (single call)
             new_xid, new_cid = create_xatlas_user(badge, fn, ln,
-                                                  event_id=v.get("event_id"))
+                                                  event_id=v.get("event_id"),
+                                                  source="recreate")
 
             # Step 4: PATCH visitor + badge_pool con nuovo xatlas_user_id
             sb_patch(f"visitors?id=eq.{vid}", {
