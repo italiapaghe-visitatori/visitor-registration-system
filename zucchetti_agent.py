@@ -916,7 +916,8 @@ def process_pool_preparation():
             continue
         try:
             # Identifier "POOL{badge}" per distinguere da utenti VIS normali
-            xid, cid = create_xatlas_user(badge, "Pool", f"Badge{badge}")
+            xid, cid = create_xatlas_user(badge, "Pool", f"Badge{badge}",
+                                          event_id=p.get("event_id"))
             sb_patch(f"badge_pool?id=eq.{pid}", {
                 "status":         "available",
                 "xatlas_user_id": xid,
