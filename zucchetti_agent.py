@@ -390,6 +390,61 @@ def event_window_ms(event_id):
     return int(start_dt.timestamp() * 1000), int(end_dt.timestamp() * 1000)
 
 
+def repropagate_event_validity(event_id: str) -> int:
+    """B3 — funzione ufficiale per ri-propagare la validita' VIS di un evento.
+
+    Codifica l'hack 'UPDATE xatlas_renamed=false' usato in extremis il 15/05/2026
+    quando i 96 badge dell'evento MD risultavano scaduti al tornello. Questa e'
+    la via canonica documentata per ri-spingere la validita' aggiornata ai
+    controller Zucchetti SENZA toccare la consolle WSM.
+
+    Meccanismo: marca i visitor dell'evento con xatlas_renamed=false; al ciclo
+    successivo dell'agente, process_pool_walkin_recreate() fa delete+recreate
+    via API XAtlas degli utenti VIS. L'API trigger automaticamente il sync NET9x
+    ai controller. Solo namespace VIS, dipendenti strutturalmente intoccati.
+
+    Pre-condizioni applicate (esattamente come l'UPDATE manuale del 15/05):
+      - xatlas_status='active'
+      - xatlas_user_id IS NOT NULL
+      - lower(first_name) <> 'pool' (salta placeholder pool)
+      - first_name, last_name, badge_number NOT NULL
+
+    Returns: numero di visitor marcati.
+    Solleva RuntimeError se Supabase non risponde.
+    """
+    if not event_id:
+        raise RuntimeError("repropagate_event_validity: event_id obbligatorio")
+
+    # Lettura: tutti i visitor candidati al recreate per questo evento
+    rows = sb_get("visitors", params={
+        "event_id":        f"eq.{event_id}",
+        "xatlas_status":   "eq.active",
+        "xatlas_user_id":  "not.is.null",
+        "first_name":      "not.is.null",
+        "last_name":       "not.is.null",
+        "badge_number":    "not.is.null",
+        "select":          "id,first_name,last_name,badge_number",
+        "limit":           "500",
+    })
+    # Esclusione lato Python di first_name='Pool' (placeholder che skip
+    # process_pool_walkin_recreate; non utile marcarli ed evita churn)
+    candidates = [r for r in rows if (r.get("first_name") or "").strip().lower() != "pool"]
+
+    n = 0
+    for r in candidates:
+        try:
+            sb_patch(f"visitors?id=eq.{r['id']}", {"xatlas_renamed": False})
+            n += 1
+        except Exception as e:
+            log.warning(f"repropagate_event_validity: PATCH fallita su vid={r['id']}: {e}")
+
+    log.info(
+        f"repropagate_event_validity: event_id={event_id} -> marcati {n} "
+        f"visitor (xatlas_renamed=false). L'agente li ricreera' ai prossimi cicli."
+    )
+    return n
+
+
 def _find_external_user_by_identifier(identifier: str) -> int | None:
     """Cerca user_identifier.id per identifier (es. VIS241026).
 
@@ -1024,6 +1079,15 @@ def process_active_transactions():
         tx_id    = tx.get("id")
         if not ts:
             continue
+        # B2 (timezone disciplinato): AXS_DB.transaction.event_timestamp e' un
+        # TIMESTAMP without time zone, naive locale (Europe/Rome). psycopg2 lo
+        # restituisce come datetime naive. Senza rendere il ts tz-aware, ts.isoformat()
+        # produce una stringa SENZA fuso (es. "2026-05-15T16:08:15") che Supabase
+        # TIMESTAMPTZ interpreta come UTC -> admin visualizza +2h (bug 15/05/2026).
+        # Soluzione: ancoriamo a Europe/Rome (etichettatura, no shift di clock)
+        # prima di emettere l'ISO. Il ts naive rappresenta gia' l'ora locale di Roma.
+        if hasattr(ts, "replace") and getattr(ts, "tzinfo", None) is None:
+            ts = ts.replace(tzinfo=_ROME)
         time_str = ts.strftime("%H:%M") if hasattr(ts, "strftime") else str(ts)[11:16]
         ts_iso   = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
 
@@ -1669,6 +1733,19 @@ except ImportError:
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "debug":
         run_loop()
+    elif len(sys.argv) > 2 and sys.argv[1] == "repropagate":
+        # B3 — CLI per ri-propagare la validita' VIS di un evento.
+        # Uso: python zucchetti_agent.py repropagate <event_id>
+        # Documentato nel runbook (docs/Runbook_Incidenti.md, sezione "tutti scaduta").
+        event_id = sys.argv[2]
+        try:
+            n = repropagate_event_validity(event_id)
+            print(f"OK: marcati {n} visitor (xatlas_renamed=false) per evento {event_id}.")
+            print("L'agente li ricreera' ai prossimi cicli (~5 al ciclo).")
+            sys.exit(0)
+        except Exception as e:
+            print(f"ERRORE: {e}", file=sys.stderr)
+            sys.exit(1)
     elif _HAS_WIN32:
         win32serviceutil.HandleCommandLine(ZucchettiService)
     else:

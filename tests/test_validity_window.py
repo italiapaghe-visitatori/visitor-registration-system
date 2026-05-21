@@ -164,7 +164,68 @@ def test_today_ms_is_europe_rome_anchored():
     assert (end_dt.hour, end_dt.minute, end_dt.second) == (23, 59, 59)
 
 
-# --- 13) Guardia statica VIS-only nel sorgente (if/raise, NON assert) ----
+# --- 13bis) B2 — Timezone disciplinato in process_active_transactions ------
+def test_source_b2_record_movement_tz_aware():
+    """B2: ts naive da psycopg2 (AXS_DB TIMESTAMP without time zone) deve
+    essere reso tz-aware Europe/Rome PRIMA di emettere l'ISO a Supabase.
+
+    Altrimenti Supabase TIMESTAMPTZ lo interpreta come UTC e l'admin lo
+    rivisualizza +2h (bug del 15/05/2026 sulla 'prova legale').
+
+    Check statico sul sorgente.
+    """
+    import os
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    src_path = os.path.join(repo_root, "zucchetti_agent.py")
+    with open(src_path, encoding="utf-8") as f:
+        src = f.read()
+
+    # Deve esserci una conversione esplicita: ts.replace(tzinfo=_ROME)
+    # PRIMA di emettere l'ISO a Supabase TIMESTAMPTZ. Pattern atteso.
+    assert "ts.replace(tzinfo=_ROME)" in src, \
+        "B2: process_active_transactions deve fare 'ts.replace(tzinfo=_ROME)' prima dell'ISO"
+
+
+# --- 14) B3 — repropagate_event_validity esiste e funziona -----------------
+def test_repropagate_event_validity_exists():
+    """B3: la funzione ufficiale repropagate_event_validity(event_id) deve
+    esistere e accettare un event_id. Codifica l'hack 'UPDATE xatlas_renamed=false'
+    usato il 15/05/2026 per il salvataggio in extremis."""
+    import inspect
+    assert hasattr(za, "repropagate_event_validity"), \
+        "B3: funzione repropagate_event_validity mancante"
+    sig = inspect.signature(za.repropagate_event_validity)
+    assert "event_id" in sig.parameters, \
+        "B3: la funzione deve accettare 'event_id'"
+
+
+def test_repropagate_event_validity_patches_visitors():
+    """B3: repropagate_event_validity esegue PATCH visitors filtrato per
+    event_id + condizioni di recreate, settando xatlas_renamed=false."""
+    captured_patch = []
+    captured_get = []
+
+    def fake_get(path, params=None):
+        captured_get.append((path, params))
+        return [{"id": "v1"}, {"id": "v2"}]
+
+    def fake_patch(path, body):
+        captured_patch.append((path, body))
+        return None
+
+    with patch.object(za, "sb_get", side_effect=fake_get), \
+         patch.object(za, "sb_patch", side_effect=fake_patch):
+        n = za.repropagate_event_validity("evt-test-1")
+
+    assert n == 2, f"Atteso 2 visitor marcati, ottenuto {n}"
+    assert captured_patch, "Nessuna PATCH eseguita"
+    # Almeno una PATCH deve aver settato xatlas_renamed=false
+    assert any("xatlas_renamed" in str(body) and body.get("xatlas_renamed") is False
+               for _, body in captured_patch), \
+        "La PATCH non ha settato xatlas_renamed=false"
+
+
+# --- 15) Guardia statica VIS-only nel sorgente (if/raise, NON assert) ----
 def test_source_contains_vis_only_guard():
     """Difesa in profondita: il sorgente DEVE contenere la guardia VIS-only
     in forma if/raise (NON assert).
