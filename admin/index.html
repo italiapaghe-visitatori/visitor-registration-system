@@ -4543,7 +4543,10 @@
       // OPTIMIZE EGRESS: esplicito invece di select=* per ESCLUDERE `signature`
       // (base64 ~50KB l'una): non serve nella tabella, viene lazy-loaded dal
       // detail modal su click. Risparmio: 50 righe × 50KB × refresh = MB per load.
-      const VISITOR_COLS = 'id,first_name,last_name,email,phone,company,document_id,document_type,visit_reason,visit_date,person_to_visit,badge_number,entry_time,exit_time,xatlas_status,xatlas_user_id,xatlas_renamed,assigned_by,assigned_at,guest_id,event_id,event_name,event_date,job_title,created_at,updated_at,consent_at,gdpr_consent,norms_consent,notes,badge_agreement';
+      // Lista esplicita di tutte le colonne reali tranne `signature` (base64 pesante).
+      // Verificata contro lo schema effettivo (21/05/2026). Aggiungere qui se viene
+      // creata una nuova colonna che serve in tabella o detail modal.
+      const VISITOR_COLS = 'id,first_name,last_name,email,phone,company,document_id,document_type,visit_reason,visit_date,person_to_visit,badge_number,entry_time,exit_time,xatlas_status,xatlas_user_id,xatlas_renamed,assigned_by,assigned_at,guest_id,event_id,event_name,event_date,job_title,created_at,badge_agreement,data_consent,access_rules_consent,access_rules_at,access_rules_version,access_rules_opened,consent_ip,consent_user_agent,access_rules_pdf_hash,access_rules_pdf_size,department,vehicle_plate';
       // nullslast: i record con valore NULL nella colonna di ordinamento finiscono in fondo
       // (utile per visit_date/entry_time/event_name/badge_number che spesso sono NULL per gli "Attesi")
       let url = `${SUPABASE_URL}/rest/v1/visitors?select=${VISITOR_COLS}&order=${sortCol}.${sortDir}.nullslast`;
@@ -5411,10 +5414,10 @@
         sigWrap.innerHTML = '<div class="sig-preview-empty">⏳ Caricamento firma…</div>';
         (async () => {
           try {
-            const r = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(row.id)}&select=signature,consent_at&limit=1`);
+            const r = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(row.id)}&select=signature,access_rules_at,created_at&limit=1`);
             const arr = r?.ok ? await r.json() : [];
             const sig = arr[0]?.signature;
-            const consent = arr[0]?.consent_at || row.consent_at;
+            const consent = arr[0]?.access_rules_at || arr[0]?.created_at || row.created_at;
             if (sig && typeof sig === 'string' && sig.startsWith('data:image')) {
               sigWrap.innerHTML = `<img src="${esc(sig)}" alt="Firma autografa visitatore" class="sig-preview-img">
                 <div class="sig-preview-meta">Firma raccolta al momento della registrazione (kiosk/QR self-service).
