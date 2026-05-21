@@ -25,6 +25,7 @@ from datetime import date, datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
+from zoneinfo import ZoneInfo
 
 import psycopg2
 from psycopg2 import pool as _pg_pool
@@ -300,13 +301,93 @@ def xatlas_request(method, path, **kwargs):
 
 # ── XAtlas: crea utente esterno ───────────────────────────────────────────────
 
+_ROME = ZoneInfo("Europe/Rome")
+
+
+def _today_rome():
+    """Restituisce la data corrente ancorata al fuso Europe/Rome.
+
+    Indipendente dal fuso del sistema operativo: protegge da configurazioni
+    server errate (es. server con TZ=UTC) che causerebbero shift di validita.
+    Patchabile nei test per scenari deterministici.
+    """
+    return datetime.now(_ROME).date()
+
+
 def _today_ms():
-    """Restituisce (start_ms, end_ms) del giorno corrente in millisecondi epoch."""
-    today = date.today()
-    start = datetime(today.year, today.month, today.day, 0, 0, 0)
-    end   = datetime(today.year, today.month, today.day, 23, 59, 59)
-    epoch = datetime(1970, 1, 1)
-    return int((start - epoch).total_seconds() * 1000), int((end - epoch).total_seconds() * 1000)
+    """Finestra (oggi 00:00, oggi 23:59:59) in epoch ms, ancorata Europe/Rome.
+
+    Usata come fallback per walk-in senza event_id (visitor non legato a evento
+    gestito). Per visitor legati a evento, l'agente usa event_window_ms().
+    """
+    today = _today_rome()
+    start = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=_ROME)
+    end   = datetime(today.year, today.month, today.day, 23, 59, 59, tzinfo=_ROME)
+    return int(start.timestamp() * 1000), int(end.timestamp() * 1000)
+
+
+def event_window_ms(event_id):
+    """Finestra validita XAtlas legata alla data dell'evento.
+
+    Spec: docs/superpowers/specs/2026-05-18-fix-validita-evento-design.md
+
+    Politica:
+    - event_id is None -> _today_ms() (fallback walk-in legacy, comportamento invariato)
+    - altrimenti lookup events su Supabase:
+        - evento non trovato      -> raise RuntimeError (fail-fast, retry ciclo dopo)
+        - evento chiuso           -> raise RuntimeError (fail-fast, no provisioning)
+        - event_end_date passato  -> raise RuntimeError (fail-fast, evento scaduto)
+        - altrimenti:
+            start = oggi 00:00:00 Europe/Rome
+            end   = max(event_end + 7gg, oggi + 1gg) 23:59:59 Europe/Rome
+    """
+    if event_id is None:
+        return _today_ms()
+
+    try:
+        rows = sb_get("events", params={
+            "id":     f"eq.{event_id}",
+            "select": "event_end_date,closed_at",
+            "limit":  "1",
+        })
+    except Exception as e:
+        raise RuntimeError(
+            f"event_window_ms: lookup events fallito per event_id={event_id}: {e}"
+        )
+
+    if not rows:
+        raise RuntimeError(
+            f"event_window_ms: event_id={event_id} non trovato in events"
+        )
+
+    event = rows[0]
+    if event.get("closed_at") is not None:
+        raise RuntimeError(
+            f"event_window_ms: event_id={event_id} e' chiuso "
+            f"(closed_at={event['closed_at']}), no provisioning"
+        )
+
+    event_end_str = event.get("event_end_date")
+    if not event_end_str:
+        raise RuntimeError(
+            f"event_window_ms: event_id={event_id} senza event_end_date valorizzato"
+        )
+
+    today = _today_rome()
+    event_end = date.fromisoformat(event_end_str)
+
+    if event_end < today:
+        raise RuntimeError(
+            f"event_window_ms: event_id={event_id} scaduto "
+            f"(event_end_date={event_end} < oggi {today})"
+        )
+
+    candidate_end = max(event_end + timedelta(days=7), today + timedelta(days=1))
+
+    start_dt = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=_ROME)
+    end_dt   = datetime(candidate_end.year, candidate_end.month, candidate_end.day,
+                        23, 59, 59, tzinfo=_ROME)
+    return int(start_dt.timestamp() * 1000), int(end_dt.timestamp() * 1000)
 
 
 def _find_external_user_by_identifier(identifier: str) -> int | None:
