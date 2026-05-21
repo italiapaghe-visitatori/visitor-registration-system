@@ -1252,7 +1252,7 @@ def process_pool_walkin_recreate():
             "xatlas_user_id": "not.is.null",
             "xatlas_renamed": "is.false",
             "xatlas_status":  "eq.active",
-            "select": "id,first_name,last_name,xatlas_user_id,badge_number",
+            "select": "id,first_name,last_name,xatlas_user_id,badge_number,event_id",
             "limit": "5",
         })
     except Exception as e:
@@ -1306,7 +1306,8 @@ def process_pool_walkin_recreate():
                 # prosegui: il create sotto userà _find_external_user_by_identifier
 
             # Step 3: create nuovo user con nome reale + assign card (single call)
-            new_xid, new_cid = create_xatlas_user(badge, fn, ln)
+            new_xid, new_cid = create_xatlas_user(badge, fn, ln,
+                                                  event_id=v.get("event_id"))
 
             # Step 4: PATCH visitor + badge_pool con nuovo xatlas_user_id
             sb_patch(f"visitors?id=eq.{vid}", {
