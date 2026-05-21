@@ -602,10 +602,23 @@ def find_or_create_card_id(clear_code: str) -> int | None:
             axs_release(conn)
 
 
-def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tuple[int, int]:
+def create_xatlas_user(badge_number: str, first_name: str, last_name: str,
+                      event_id: str | None = None) -> tuple[int, int]:
     """
     Crea utente esterno in XAtlas e assegna la tessera.
+
+    Argomenti:
+      badge_number: numero badge stampato sul cartoncino (sara' l'identifier VIS<badge>).
+      first_name, last_name: nome reale dell'ospite (o "Pool"/"Badge<n>" per spare pool).
+      event_id: ID dell'evento Supabase a cui il visitor e' legato. Se None, l'utente
+        XAtlas riceve validita' di un giorno (fallback walk-in legacy). Se valorizzato,
+        la validita' e' (oggi, event_end_date + 7gg) -- vedi event_window_ms.
+
     Restituisce (xatlas_user_id, card_id).
+
+    Solleva RuntimeError fail-fast se event_id e' valorizzato ma l'evento e' non trovato,
+    chiuso, o scaduto. Il chiamante deve catturare e lasciare il visitor in stato pending
+    per il retry al ciclo successivo dell'agente.
     """
     # 1) Trova card o creala se non esiste (sempre con user_id=NULL)
     card_id = find_or_create_card_id(badge_number)
@@ -623,7 +636,15 @@ def create_xatlas_user(badge_number: str, first_name: str, last_name: str) -> tu
         )
 
     # 2) Crea utente esterno (con idempotenza: salta se identifier già esistente)
-    start_ms, end_ms = _today_ms()
+    start_ms, end_ms = event_window_ms(event_id)
+    # Log strutturato: tracciabilita' validita' per audit post-incidente
+    start_iso = datetime.fromtimestamp(start_ms / 1000, tz=_ROME).isoformat()
+    end_iso   = datetime.fromtimestamp(end_ms / 1000, tz=_ROME).isoformat()
+    log.info(
+        f"create_xatlas_user: identifier=VIS{badge_number} "
+        f"validity={start_iso}..{end_iso} "
+        f"event_id={event_id or 'WALK-IN'}"
+    )
     end_of_use_ms = 4133977199999  # 31/12/2099 come Baudo Pippo
     identifier = f"VIS{badge_number}"
     # Difesa in profondità: garantisce che l'agente non possa creare utenti
