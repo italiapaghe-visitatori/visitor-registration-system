@@ -4,7 +4,7 @@
 
 **Goal:** Sostituire la VIEW `public.app_users` (flaggata dall'advisor Supabase `auth_users_exposed`) con una FUNCTION SECURITY DEFINER `public.list_app_users()` che applica controllo server-side: super-admin vede tutti, operatori normali vedono solo sé.
 
-**Architecture:** Migration v18 in `supabase/schema.sql` (DROP VIEW + CREATE FUNCTION + GRANT) + copia standalone in `supabase/migration_v18_app_users_function.sql` per DR. Modifica minimale a `admin/index.html` nel `loadOperators()`: REST GET → POST RPC + rimozione filter frontend (ora server-side).
+**Architecture:** Migration v24 in `supabase/schema.sql` (DROP VIEW + CREATE FUNCTION + GRANT) + copia standalone in `supabase/migration_v24_app_users_function.sql` per DR. Modifica minimale a `admin/index.html` nel `loadOperators()`: REST GET → POST RPC + rimozione filter frontend (ora server-side).
 
 **Tech Stack:** PostgreSQL (Supabase), PostgREST RPC, JavaScript admin frontend.
 
@@ -17,11 +17,11 @@
 ## File Structure
 
 **Modificati:**
-- `supabase/schema.sql` — appende blocco migration v18 in fondo
+- `supabase/schema.sql` — appende blocco migration v24 in fondo
 - `admin/index.html` — funzione `loadOperators()` (~riga 4096-4140)
 
 **Creati:**
-- `supabase/migration_v18_app_users_function.sql` — copia standalone (pattern usato per v22/v23)
+- `supabase/migration_v24_app_users_function.sql` — copia standalone (pattern usato per v22/v23)
 
 ---
 
@@ -57,15 +57,15 @@ Expected: 2 occorrenze di `CREATE OR REPLACE VIEW public.app_users` (v15 + v16) 
 
 ---
 
-## Task 1: Crea migration v18 standalone (file separato per DR)
+## Task 1: Crea migration v24 standalone (file separato per DR)
 
 **Files:**
-- Create: `supabase/migration_v18_app_users_function.sql`
+- Create: `supabase/migration_v24_app_users_function.sql`
 
 - [ ] **Step 1: Crea il file con il blocco SQL completo**
 
 ```sql
--- MIGRATION v18 — Fix advisor 'auth_users_exposed': view -> function RPC
+-- MIGRATION v24 — Fix advisor 'auth_users_exposed': view -> function RPC
 -- =====================================================================
 -- Applicare nel SQL Editor di Supabase Dashboard.
 -- Vedi spec docs/superpowers/specs/2026-05-21-fix-supabase-auth-users-exposed-design.md
@@ -177,13 +177,13 @@ GRANT EXECUTE ON FUNCTION public.list_app_users() TO authenticated;
 
 Run:
 ```bash
-git add supabase/migration_v18_app_users_function.sql
-git commit -m "feat(supabase): migration v18 list_app_users SECURITY DEFINER (A1 standalone)"
+git add supabase/migration_v24_app_users_function.sql
+git commit -m "feat(supabase): migration v24 list_app_users SECURITY DEFINER (A1 standalone)"
 ```
 
 ---
 
-## Task 2: Appende migration v18 a `supabase/schema.sql`
+## Task 2: Appende migration v24 a `supabase/schema.sql`
 
 **Files:**
 - Modify: `supabase/schema.sql` — appende in fondo al file
@@ -196,20 +196,20 @@ tail -10 supabase/schema.sql
 ```
 Verifica che l'ultimo blocco sia coerente (commenti finali o ultima migration). Decidi se aggiungere una riga vuota di separazione.
 
-- [ ] **Step 2: Appende il blocco migration v18 in fondo a `supabase/schema.sql`**
+- [ ] **Step 2: Appende il blocco migration v24 in fondo a `supabase/schema.sql`**
 
 Apri `supabase/schema.sql` ed appende questo contenuto in fondo (dopo l'ultima riga esistente, lasciando una riga vuota di separazione):
 
 ```sql
 
 -- ============================================================
--- v18 — Fix advisor 'auth_users_exposed': view -> function RPC
+-- v24 — Fix advisor 'auth_users_exposed': view -> function RPC
 -- ============================================================
 -- 2026-05-21 — Chiude Supabase advisor critico (security_definer view su auth.users).
 -- Replace public.app_users (view) con public.list_app_users() (function RPC con
 -- controllo ruolo server-side). Migration applicata via SQL Editor; vedi spec
 -- docs/superpowers/specs/2026-05-21-fix-supabase-auth-users-exposed-design.md
--- e file standalone supabase/migration_v18_app_users_function.sql
+-- e file standalone supabase/migration_v24_app_users_function.sql
 
 DROP VIEW IF EXISTS public.app_users CASCADE;
 
@@ -294,7 +294,7 @@ GRANT EXECUTE ON FUNCTION public.list_app_users() TO authenticated;
 Run:
 ```bash
 git add supabase/schema.sql
-git commit -m "feat(supabase): append v18 list_app_users a schema.sql"
+git commit -m "feat(supabase): append v24 list_app_users a schema.sql"
 ```
 
 ---
@@ -329,7 +329,7 @@ Con:
         // A1 fix: chiamata RPC con filtraggio server-side (non aggirabile).
         // L'advisor Supabase 'auth_users_exposed' richiedeva di rimuovere la
         // view security-definer su auth.users; sostituita con function
-        // public.list_app_users() (vedi migration v18).
+        // public.list_app_users() (vedi migration v24).
         const res = await api(`${SUPABASE_URL}/rest/v1/rpc/list_app_users`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -337,17 +337,17 @@ Con:
         });
 ```
 
-- [ ] **Step 3: Aggiorna il messaggio "migration non trovata" (v15 → v18)**
+- [ ] **Step 3: Aggiorna il messaggio "migration non trovata" (v15 → v24)**
 
-Trova il blocco (~riga 4101-4115) che mostra il messaggio HTML "Vista app_users non trovata. Applica la migration v15..." con la SQL della vecchia view. Sostituiscilo con un messaggio aggiornato che cita la migration v18 e la function:
+Trova il blocco (~riga 4101-4115) che mostra il messaggio HTML "Vista app_users non trovata. Applica la migration v15..." con la SQL della vecchia view. Sostituiscilo con un messaggio aggiornato che cita la migration v24 e la function:
 
 ```javascript
           if (res && res.status === 404) {
             tbody.innerHTML = `<tr><td colspan="5" class="users-empty">
-              ⚠️ Funzione <code>list_app_users</code> non trovata. Applica la migration v18 nel SQL Editor di Supabase
-              (vedi <code>supabase/migration_v18_app_users_function.sql</code> nel repo).
+              ⚠️ Funzione <code>list_app_users</code> non trovata. Applica la migration v24 nel SQL Editor di Supabase
+              (vedi <code>supabase/migration_v24_app_users_function.sql</code> nel repo).
               </td></tr>`;
-            countEl.textContent = 'Migration v18 da applicare';
+            countEl.textContent = 'Migration v24 da applicare';
             return;
           }
 ```
@@ -412,7 +412,7 @@ Run:
 git log master..HEAD --oneline
 git diff master...HEAD --stat
 ```
-Expected: 4 commit (3 feat + 1 docs già esistente sulla branch se hai committato spec+plan). Stat dovrebbe mostrare schema.sql, migration_v18_*.sql, admin/index.html, docs/superpowers/specs/, docs/superpowers/plans/.
+Expected: 4 commit (3 feat + 1 docs già esistente sulla branch se hai committato spec+plan). Stat dovrebbe mostrare schema.sql, migration_v24_*.sql, admin/index.html, docs/superpowers/specs/, docs/superpowers/plans/.
 
 - [ ] **Step 2: Verifica conformità VIEW rimossa / FUNCTION aggiunta**
 
@@ -425,12 +425,12 @@ Expected: 2 (le occorrenze storiche v15 e v16 — devono restare nei commenti/mi
 ```bash
 grep -c "CREATE OR REPLACE FUNCTION public.list_app_users" supabase/schema.sql
 ```
-Expected: 1 (la nuova migration v18).
+Expected: 1 (la nuova migration v24).
 
 ```bash
 grep -n "DROP VIEW IF EXISTS public.app_users" supabase/schema.sql
 ```
-Expected: 1 (la riga nella migration v18).
+Expected: 1 (la riga nella migration v24).
 
 - [ ] **Step 3: Push branch**
 
@@ -461,11 +461,11 @@ Riferire all'utente:
 
 | Sezione spec | Task | OK |
 |---|---|---|
-| Migration v18 DROP VIEW + CREATE FUNCTION + GRANT | Task 1 + 2 | ✅ |
+| Migration v24 DROP VIEW + CREATE FUNCTION + GRANT | Task 1 + 2 | ✅ |
 | Function SECURITY DEFINER con check role + whitelist + filtraggio | Task 1/2 (corpo function) | ✅ |
 | Schema return identico alla vista vecchia | Task 1/2 (RETURNS TABLE) | ✅ |
 | Frontend RPC instead of REST view | Task 3 step 2 | ✅ |
-| Messaggio errore migration aggiornato (v15 → v18) | Task 3 step 3 | ✅ |
+| Messaggio errore migration aggiornato (v15 → v24) | Task 3 step 3 | ✅ |
 | Filtraggio frontend rimosso (server-side è la nuova autorità) | Task 3 step 4 | ✅ |
 | File migration standalone in supabase/ per DR | Task 1 | ✅ |
 | Stop pre-deploy/merge | Task 4 step 4 | ✅ |

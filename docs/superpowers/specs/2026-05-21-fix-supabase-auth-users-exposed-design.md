@@ -75,7 +75,7 @@ const res = await api(`${SUPABASE_URL}/rest/v1/rpc/list_app_users`, {
 });
 ```
 
-Rimuovo il filtraggio frontend non-super-admin (ora server-side, più sicuro). Aggiorno il messaggio di errore "migration non applicata" alla v18.
+Rimuovo il filtraggio frontend non-super-admin (ora server-side, più sicuro). Aggiorno il messaggio di errore "migration non applicata" alla v24.
 
 ---
 
@@ -98,11 +98,11 @@ A1 **non tocca nessun dato dei dipendenti** né del flusso visitatori/tornelli. 
 ## File interessati
 
 **Modificati:**
-- `supabase/schema.sql` — appende migration v18 (DROP VIEW + CREATE FUNCTION + GRANT)
+- `supabase/schema.sql` — appende migration v24 (DROP VIEW + CREATE FUNCTION + GRANT)
 - `admin/index.html` — modifica `loadOperators()` (~riga 4096-4140): chiamata REST → RPC + rimozione filter frontend + aggiornamento messaggio errore migration
 
 **Creati:**
-- `supabase/migration_v18_app_users_function.sql` — copia standalone della migration per disaster recovery / staging clone (segue pattern usato per v22/v23 il 14/05)
+- `supabase/migration_v24_app_users_function.sql` — copia standalone della migration per disaster recovery / staging clone (segue pattern usato per v22/v23 il 14/05)
 
 **Toccati zero:** tutto il resto (zucchetti_agent.py, frontend kiosk, edge functions, altri script).
 
@@ -152,7 +152,7 @@ Dopo deploy della modifica admin:
 
 Il dettaglio operativo va nel piano. Sommario:
 
-1. **Deploy DB:** utente esegue il contenuto di `supabase/migration_v18_app_users_function.sql` nel SQL Editor di Supabase (blocco idempotente con `CREATE OR REPLACE` e `DROP VIEW IF EXISTS`).
+1. **Deploy DB:** utente esegue il contenuto di `supabase/migration_v24_app_users_function.sql` nel SQL Editor di Supabase (blocco idempotente con `CREATE OR REPLACE` e `DROP VIEW IF EXISTS`).
 2. **Deploy frontend:** push del branch su master → GitHub Pages auto-deploya in ~1-2 minuti.
 3. **Ordine consigliato:** prima la migration SQL (la function diventa disponibile), poi il deploy admin. Tra i due c'è un buco di ~2 minuti in cui un admin che apre Gestione operatori riceverà 404 sulla vista vecchia. Trascurabile (admin di solito non riapre il modale ogni 2 minuti).
 4. **Rollback:** `DROP FUNCTION` + ripristino vista vecchia + git revert del frontend. ~5 minuti.
@@ -166,7 +166,7 @@ Il dettaglio operativo va nel piano. Sommario:
 | Admin loggato apre Gestione operatori durante il deploy SQL | Bassa | Bassa | 404 transitorio, ricarica risolve |
 | `auth.email()` ritorna NULL (es. user senza email) | Bassa | Media | La function rifiuta con eccezione esplicita (preferenza fail-fast) |
 | Whitelist hardcoded vs scalabile | Media (operatori cambiano) | Bassa | Soluzione corrente già hardcoded in Edge Functions; coerenza |
-| Migration applicata ma frontend non deployato | Media | Bassa | Admin mostra "migration v18 da applicare" (nuovo messaggio) |
+| Migration applicata ma frontend non deployato | Media | Bassa | Admin mostra "migration v24 da applicare" (nuovo messaggio) |
 | Frontend deployato ma migration non applicata | Media | Media | Admin mostra 404 → utente sa che deve applicare la migration |
 
 ---
