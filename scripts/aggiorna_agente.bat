@@ -51,6 +51,13 @@ for %%A in (zucchetti_agent.py) do echo File scaricato: %%~zA bytes
 
 :restart
 echo.
+echo [3b/5] Verifica dipendenze Python (idempotente)...
+REM tzdata serve a zoneinfo su Windows (no system tz db). Aggiunto post-B1 21/05/26.
+REM Scarica requirements.txt e installa quanto manca; se gia' presente, no-op.
+powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/italiapaghe-visitatori/visitor-registration-system/master/requirements.txt' -OutFile 'C:\zucchetti-agent\requirements.txt' -UseBasicParsing"
+python -m pip install --quiet -r C:\zucchetti-agent\requirements.txt
+
+echo.
 echo [4/5] Restart servizio...
 python zucchetti_agent.py start
 timeout /t 4 /nobreak >nul
