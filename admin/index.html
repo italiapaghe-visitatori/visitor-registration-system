@@ -4095,34 +4095,34 @@
       const countEl = document.getElementById('users-count');
       tbody.innerHTML = '<tr><td colspan="5" class="users-empty">Caricamento…</td></tr>';
       try {
-        const res = await api(`${SUPABASE_URL}/rest/v1/app_users?select=*`);
+        // A1 fix (migration v24): chiamata RPC con filtraggio server-side
+        // (non aggirabile). L'advisor Supabase 'auth_users_exposed' richiedeva
+        // di rimuovere la view security-definer su auth.users; sostituita con
+        // function public.list_app_users() che applica:
+        //  - super-admin -> vede tutti
+        //  - operatore normale -> vede solo se stesso
+        const res = await api(`${SUPABASE_URL}/rest/v1/rpc/list_app_users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
         if (!res || !res.ok) {
-          // Vista non disponibile → migration v15 non applicata
-          if (res && res.status === 404) {
+          // Function non disponibile → migration v24 non applicata
+          if (res && (res.status === 404 || res.status === 400)) {
             tbody.innerHTML = `<tr><td colspan="5" class="users-empty">
-              ⚠️ Vista <code>app_users</code> non trovata. Applica la migration v15 dal SQL Editor di Supabase:
-              <code style="display:block;margin-top:8px;font-family:monospace;font-size:11px;text-align:left;padding:8px;background:#f7fafc;border-radius:6px">
-              CREATE OR REPLACE VIEW public.app_users WITH (security_invoker = false) AS<br>
-              SELECT id, email, created_at, email_confirmed_at, last_sign_in_at,<br>
-              &nbsp;&nbsp;COALESCE(raw_user_meta_data-&gt;&gt;'display_name', split_part(email,'@',1)) AS display_name,<br>
-              &nbsp;&nbsp;CASE WHEN email_confirmed_at IS NULL THEN 'invited'<br>
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN last_sign_in_at IS NULL THEN 'confirmed' ELSE 'active' END AS status<br>
-              FROM auth.users ORDER BY created_at DESC;<br>
-              GRANT SELECT ON public.app_users TO authenticated;
-              </code></td></tr>`;
-            countEl.textContent = 'Migration v15 da applicare';
+              ⚠️ Funzione <code>list_app_users</code> non trovata.
+              Applica la migration v24 nel SQL Editor di Supabase
+              (file <code>supabase/migration_v24_app_users_function.sql</code> nel repo).
+              </td></tr>`;
+            countEl.textContent = 'Migration v24 da applicare';
             return;
           }
           throw new Error(`HTTP ${res?.status}`);
         }
+        // A1: nessun filtraggio frontend necessario.
+        // public.list_app_users() applica già il filtro server-side:
+        // super-admin riceve tutti, operatore normale riceve solo se stesso.
         let users = await res.json();
-        // Filtro permessi: gli operatori non super-admin vedono solo se stessi.
-        // Anche se la vista app_users è leggibile da tutti gli authenticated,
-        // la UI nasconde gli altri operatori per chiarezza + minimizzazione.
-        // Sicurezza vera: le azioni invite/ban/delete sono rifiutate server-side.
-        if (!isSuperAdmin(CURRENT_USER_EMAIL)) {
-          users = users.filter(u => (u.email || '').toLowerCase() === (CURRENT_USER_EMAIL || '').toLowerCase());
-        }
         if (users.length === 0) {
           tbody.innerHTML = '<tr><td colspan="5" class="users-empty">Nessun operatore. Invita il primo dalla tab Invita →</td></tr>';
           countEl.textContent = '0 operatori';
