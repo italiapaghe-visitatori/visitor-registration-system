@@ -3258,8 +3258,8 @@
           <table>
             <thead>
               <tr>
-                <th class="th-sort" data-col="first_name"      onclick="sortGuestsBy('first_name')" title="Clicca per ordinare per Nome (alfabetico A-Z, ri-clicca per Z-A).">Nome</th>
                 <th class="th-sort" data-col="last_name"       onclick="sortGuestsBy('last_name')" title="Clicca per ordinare per Cognome (alfabetico A-Z, ri-clicca per Z-A).">Cognome</th>
+                <th class="th-sort" data-col="first_name"      onclick="sortGuestsBy('first_name')" title="Clicca per ordinare per Nome (alfabetico A-Z, ri-clicca per Z-A).">Nome</th>
                 <th class="th-sort" data-col="email"           onclick="sortGuestsBy('email')" title="Clicca per ordinare per Email.">Email</th>
                 <th class="th-sort" data-col="company"         onclick="sortGuestsBy('company')" title="Clicca per ordinare per Azienda.">Azienda</th>
                 <th class="th-sort" data-col="expected_date"   onclick="sortGuestsBy('expected_date')" title="Clicca per ordinare per Data Prevista di arrivo.">Data Prevista</th>
@@ -3817,7 +3817,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-05-21 · egress-opt</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-04 · cognome-prima</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -7661,8 +7661,8 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         const tr = document.createElement('tr');
         tr.dataset.id = g.id;
         tr.innerHTML = `
-          <td><strong>${esc(g.first_name)}</strong></td>
           <td><strong>${esc(g.last_name)}</strong></td>
+          <td><strong>${esc(g.first_name)}</strong></td>
           <td>${emailValueHtml}</td>
           <td>${esc(g.company) || '—'}</td>
           <td>${dateFormatted}</td>
