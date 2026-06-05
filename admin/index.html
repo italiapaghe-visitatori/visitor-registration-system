@@ -3817,7 +3817,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-05 · pair-fix-xatlas</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-05 · cartoncini-clear-code</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -7127,6 +7127,26 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       }
     }
 
+    // FEATURE 2026-06-05: helper riusabile da Cartoncini + Miniature.
+    // Input: array di badge_number (UID lettore con leading zeros).
+    // Output: Map<uid, clear_code> per arricchire i cartoncini con il numero
+    // stampato sul badge fisico (leggibile dall'operatore). Se nessuna mappatura
+    // disponibile per un UID, la chiave non esiste e il chiamante usa l'UID raw
+    // come fallback.
+    async function _fetchClearCodesByBadges(badgeNums) {
+      const uniq = [...new Set((badgeNums || []).filter(Boolean))];
+      if (uniq.length === 0) return new Map();
+      try {
+        const inList = uniq.map(b => `"${b}"`).join(',');
+        const res = await api(`${SUPABASE_URL}/rest/v1/card_uid_mapping?uid=in.(${inList})&select=uid,clear_code&limit=5000`);
+        if (!res || !res.ok) return new Map();
+        const rows = await res.json();
+        return new Map(rows.map(r => [r.uid, r.clear_code]));
+      } catch (_) {
+        return new Map();
+      }
+    }
+
     // ── LISTA TESTUALE COPIA-INCOLLA PER CARTONCINI ESTERNI ────
     // Apre una nuova finestra con la lista degli ospiti pre-assegnati in
     // formato puro testo, selezionabile/copiabile. Usata da chi disegna
@@ -7142,12 +7162,17 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           alert('Nessun ospite pre-assegnato con badge da esportare.');
           return;
         }
+        // FEATURE 2026-06-05: arricchimento con clear_code (numero stampato sul badge).
+        // badge_number nei visitors e' l'UID grezzo del lettore; per i cartoncini serve
+        // il numero leggibile stampato sul badge. Lookup in card_uid_mapping.
+        const codeMap = await _fetchClearCodesByBadges(list.map(p => p.badge_number));
+        const badgeOf = p => codeMap.get(p.badge_number) || p.badge_number || '';
         // Costruisci 3 formati
         const padLen = list.reduce((m, p) => Math.max(m, ((p.last_name || '') + ' ' + (p.first_name || '')).length), 0);
-        const txtLines = list.map(p => `${(p.last_name || '').padEnd(padLen, ' ')}  ${(p.first_name || '')}  —  Badge ${p.badge_number || ''}`);
-        const csvLines = ['Cognome,Nome,Azienda,Badge'];
-        list.forEach(p => csvLines.push(`"${p.last_name || ''}","${p.first_name || ''}","${p.company || ''}","${p.badge_number || ''}"`));
-        const txtSimple = list.map(p => `${p.last_name || ''} ${p.first_name || ''}\tBadge ${p.badge_number || ''}`).join('\n');
+        const txtLines = list.map(p => `${(p.last_name || '').padEnd(padLen, ' ')}  ${(p.first_name || '')}  —  Badge ${badgeOf(p)}`);
+        const csvLines = ['Cognome,Nome,Azienda,Badge stampato,UID lettore'];
+        list.forEach(p => csvLines.push(`"${p.last_name || ''}","${p.first_name || ''}","${p.company || ''}","${codeMap.get(p.badge_number) || ''}","${p.badge_number || ''}"`));
+        const txtSimple = list.map(p => `${p.last_name || ''} ${p.first_name || ''}\tBadge ${badgeOf(p)}`).join('\n');
 
         const w = window.open('', 'cardlist_text', 'width=900,height=900');
         if (!w) { alert('Popup bloccato. Permetti i popup di questo sito e riprova.'); return; }
@@ -7209,14 +7234,21 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         if (list.length === 0) {
           grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#a0aec0;">Nessun pre-assegnato con badge da stampare.<br><small>Tutti gli ospiti pre-assegnati hanno già firmato oppure non sono stati pre-attivati con badge.</small></div>';
         } else {
-          grid.innerHTML = list.map(p => `
+          // FEATURE 2026-06-05: arricchimento con clear_code (numero stampato sul badge).
+          const codeMap = await _fetchClearCodesByBadges(list.map(p => p.badge_number));
+          grid.innerHTML = list.map(p => {
+            const printedCode = codeMap.get(p.badge_number);
+            const badgeDisplay = printedCode
+              ? `🎟️ Badge <strong>${esc(printedCode)}</strong>`
+              : `🎟️ Badge ${esc(p.badge_number)}`;
+            return `
             <div class="minilabel">
               <div class="minilabel-name">${esc(p.last_name)} ${esc(p.first_name)}</div>
               ${p.company ? `<div class="minilabel-company">${esc(p.company)}</div>` : ''}
-              <div class="minilabel-badge">🎟️ Badge ${esc(p.badge_number)}</div>
+              <div class="minilabel-badge">${badgeDisplay}</div>
               ${p.event_name ? `<div class="minilabel-company" style="font-size:10px;opacity:0.7;">${esc(p.event_name)}</div>` : ''}
             </div>
-          `).join('');
+          `;}).join('');
         }
         document.getElementById('minilabels-modal').classList.add('active');
       } catch (err) {
