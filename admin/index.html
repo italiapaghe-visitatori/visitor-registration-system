@@ -3817,7 +3817,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-04 · cognome-prima</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-05 · pair-fix-xatlas</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -10165,7 +10165,11 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       if (!acqState.activeSession) return;
       try {
         const res = await api(
-          `${SUPABASE_URL}/rest/v1/badge_pool?select=id,badge_number,scan_order,status,visitor_id,created_at,assigned_by` +
+          // BUGFIX 2026-06-05: include `xatlas_user_id` per propagare il placeholder
+          // (creato dall'agente in process_pool_preparation) direttamente al visitor
+          // stub al momento del pair. Senza questo, il visitor resta xatlas_user_id=null
+          // e l'agente process_pool_walkin_recreate non lo intercetta (filtra not.is.null).
+          `${SUPABASE_URL}/rest/v1/badge_pool?select=id,badge_number,scan_order,status,visitor_id,created_at,assigned_by,xatlas_user_id` +
           `&scan_session_id=eq.${acqState.activeSession.id}` +
           `&order=scan_order.asc.nullslast,created_at.asc`
         );
@@ -10774,8 +10778,14 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           visit_reason:    'Visita',
           visit_date:      today,
           badge_number:    badge.badge_number,
-          xatlas_user_id:  null,           // verrà popolato dall'agente in fase di rinominate
-          xatlas_status:   'pending',      // l'agente Python rinomina + attiva
+          // BUGFIX 2026-06-05: propaga xatlas_user_id dal placeholder del pool e
+          // setta xatlas_status='active' SE il placeholder esiste, cosi'
+          // process_pool_walkin_recreate (filtro: user_id NOT NULL + status=active +
+          // renamed=false) intercetta subito e rinomina al primo ciclo.
+          // Se manca il placeholder (caso raro pre-creazione pool), fallback al vecchio
+          // comportamento ('pending' senza user_id) per non rompere flussi alternativi.
+          xatlas_user_id:  badge.xatlas_user_id || null,
+          xatlas_status:   badge.xatlas_user_id ? 'active' : 'pending',
           xatlas_renamed:  false,
           event_id:        acqState.activeSession?.event_id || null,
           event_name:      activeEvent?.id === acqState.activeSession?.event_id ? activeEvent.name : null,
