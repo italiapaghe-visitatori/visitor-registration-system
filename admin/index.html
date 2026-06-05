@@ -3817,7 +3817,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-05 · cartoncini-clear-code</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-05 · scan-clearcode-lookup</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -10272,15 +10272,40 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           inp.value = '';
           return;
         }
+        // BUGFIX 2026-06-05: lookup card_uid_mapping per convertire UID lettore
+        // HDWR (10+ cifre con leading zero, es. 0004225077) in clear_code
+        // stampato sul badge (6 cifre, es. 257802). Senza questa conversione,
+        // l'agente Python creava le card su AXS_DB con clear_code = UID, mentre
+        // i tornelli Zucchetti cercano cards con clear_code = numero stampato
+        // (6 cifre). Risultato: "Tessera non valida" al tornello.
+        let badgeToSave = v;
+        let uidFromReader = null;
+        if (/^0\d{6,}$/.test(v)) {
+          try {
+            const mRes = await api(`${SUPABASE_URL}/rest/v1/card_uid_mapping?uid=eq.${encodeURIComponent(v)}&select=clear_code&limit=1`);
+            if (mRes && mRes.ok) {
+              const rows = await mRes.json();
+              if (rows.length > 0 && rows[0].clear_code) {
+                badgeToSave = String(rows[0].clear_code).trim();
+                uidFromReader = v;
+              }
+            }
+          } catch (_) { /* fallback: usa UID raw, avviso operatore via beep duplicato */ }
+          if (!uidFromReader) {
+            // Mapping mancante: avviso non-bloccante. L'operatore puo' aggiungere
+            // la mapping a posteriori da tab "Aggiungi ospite" (auto-learn).
+            console.warn('[acq scan] UID', v, 'non trovato in card_uid_mapping; salvataggio come UID raw.');
+          }
+        }
         // Disabilita brevemente per evitare doppio Enter
         inp.disabled = true;
         try {
           const result = await _persistBadgesToPool(
             acqState.activeSession.event_id,
-            [v],
+            [badgeToSave],
             {
               scanSessionId: acqState.activeSession.id,
-              source:        'scan_acquire',
+              source:        uidFromReader ? 'scan_acquire_mapped' : 'scan_acquire',
               showAlerts:    false,
             }
           );
