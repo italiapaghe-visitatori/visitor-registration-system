@@ -54,6 +54,7 @@ const CONFIG = {
     { value: 'Corso di formazione in aula', label: 'Corso di formazione in aula' },
     { value: 'Fornitore', label: 'Fornitore' },
     { value: 'Team Building DVI CL 1e 10', label: 'Team Building DVI CL 1e 10' },
+    { value: 'Formazione Direzione Marketing', label: 'Formazione Direzione Marketing' },
     { value: 'Incontro di lavoro', label: 'Incontro di lavoro' },
     { value: 'Intervista di lavoro', label: 'Intervista di lavoro' },
     { value: 'Manutenzione/assistenza tecnica', label: 'Manutenzione/assistenza tecnica' },
