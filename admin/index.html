@@ -3993,7 +3993,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-06 · gate-open + voice</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-06b · gate-open + voice + storico</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -4416,6 +4416,42 @@
         ? currentData.find(v => v.id === visitorId) : null;
       const dispName = visitor ? `${visitor.last_name || ''} ${visitor.first_name || ''}`.trim() : '';
       triggerGateOpen(direction, { visitorId, displayName: dispName, btn }, { source: 'visitor_row' });
+    }
+
+    // Apre il modale dettagli (con storico timbrature) per un ospite di Ospiti Attesi.
+    // Usato dal bottone ℹ️ sulla riga dell'ospite — disponibile solo se ha gia' un
+    // visitor associato (matched_visitor_id) altrimenti non ci sono ancora timbrature.
+    // Strategia: fetch del visitor, push in currentData se manca, riuso openDetailsModal.
+    async function openGuestVisitorDetails(btn) {
+      const tr = btn.closest('tr');
+      const guestId = tr?.dataset?.id || null;
+      const guest = (Array.isArray(guestData) ? guestData : []).find(g => g.id === guestId);
+      const visitorId = guest?.matched_visitor_id || guest?.visitor_id;
+      if (!visitorId) {
+        alert('Questo ospite non è ancora arrivato — nessuna timbratura da mostrare.\n\nIl bottone ℹ️ Dettagli con storico timbrature compare automaticamente dopo il primo passaggio al tornello.');
+        return;
+      }
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(visitorId)}&select=*&limit=1`);
+        if (!res || !res.ok) throw new Error('Errore HTTP ' + (res ? res.status : '?'));
+        const arr = await res.json();
+        if (!arr || !arr[0]) {
+          alert('Visitor associato non trovato (id=' + visitorId + '). Probabilmente è stato archiviato.');
+          return;
+        }
+        // Push in currentData se manca (openDetailsModal cerca li' con find)
+        if (!Array.isArray(currentData)) {
+          currentData = [];
+        }
+        if (!currentData.find(r => String(r.id) === String(visitorId))) {
+          currentData.push(arr[0]);
+        }
+        // Costruisce un finto bottone con data-id per riusare openDetailsModal as-is
+        const fakeBtn = { dataset: { id: visitorId } };
+        openDetailsModal(fakeBtn);
+      } catch (err) {
+        alert('Errore caricamento dettagli: ' + err.message);
+      }
     }
 
     // Apertura "al volo" senza guest associato (es. emergenza, fornitori non in lista)
@@ -8378,6 +8414,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
               <button type="button" class="btn-gate-in"  onclick="openGateForGuest(this,'entry')" title="Apri TORNELLO_IN per ${esc(g.first_name || '')} ${esc(g.last_name || '')}. Click → tornello apre in ~1 sec. Registra entrata in visitor_movements.">🚪 IN</button>
               <button type="button" class="btn-gate-out" onclick="openGateForGuest(this,'exit')"  title="Apri TORNELLO_OUT per ${esc(g.first_name || '')} ${esc(g.last_name || '')}. Click → tornello apre in ~1 sec. Registra uscita.">🚪 OUT</button>
             </span>
+            ${g.matched_visitor_id ? `<button type="button" class="btn-icon btn-details-icon" data-id="${esc(g.id)}" onclick="openGuestVisitorDetails(this)" title="Storico timbrature completo (ingressi e uscite multipli) + dettagli firma, documento, badge. Disponibile dopo il primo passaggio al tornello.">ℹ️</button>` : ''}
             ${!arrived ? `<button type="button" class="btn-signature-handoff" data-id="${esc(g.id)}" onclick="reopenSignatureHandoff(this)" title="Riapre il dialog per passare la firma all'ospite (tablet kiosk, QR cellulare o email). Disponibile finché l'ospite non ha firmato.">✍️ Firma</button>` : ''}
             ${(!arrived && !preAssign) ? `<button type="button" class="btn-badge-assign" data-id="${esc(g.id)}" onclick="openPreAssignModal(this)" title="Apri modale per pre-assegnare un badge a questo ospite (creazione visitor stub xatlas_status='pending', l'agente attiverà il badge nei tornelli).">Pre-assegna Badge</button>` : ''}
             <button type="button" class="btn-delete" data-id="${esc(g.id)}" onclick="deleteGuest(this)" title="Rimuove questo ospite dalla guest_list. NON è permesso se ha già firmato il QR o ha un visitor pre-assegnato (audit/integrità).">Rimuovi</button>
