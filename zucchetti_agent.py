@@ -211,7 +211,7 @@ def sb_patch(path, data):
     return r.json()
 
 
-AGENT_VERSION = "1.5.3-egress-opt"
+AGENT_VERSION = "1.6.1-gate-open+reject-filter"
 
 
 def update_heartbeat(notes: str | None = None):
@@ -882,6 +882,17 @@ def get_recent_transactions(badge_codes: list[str]) -> list[dict]:
     Tabella AXS_DB: 'transaction'. La colonna 'entry' è boolean
     (true=entrata, false=uscita), 'card_clear_code' contiene direttamente
     il numero badge senza bisogno di JOIN.
+
+    FILTRO ACCETTATE (2026-06-06): aggiunto `result = 2 AND transaction_performed`
+    per ignorare i tentativi RIFIUTATI dal tornello. Casi tipici di refuso:
+      result=94 → card non sincronizzata nel FMC locale (bug WSM→FMC del 15/05)
+      result=95 → validità scaduta o motivo simile
+    Senza filtro, ogni swipe rifiutato veniva scritto in visitor_movements
+    confondendo l'admin con timbrature finte (caso Daniela ABBRUZZESE 5/6:
+    6 swipe → 6 movements scritti → tornello mai aperto realmente).
+    Riferimento codici risultato:
+      2 = ACCEPTED (transito autorizzato, tornello aperto)
+      altri = REJECTED (vari motivi)
     """
     if not badge_codes:
         return []
@@ -898,6 +909,8 @@ def get_recent_transactions(badge_codes: list[str]) -> list[dict]:
             FROM transaction
             WHERE event_timestamp > NOW() - INTERVAL '60 seconds'
               AND card_clear_code IN ({placeholders})
+              AND result = 2
+              AND transaction_performed = true
             ORDER BY event_timestamp ASC
             """,
             badge_codes,
@@ -1649,28 +1662,300 @@ def cleanup_archived_visitors():
             log.error(f"cleanup_archived_visitors visitor {vid}: {e}")
 
 
+# ── GATE OPEN MANUAL DISPATCHER (workaround sync XAtlas rotto dal 15/05/2026) ──
+# L'admin permette di cliccare "Apri tornello" per ogni ospite. Click inserisce
+# una riga in gate_open_queue (Supabase). Qui sotto la elaboriamo:
+#   1. SELECT pending
+#   2. UPDATE status=opening (claim atomico, anti-doppia-elaborazione multi-agent)
+#   3. telnet localhost 8189 EXEC <gate_id> openEntryOneShot/openExitOneShot
+#   4. UPDATE status=opened|failed + scrive visitor_movements
+# Polling separato dal main loop (intervallo 1 sec per latenza UX <2s).
+
+import telnetlib
+
+FMC_TELNET_HOST = "localhost"
+FMC_TELNET_PORT = 8189
+GATE_OPEN_POLL_SEC = 1.0   # polling rapido: l'operatore vuole feedback in <2s
+
+# Mapping gate_id → metodo telnet EXEC + nome leggibile
+_GATE_METHOD = {
+    (202, "entry"): ("openEntryOneShot", "TORNELLO_IN"),
+    (205, "exit"):  ("openExitOneShot",  "TORNELLO_OUT"),
+    (240, "entry"): ("openEntryOneShot", "AXG_INGRESSO"),
+    (242, "exit"):  ("openExitOneShot",  "AXG_PORTELLO"),
+    # Fallback per casi misti (es. AXG_INGRESSO usato come uscita di emergenza)
+    (202, "exit"):  ("openExitOneShot",  "TORNELLO_IN(rev)"),
+    (205, "entry"): ("openEntryOneShot", "TORNELLO_OUT(rev)"),
+    (240, "exit"):  ("openExitOneShot",  "AXG_INGRESSO(rev)"),
+    (242, "entry"): ("openEntryOneShot", "AXG_PORTELLO(rev)"),
+}
+
+
+def send_fmc_command(cmd: str, timeout_sec: float = 8.0) -> str:
+    """Invia un comando EXEC al FMC via telnet 8189 e ritorna la risposta raw.
+
+    Usa connessione effimera (apre/chiude per ogni comando) per evitare
+    state pollution tra chiamate concorrenti da diversi worker.
+    """
+    tn = telnetlib.Telnet(FMC_TELNET_HOST, FMC_TELNET_PORT, timeout=5)
+    try:
+        # Svuota banner iniziale
+        time.sleep(0.3)
+        try:
+            tn.read_very_eager()
+        except Exception:
+            pass
+        tn.write((cmd + "\r\n").encode("ascii"))
+        # Lettura risposta con cumulative wait. Le aperture sono veloci (<300ms)
+        # ma il timer di sicurezza copre eventuali rallentamenti FMC.
+        deadline = time.monotonic() + timeout_sec
+        buf = b""
+        while time.monotonic() < deadline:
+            try:
+                chunk = tn.read_very_eager()
+            except Exception:
+                chunk = b""
+            if chunk:
+                buf += chunk
+                # Se vediamo il prompt finale "FM#NNN@" significa che l'EXEC è completato.
+                if b"FM#" in buf and b"@" in buf:
+                    # Aspetta ancora 100ms per assicurare trailing bytes
+                    time.sleep(0.1)
+                    try:
+                        more = tn.read_very_eager()
+                        if more:
+                            buf += more
+                    except Exception:
+                        pass
+                    break
+            time.sleep(0.1)
+        return buf.decode("ascii", errors="ignore")
+    finally:
+        try: tn.close()
+        except Exception: pass
+
+
+def _fmc_response_indicates_success(resp: str) -> bool:
+    """Heuristic: il comando openEntryOneShot ritorna tipicamente
+    'Executed openEntryOneShot:\\ntrue' nella risposta. Cerchiamo signal positivi.
+    """
+    if not resp:
+        return False
+    low = resp.lower()
+    # Signal positivo: il metodo è stato eseguito e ha ritornato true
+    if "executed" in low and "true" in low:
+        return True
+    # Signal negativo esplicito
+    if "exception" in low or "error" in low or "no such method" in low:
+        return False
+    if "executed" in low and "false" in low:
+        return False
+    # Per i metodi *OneShot* il device a volte ritorna OK come "executed: " senza valore
+    # ma con prompt seguente: consideriamo successo se vediamo "executed" senza errori
+    if "executed" in low:
+        return True
+    return False
+
+
+def _record_manual_movement(visitor_id, direction_iso, gate_name):
+    """Registra il movimento in visitor_movements quando il bottone admin
+    apre un tornello. Direction: 'IN' o 'OUT'. Source: 'manual_gate_open'.
+
+    Non blocca se fallisce (best effort). Usato solo per visitor noti.
+    """
+    if not visitor_id:
+        return
+    try:
+        # Recupera event_id del visitor per coerenza con auto-movimenti
+        rows = sb_get(f"visitors", params={
+            "id": f"eq.{visitor_id}",
+            "select": "event_id,badge_number",
+        })
+        if not rows:
+            return
+        event_id = rows[0].get("event_id")
+        badge    = rows[0].get("badge_number") or ""
+        ts_iso   = datetime.now(timezone.utc).isoformat()
+        body = {
+            "visitor_id":   visitor_id,
+            "event_id":     event_id,
+            "timestamp":    ts_iso,
+            "direction":    direction_iso,   # 'IN' o 'OUT'
+            "badge_number": badge,
+            "source":       f"manual_gate_open:{gate_name}",
+        }
+        r = requests.post(
+            f"{SUPABASE_URL}/rest/v1/visitor_movements",
+            headers={**_sb_headers, "Prefer": "return=minimal"},
+            json=body, timeout=10,
+        )
+        if not r.ok and r.status_code != 409:
+            log.warning(f"manual_movement HTTP {r.status_code}: {r.text[:200]}")
+        # Aggiorna anche entry_time/exit_time sul visitor (UX admin)
+        upd = {"entry_time" if direction_iso == "IN" else "exit_time": ts_iso}
+        sb_patch(f"visitors?id=eq.{visitor_id}", upd)
+    except Exception as e:
+        log.warning(f"_record_manual_movement visitor {visitor_id}: {e}")
+
+
+def process_gate_open_queue():
+    """Polling della coda apertura tornelli manuale.
+
+    Per ogni riga pending:
+      1. Claim atomico via PATCH on status=eq.pending → status=opening
+      2. Invia EXEC al tornello via telnet 8189
+      3. Aggiorna riga con esito + risposta
+      4. Se successo + visitor associato: scrive movimento in visitor_movements
+
+    Robusto a:
+    - Multi-agent: il PATCH con filtro status=eq.pending è atomico (PostgREST WHERE).
+      Solo un agente vince il claim. Gli altri vedono 0 righe aggiornate e ignorano.
+    - Crash agente: righe lasciate in 'opening' senza esecuzione vengono
+      ri-elaborate dopo 30s (vedi recovery di stale 'opening' più sotto).
+    - Spam click: la UI usa idempotency_key UNIQUE; insert duplicate
+      fallisce in DB, l'utente vede già la pending.
+    """
+    try:
+        pending = sb_get("gate_open_queue", params={
+            "status": "eq.pending",
+            "select": "id,gate_id,direction,visitor_id,guest_id,operator_email,requested_at,notes",
+            "order":  "requested_at.asc",
+            "limit":  "10",
+        })
+    except Exception as e:
+        log.error(f"process_gate_open_queue read: {e}")
+        return
+
+    # Recovery: righe in opening da troppo tempo (>30s) vengono riaperte
+    # come pending — significa che l'agente che le aveva claimate è morto.
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(seconds=30)).isoformat()
+        stale = sb_get("gate_open_queue", params={
+            "status": "eq.opening",
+            "requested_at": f"lt.{cutoff}",
+            "select": "id",
+            "limit": "5",
+        })
+        for row in (stale or []):
+            sb_patch(f"gate_open_queue?id=eq.{row['id']}&status=eq.opening", {
+                "status": "pending",
+                "error_message": "stale opening recovered",
+            })
+            log.warning(f"gate_open_queue: ripristinato stale opening id={row['id']}")
+    except Exception as e:
+        log.warning(f"process_gate_open_queue stale recovery: {e}")
+
+    for row in (pending or []):
+        row_id    = row["id"]
+        gate_id   = int(row["gate_id"])
+        direction = row["direction"]
+        visitor_id = row.get("visitor_id")
+
+        # 1. Claim atomico: status pending→opening solo se ancora pending
+        try:
+            claim_url = (
+                f"{SUPABASE_URL}/rest/v1/gate_open_queue"
+                f"?id=eq.{row_id}&status=eq.pending"
+            )
+            claim_resp = requests.patch(
+                claim_url,
+                headers={**_sb_headers, "Prefer": "return=representation"},
+                json={"status": "opening"},
+                timeout=10,
+            )
+            if not claim_resp.ok:
+                log.warning(f"gate claim row {row_id} HTTP {claim_resp.status_code}: {claim_resp.text[:200]}")
+                continue
+            claimed = claim_resp.json()
+            if not claimed:
+                # Un altro agente ha già preso questa riga
+                continue
+        except Exception as e:
+            log.warning(f"gate claim row {row_id}: {e}")
+            continue
+
+        # 2. Invia EXEC al tornello
+        method_info = _GATE_METHOD.get((gate_id, direction))
+        if method_info is None:
+            method = "openEntryOneShot" if direction == "entry" else "openExitOneShot"
+            gate_name = f"GATE_{gate_id}"
+        else:
+            method, gate_name = method_info
+
+        cmd = f"EXEC {gate_id} {method}"
+        log.info(f"gate_open row={row_id} → {cmd} ({gate_name})")
+        executed_at = datetime.now(timezone.utc).isoformat()
+        success = False
+        resp_text = ""
+        err_msg = None
+        try:
+            resp_text = send_fmc_command(cmd, timeout_sec=8.0)
+            success = _fmc_response_indicates_success(resp_text)
+            if not success:
+                err_msg = "FMC response non riconosciuta come successo"
+        except Exception as e:
+            err_msg = f"telnet error: {e}"
+            log.error(f"gate_open row={row_id} telnet: {e}")
+
+        # 3. Aggiorna esito
+        update_body = {
+            "status":         "opened" if success else "failed",
+            "executed_at":    executed_at,
+            "agent_response": (resp_text or "")[:1500],
+        }
+        if err_msg:
+            update_body["error_message"] = err_msg
+        try:
+            sb_patch(f"gate_open_queue?id=eq.{row_id}", update_body)
+        except Exception as e:
+            log.error(f"gate update row={row_id}: {e}")
+
+        # 4. Se successo + visitor associato, scrivi movimento
+        if success and visitor_id:
+            direction_iso = "IN" if direction == "entry" else "OUT"
+            _record_manual_movement(visitor_id, direction_iso, gate_name)
+
+        if success:
+            log.info(f"gate_open OK row={row_id} {gate_name} {direction}")
+        else:
+            log.warning(f"gate_open FAIL row={row_id} {gate_name} {direction}: {err_msg}")
+
+
 def run_loop():
     log.info(f"Zucchetti Bridge Agent avviato (v{AGENT_VERSION})")
     log.info(f"Strategia email: {EMAIL_STRATEGY or 'NESSUNA (configurare [smtp] o [m365_graph] in agent_config.ini)'}")
     update_heartbeat(notes="started")
     startup_catchup()
+    # Cadenza separata per gate_open: poll ogni GATE_OPEN_POLL_SEC anche
+    # tra un ciclo normale e l'altro (l'operatore vuole feedback <2s).
+    last_normal_cycle = 0.0
     while True:
+        # Gate open: sempre prioritario, ogni iterazione
         try:
-            process_pending_badges()
-            process_pool_preparation()
-            # IMPORTANTE: recreate prima delle transazioni e cleanup, altrimenti
-            # un exit + cleanup possono cancellare l'utente XAtlas pool prima che
-            # il recreate abbia potuto sostituirlo col nome reale.
-            process_pool_walkin_recreate()
-            process_active_transactions()
-            cleanup_archived_visitors()
-            midnight_cleanup_stale_visitors()
-            process_email_queue()
-            update_heartbeat()
+            process_gate_open_queue()
         except Exception as e:
-            log.error(f"Errore imprevisto nel ciclo principale: {e}")
-            update_heartbeat(notes=f"error: {str(e)[:200]}")
-        time.sleep(POLL_INTERVAL)
+            log.error(f"process_gate_open_queue: {e}")
+
+        # Ciclo normale: ogni POLL_INTERVAL secondi
+        now = time.monotonic()
+        if now - last_normal_cycle >= POLL_INTERVAL:
+            try:
+                process_pending_badges()
+                process_pool_preparation()
+                # IMPORTANTE: recreate prima delle transazioni e cleanup, altrimenti
+                # un exit + cleanup possono cancellare l'utente XAtlas pool prima che
+                # il recreate abbia potuto sostituirlo col nome reale.
+                process_pool_walkin_recreate()
+                process_active_transactions()
+                cleanup_archived_visitors()
+                midnight_cleanup_stale_visitors()
+                process_email_queue()
+                update_heartbeat()
+            except Exception as e:
+                log.error(f"Errore imprevisto nel ciclo principale: {e}")
+                update_heartbeat(notes=f"error: {str(e)[:200]}")
+            last_normal_cycle = now
+        time.sleep(GATE_OPEN_POLL_SEC)
 
 
 # ── Windows Service ───────────────────────────────────────────────────────────
@@ -1709,21 +1994,33 @@ try:
                 startup_catchup()
             except Exception as e:
                 log.error(f"Catchup all'avvio fallito: {e}")
+            last_normal_cycle = 0.0
             while self._running:
+                # Gate open: priorità massima, ogni iterazione (~1s)
                 try:
-                    process_pending_badges()
-                    process_pool_preparation()
-                    # IMPORTANTE: recreate prima di transactions/cleanup
-                    process_pool_walkin_recreate()
-                    process_active_transactions()
-                    cleanup_archived_visitors()
-                    midnight_cleanup_stale_visitors()
-                    process_email_queue()
-                    update_heartbeat()
+                    process_gate_open_queue()
                 except Exception as e:
-                    log.error(f"Errore nel service loop: {e}")
-                    update_heartbeat(notes=f"error: {str(e)[:200]}")
-                for _ in range(POLL_INTERVAL * 10):
+                    log.error(f"process_gate_open_queue (service): {e}")
+
+                # Ciclo normale ogni POLL_INTERVAL secondi
+                now = time.monotonic()
+                if now - last_normal_cycle >= POLL_INTERVAL:
+                    try:
+                        process_pending_badges()
+                        process_pool_preparation()
+                        # IMPORTANTE: recreate prima di transactions/cleanup
+                        process_pool_walkin_recreate()
+                        process_active_transactions()
+                        cleanup_archived_visitors()
+                        midnight_cleanup_stale_visitors()
+                        process_email_queue()
+                        update_heartbeat()
+                    except Exception as e:
+                        log.error(f"Errore nel service loop: {e}")
+                        update_heartbeat(notes=f"error: {str(e)[:200]}")
+                    last_normal_cycle = now
+                # Sleep breve per latenza UX gate open (1s default)
+                for _ in range(int(GATE_OPEN_POLL_SEC * 10)):
                     if not self._running:
                         break
                     time.sleep(0.1)

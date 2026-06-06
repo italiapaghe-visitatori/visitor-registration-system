@@ -1732,6 +1732,155 @@
     }
     .btn-conclude:hover { box-shadow: 0 3px 10px rgba(49,130,206,0.55); }
 
+    /* ══════════════════════════════════════════════════════════════
+       GATE OPEN BUTTONS — Apertura manuale tornelli (workaround sync)
+       ══════════════════════════════════════════════════════════════
+       Bottoni "🚪 IN" e "🚪 OUT" per ogni ospite/visitor. Click → riga in
+       gate_open_queue → agente Python invia EXEC al tornello (300-800ms).
+       Stati: idle | opening (spinner giallo) | opened (verde 2s) | failed (rosso).
+    */
+    .gate-actions { display: inline-flex; gap: 4px; vertical-align: middle; }
+    .btn-gate-in, .btn-gate-out {
+      border: none;
+      border-radius: 7px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.18s;
+      white-space: nowrap;
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      min-width: 56px;
+      justify-content: center;
+    }
+    .btn-gate-in {
+      background: linear-gradient(135deg, #38b2ac 0%, #2c7a7b 100%);
+    }
+    .btn-gate-in:hover { box-shadow: 0 3px 10px rgba(56,178,172,0.55); transform: translateY(-1px); }
+    .btn-gate-out {
+      background: linear-gradient(135deg, #ed8936 0%, #c05621 100%);
+    }
+    .btn-gate-out:hover { box-shadow: 0 3px 10px rgba(237,137,54,0.55); transform: translateY(-1px); }
+    .btn-gate-in:disabled, .btn-gate-out:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+    /* Stato opening (in elaborazione): spinner + colore giallo */
+    .btn-gate-in.gate-opening, .btn-gate-out.gate-opening {
+      background: linear-gradient(135deg, #ecc94b 0%, #b7791f 100%) !important;
+      animation: gatePulse 0.9s ease-in-out infinite;
+    }
+    /* Stato opened (successo, breve flash verde) */
+    .btn-gate-in.gate-opened, .btn-gate-out.gate-opened {
+      background: linear-gradient(135deg, #48bb78 0%, #2f855a 100%) !important;
+      animation: none;
+    }
+    /* Stato failed (errore) */
+    .btn-gate-in.gate-failed, .btn-gate-out.gate-failed {
+      background: linear-gradient(135deg, #fc8181 0%, #c53030 100%) !important;
+      animation: none;
+    }
+    @keyframes gatePulse {
+      0%, 100% { box-shadow: 0 2px 6px rgba(236,201,75,0.4); }
+      50%      { box-shadow: 0 4px 14px rgba(236,201,75,0.85); }
+    }
+
+    /* Toast di feedback in basso a destra */
+    .gate-toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .gate-toast {
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px 16px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      font-size: 13px;
+      font-weight: 600;
+      max-width: 360px;
+      animation: gateToastIn 0.22s ease-out;
+      border-left: 5px solid #38b2ac;
+      pointer-events: auto;
+    }
+    .gate-toast.success { border-left-color: #38a169; color: #22543d; background: #f0fff4; }
+    .gate-toast.error   { border-left-color: #c53030; color: #742a2a; background: #fff5f5; }
+    .gate-toast.info    { border-left-color: #3182ce; color: #2a4365; background: #ebf8ff; }
+    @keyframes gateToastIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    .gate-toast .gate-toast-title { font-weight: 700; margin-bottom: 3px; }
+    .gate-toast .gate-toast-detail { font-size: 11.5px; opacity: 0.85; font-weight: 500; }
+
+    /* Gate Bar header (above stats in Ospiti Attesi) */
+    .gate-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%);
+      border-radius: 10px;
+      border-left: 5px solid #3182ce;
+      box-shadow: 0 1px 4px rgba(49,130,206,0.18);
+    }
+    .gate-bar-left { flex: 1; min-width: 240px; }
+    .gate-bar-right { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .gate-bar-title { font-weight: 800; font-size: 14px; color: #2c5282; display: block; margin-bottom: 2px; }
+    .gate-bar-hint  { font-size: 11.5px; color: #2a4365; opacity: 0.85; display: block; }
+    .gate-bar-sep   { width: 1px; height: 22px; background: #4299e1; opacity: 0.4; margin: 0 4px; }
+
+    .btn-gate-quick {
+      border: none; border-radius: 8px; padding: 7px 14px;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      color: #fff; transition: all 0.18s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+    }
+    .btn-gate-quick-in  { background: linear-gradient(135deg, #38b2ac 0%, #2c7a7b 100%); }
+    .btn-gate-quick-in:hover  { box-shadow: 0 3px 10px rgba(56,178,172,0.55); transform: translateY(-1px); }
+    .btn-gate-quick-out { background: linear-gradient(135deg, #ed8936 0%, #c05621 100%); }
+    .btn-gate-quick-out:hover { box-shadow: 0 3px 10px rgba(237,137,54,0.55); transform: translateY(-1px); }
+
+    .btn-voice-toggle {
+      background: linear-gradient(135deg, #805ad5 0%, #553c9a 100%);
+      color: #fff; border: none; border-radius: 8px;
+      padding: 7px 14px; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all 0.18s;
+      box-shadow: 0 2px 6px rgba(128,90,213,0.4);
+    }
+    .btn-voice-toggle:hover { box-shadow: 0 3px 10px rgba(128,90,213,0.6); }
+    .btn-voice-toggle.voice-active {
+      background: linear-gradient(135deg, #e53e3e 0%, #9b2c2c 100%) !important;
+      animation: voicePulse 1.4s ease-in-out infinite;
+    }
+    @keyframes voicePulse {
+      0%, 100% { box-shadow: 0 2px 6px rgba(229,62,62,0.45); }
+      50%      { box-shadow: 0 4px 16px rgba(229,62,62,0.95), 0 0 0 4px rgba(229,62,62,0.18); }
+    }
+    .voice-status {
+      font-size: 12px;
+      color: #2c5282;
+      font-weight: 600;
+      font-style: italic;
+      margin-left: 4px;
+      min-height: 18px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .voice-status.voice-listening { color: #c53030; }
+    .voice-status.voice-heard    { color: #2c7a7b; font-style: normal; }
+
     /* ── DANGER ZONE (eliminazione record dal modale dettagli) ── */
     .danger-zone {
       margin-top: 18px;
@@ -3182,6 +3331,33 @@
     <!-- ── VIEW: OSPITI ATTESI ── -->
     <div class="view" id="view-guests">
 
+      <!-- Gate Bar: quick action apertura tornello (workaround sync XAtlas)
+           Sempre visibile durante eventi. Bottoni walk-in al volo + modalità vocale. -->
+      <div class="gate-bar" id="gate-bar">
+        <div class="gate-bar-left">
+          <span class="gate-bar-title">🚪 Apertura tornelli</span>
+          <span class="gate-bar-hint">Click sui bottoni nella riga di ogni ospite. Bottoni qui per walk-in al volo:</span>
+        </div>
+        <div class="gate-bar-right">
+          <button type="button" class="btn-gate-quick btn-gate-quick-in"
+                  onclick="openGateQuick('entry')"
+                  title="Apri TORNELLO_IN senza ospite associato. Usa per emergenze, fornitori non in lista, visite express. Tracciato in audit_log come walk-in al volo.">
+            🚪 IN al volo
+          </button>
+          <button type="button" class="btn-gate-quick btn-gate-quick-out"
+                  onclick="openGateQuick('exit')"
+                  title="Apri TORNELLO_OUT senza ospite associato. Usa per uscite di emergenza o visitatori senza badge.">
+            🚪 OUT al volo
+          </button>
+          <span class="gate-bar-sep"></span>
+          <button type="button" class="btn-voice-toggle" id="btn-voice-toggle" onclick="toggleVoiceMode()"
+                  title="Attiva modalità vocale: dì 'Apri Rossi' per aprire l'ingresso a Mario Rossi. Riconosce nome o cognome dalla lista ospiti. Confidence > 70% richiesta. Richiede microfono e Chrome/Edge.">
+            🎤 Voce
+          </button>
+          <span class="voice-status" id="voice-status"></span>
+        </div>
+      </div>
+
       <!-- Banner email fallite (visibile solo se status='failed' > 0) -->
       <div id="email-failed-banner" class="email-failed-banner" style="display:none" onclick="scrollToFirstFailedEmail()" title="Click per scorrere alla prima riga con email fallita">
         <span class="efb-icon">⚠️</span>
@@ -3817,7 +3993,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-05 · scan-clearcode-lookup</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-06 · gate-open + voice</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -4039,6 +4215,495 @@
       }
       return res;
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // GATE OPEN MANUAL — Apertura tornelli via bottone admin (workaround sync)
+    // ══════════════════════════════════════════════════════════════════════
+    // Architettura: click → POST gate_open_queue → agente Python processa
+    // (polling 1s) → invia EXEC al tornello → aggiorna riga → UI polling vede esito.
+    // Mapping tornelli (configurabile via CONFIG.gates se serve in futuro):
+    //   202=TORNELLO_IN (entry default)  205=TORNELLO_OUT (exit default)
+    //   240=AXG_INGRESSO  242=AXG_PORTELLO
+
+    const GATE_DEFAULT_IN  = 202;   // TORNELLO_IN
+    const GATE_DEFAULT_OUT = 205;   // TORNELLO_OUT
+
+    // Tracking apertura in volo per debounce + cleanup UI
+    const _gateOpenInFlight = new Map();   // requestId → { row, key, btn, kind }
+
+    // Toast feedback (non blocca, autoscompare 4s)
+    function gateToast(message, kind = 'info', detail = '') {
+      let container = document.querySelector('.gate-toast-container');
+      if (!container) {
+        container = document.createElement('div');
+        container.className = 'gate-toast-container';
+        document.body.appendChild(container);
+      }
+      const t = document.createElement('div');
+      t.className = `gate-toast ${kind}`;
+      t.innerHTML = `
+        <div class="gate-toast-title">${esc(message)}</div>
+        ${detail ? `<div class="gate-toast-detail">${esc(detail)}</div>` : ''}
+      `;
+      container.appendChild(t);
+      setTimeout(() => {
+        t.style.transition = 'opacity 0.25s';
+        t.style.opacity = '0';
+        setTimeout(() => t.remove(), 260);
+      }, kind === 'error' ? 6000 : 3500);
+    }
+
+    // Generate idempotency key UUID v4 (RFC 4122)
+    function gateIdempotencyKey() {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      // Fallback per browser molto vecchi
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    /**
+     * Triggera apertura manuale tornello.
+     * @param {string} direction  - 'entry' o 'exit'
+     * @param {Object} ctx        - { visitorId, guestId, displayName, btn }
+     * @param {Object} [opts]     - { gateId, notes, source }  (default: tornello standard per direction)
+     */
+    async function triggerGateOpen(direction, ctx, opts = {}) {
+      const gateId  = opts.gateId || (direction === 'entry' ? GATE_DEFAULT_IN : GATE_DEFAULT_OUT);
+      const btn     = ctx.btn || null;
+      const idemKey = gateIdempotencyKey();
+      const visitorId = ctx.visitorId || null;
+      const guestId   = ctx.guestId   || null;
+      const dispName  = ctx.displayName || (visitorId ? `visitor ${visitorId.slice(0,8)}` : (guestId ? `guest ${guestId.slice(0,8)}` : 'ospite walk-in'));
+
+      // UI: stato opening (pulsante giallo lampeggiante)
+      if (btn) {
+        btn.disabled = true;
+        btn.classList.remove('gate-opened', 'gate-failed');
+        btn.classList.add('gate-opening');
+        btn.dataset.gateOriginalText = btn.dataset.gateOriginalText || btn.textContent;
+        btn.textContent = '⏳';
+      }
+
+      // Insert riga gate_open_queue
+      const payload = {
+        gate_id:         gateId,
+        direction:       direction,
+        visitor_id:      visitorId,
+        guest_id:        guestId,
+        operator_email:  CURRENT_USER_EMAIL,
+        idempotency_key: idemKey,
+        notes:           opts.notes || (opts.source ? `via ${opts.source}` : null),
+      };
+      try {
+        const res = await api(`${SUPABASE_URL}/rest/v1/gate_open_queue`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body:    JSON.stringify(payload),
+        });
+        if (!res || !res.ok) {
+          const errTxt = res ? await res.text().catch(() => '') : 'no response';
+          throw new Error(`HTTP ${res?.status || '?'}: ${errTxt.slice(0,200)}`);
+        }
+        const inserted = await res.json();
+        const rowId = Array.isArray(inserted) ? inserted[0]?.id : inserted?.id;
+        if (!rowId) throw new Error('Risposta server senza ID');
+
+        // Avvia polling stato (ogni 700ms, max 12s)
+        _gateOpenInFlight.set(rowId, { btn, kind: direction, dispName, gateId });
+        _pollGateOpenStatus(rowId);
+      } catch (err) {
+        if (btn) {
+          btn.classList.remove('gate-opening');
+          btn.classList.add('gate-failed');
+          btn.textContent = '✕';
+          setTimeout(() => {
+            btn.classList.remove('gate-failed');
+            btn.textContent = btn.dataset.gateOriginalText || (direction === 'entry' ? '🚪 IN' : '🚪 OUT');
+            btn.disabled = false;
+          }, 2500);
+        }
+        gateToast('Errore invio comando', 'error', err.message);
+      }
+    }
+
+    async function _pollGateOpenStatus(rowId) {
+      const ctx = _gateOpenInFlight.get(rowId);
+      if (!ctx) return;
+      const started = Date.now();
+      const tick = async () => {
+        // Timeout sicurezza 12 sec (agente offline?)
+        if (Date.now() - started > 12000) {
+          _finalizeGateButton(rowId, false, 'timeout (12s)', null);
+          return;
+        }
+        try {
+          const res = await api(`${SUPABASE_URL}/rest/v1/gate_open_queue?id=eq.${rowId}&select=status,executed_at,error_message,agent_response`);
+          if (!res || !res.ok) throw new Error(`status HTTP ${res?.status}`);
+          const data = await res.json();
+          const row = Array.isArray(data) ? data[0] : null;
+          if (!row) throw new Error('riga sparita');
+          if (row.status === 'opened') {
+            _finalizeGateButton(rowId, true, null, row);
+            return;
+          }
+          if (row.status === 'failed') {
+            _finalizeGateButton(rowId, false, row.error_message || 'errore agente', row);
+            return;
+          }
+          // pending o opening: continua
+          setTimeout(tick, 700);
+        } catch (err) {
+          setTimeout(tick, 1200);
+        }
+      };
+      setTimeout(tick, 600);
+    }
+
+    function _finalizeGateButton(rowId, success, errorMsg, row) {
+      const ctx = _gateOpenInFlight.get(rowId);
+      _gateOpenInFlight.delete(rowId);
+      if (!ctx) return;
+      const { btn, kind, dispName } = ctx;
+      if (btn) {
+        btn.classList.remove('gate-opening');
+        if (success) {
+          btn.classList.add('gate-opened');
+          btn.textContent = '✓';
+        } else {
+          btn.classList.add('gate-failed');
+          btn.textContent = '✕';
+        }
+        setTimeout(() => {
+          btn.classList.remove('gate-opened', 'gate-failed');
+          btn.textContent = btn.dataset.gateOriginalText || (kind === 'entry' ? '🚪 IN' : '🚪 OUT');
+          btn.disabled = false;
+        }, success ? 2200 : 3000);
+      }
+      if (success) {
+        gateToast(
+          `✓ Tornello aperto — ${kind === 'entry' ? 'INGRESSO' : 'USCITA'}`,
+          'success',
+          dispName + (row?.executed_at ? '' : '')
+        );
+        // Refresh list per aggiornare entry_time/exit_time se visitor associato
+        try {
+          if (currentView === 'guests')      loadGuestList(true);
+          else if (currentView === 'visitors') loadVisitors(true);
+        } catch (_) {}
+      } else {
+        gateToast(`Apertura fallita — ${kind === 'entry' ? 'ingresso' : 'uscita'}`, 'error', `${dispName} — ${errorMsg || 'errore sconosciuto'}`);
+      }
+    }
+
+    // Wrapper invocato dai bottoni inline (data attrs)
+    function openGateForGuest(btn, direction) {
+      const tr = btn.closest('tr');
+      const guestId = tr?.dataset?.id || null;
+      const guest = (Array.isArray(guestData) ? guestData : []).find(g => g.id === guestId);
+      const visitorId = guest?.matched_visitor_id || guest?.visitor_id || null;
+      const dispName  = guest ? `${guest.first_name || ''} ${guest.last_name || ''}`.trim() : '';
+      triggerGateOpen(direction, { visitorId, guestId, displayName: dispName, btn }, { source: 'guest_row' });
+    }
+
+    function openGateForVisitor(btn, direction) {
+      const tr = btn.closest('tr');
+      const visitorId = tr?.dataset?.id || null;
+      // currentData = array dei visitor della pagina visualizzata (renderTable usa questo)
+      const visitor = (typeof currentData !== 'undefined' && Array.isArray(currentData))
+        ? currentData.find(v => v.id === visitorId) : null;
+      const dispName = visitor ? `${visitor.last_name || ''} ${visitor.first_name || ''}`.trim() : '';
+      triggerGateOpen(direction, { visitorId, displayName: dispName, btn }, { source: 'visitor_row' });
+    }
+
+    // Apertura "al volo" senza guest associato (es. emergenza, fornitori non in lista)
+    async function openGateQuick(direction) {
+      const dirLbl = direction === 'entry' ? 'INGRESSO' : 'USCITA';
+      const ok = confirm(
+        `🚪 Apertura ${dirLbl} senza ospite associato.\n\n` +
+        `Verra' registrata in audit_log come "walk-in al volo".\n\n` +
+        `Continuare?`
+      );
+      if (!ok) return;
+      triggerGateOpen(direction, { displayName: `Walk-in al volo (${dirLbl})` }, {
+        source: 'quick_button',
+        notes: `walk-in al volo da ${CURRENT_USER_EMAIL}`,
+      });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // VOICE MODE — Apertura tornelli con comandi vocali
+    // ══════════════════════════════════════════════════════════════════════
+    // Web Speech API (Chrome/Edge nativo, lingua italiana).
+    // Grammatica supportata:
+    //   "Apri <cognome>"            → entry, match unico cognome
+    //   "Apri <nome> <cognome>"     → entry, match esatto
+    //   "Entra <cognome>"           → entry  (sinonimo)
+    //   "Esci <cognome>"            → exit
+    //   "Uscita <cognome>"          → exit  (sinonimo)
+    //   "Apri ingresso al volo"     → walk-in IN (no guest)
+    //   "Apri uscita al volo"       → walk-in OUT (no guest)
+    //
+    // Anti-falso positivo:
+    // - wake-word obbligatoria (Apri/Entra/Esci/Uscita)
+    // - confidence > 0.65
+    // - match unico richiesto (se >1 candidato con stesso cognome, mostra modal)
+    // - log live di cio' che il sistema sente
+
+    let _voiceRecognition = null;
+    let _voiceActive = false;
+    let _voiceLastTranscript = '';
+    let _voiceCooldownUntil = 0;        // anti-doppio-fire (5s di cooldown dopo un comando)
+
+    function _voiceSupportedBrowser() {
+      return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    }
+
+    function toggleVoiceMode() {
+      const btn = document.getElementById('btn-voice-toggle');
+      if (_voiceActive) {
+        _voiceStopRecognition();
+        return;
+      }
+      if (!_voiceSupportedBrowser()) {
+        alert(
+          '🎤 Modalità vocale non disponibile su questo browser.\n\n' +
+          'Usa Chrome o Edge per attivare il riconoscimento vocale.\n' +
+          'Safari/Firefox: usa i bottoni manuali nelle righe.'
+        );
+        return;
+      }
+      _voiceStartRecognition();
+    }
+
+    function _voiceStartRecognition() {
+      try {
+        const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        _voiceRecognition = new Recognition();
+        _voiceRecognition.lang = 'it-IT';
+        _voiceRecognition.continuous = true;
+        _voiceRecognition.interimResults = true;
+        _voiceRecognition.maxAlternatives = 3;
+
+        _voiceRecognition.onstart = () => {
+          _voiceActive = true;
+          const btn = document.getElementById('btn-voice-toggle');
+          if (btn) {
+            btn.classList.add('voice-active');
+            btn.textContent = '⏹ Stop voce';
+          }
+          _voiceSetStatus('🎤 In ascolto... dì "Apri <cognome>"', 'listening');
+        };
+
+        _voiceRecognition.onerror = (e) => {
+          console.warn('[voice] error', e.error);
+          if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+            _voiceSetStatus('❌ Permesso microfono negato', 'heard');
+            _voiceStopRecognition();
+            alert('Permesso microfono negato. Concedilo nelle impostazioni browser per usare la voce.');
+          } else if (e.error === 'no-speech') {
+            // silenzio - normale
+          } else if (e.error === 'audio-capture') {
+            _voiceSetStatus('❌ Nessun microfono trovato', 'heard');
+            _voiceStopRecognition();
+          } else {
+            _voiceSetStatus('⚠️ ' + e.error, 'heard');
+          }
+        };
+
+        _voiceRecognition.onend = () => {
+          // Auto-restart se ancora attivo (continuous può chiudere dopo lunga inattivita')
+          if (_voiceActive) {
+            try { _voiceRecognition.start(); } catch (_) {}
+          }
+        };
+
+        _voiceRecognition.onresult = (event) => {
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const result = event.results[i];
+            const transcript = result[0].transcript.trim();
+            const confidence = result[0].confidence || 0;
+            if (result.isFinal) {
+              _voiceLastTranscript = transcript;
+              _voiceSetStatus(`💬 Sento: "${transcript}" (${Math.round(confidence*100)}%)`, 'heard');
+              if (Date.now() < _voiceCooldownUntil) return; // cooldown
+              if (confidence >= 0.55) {
+                _voiceProcessCommand(transcript, confidence);
+              }
+            } else {
+              _voiceSetStatus(`✏️ ...${transcript}`, 'listening');
+            }
+          }
+        };
+
+        _voiceRecognition.start();
+      } catch (err) {
+        console.error('[voice] start failed', err);
+        alert('Errore avvio riconoscimento vocale: ' + err.message);
+        _voiceStopRecognition();
+      }
+    }
+
+    function _voiceStopRecognition() {
+      _voiceActive = false;
+      if (_voiceRecognition) {
+        try { _voiceRecognition.stop(); } catch (_) {}
+        _voiceRecognition = null;
+      }
+      const btn = document.getElementById('btn-voice-toggle');
+      if (btn) {
+        btn.classList.remove('voice-active');
+        btn.textContent = '🎤 Voce';
+      }
+      _voiceSetStatus('', '');
+    }
+
+    function _voiceSetStatus(msg, kind) {
+      const el = document.getElementById('voice-status');
+      if (!el) return;
+      el.textContent = msg;
+      el.classList.remove('voice-listening', 'voice-heard');
+      if (kind) el.classList.add('voice-' + kind);
+    }
+
+    // Pulizia testo per match cognome (tolgo punteggiatura, lowercase, normalize accenti)
+    function _voiceNormalize(s) {
+      return (s || '')
+        .toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')   // accenti via
+        .replace(/[^a-z0-9 ]/g, ' ')                          // punteggiatura via
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function _voiceProcessCommand(transcript, confidence) {
+      const norm = _voiceNormalize(transcript);
+      // Pattern wake-word:
+      //   apri / entra        → entry
+      //   esci / uscita / fai uscire → exit
+      let direction = null;
+      let payload = null;
+      let m;
+      if ((m = norm.match(/^(apri|entra|fai entrare|fa entrare|fai entrare a)\s+(.+)$/))) {
+        direction = 'entry';
+        payload = m[2];
+      } else if ((m = norm.match(/^(esci|uscita|fai uscire|fa uscire|esce)\s+(.+)$/))) {
+        direction = 'exit';
+        payload = m[2];
+      } else {
+        // Comando non riconosciuto: ignora silenzioso
+        return;
+      }
+
+      // Comando special: walk-in al volo
+      if (/al\s+volo|emergenza|sconosciuto/.test(payload)) {
+        _voiceCooldownUntil = Date.now() + 4000;
+        gateToast(`🎤 Walk-in ${direction === 'entry' ? 'IN' : 'OUT'} al volo`, 'info', `comando vocale (${Math.round(confidence*100)}%)`);
+        triggerGateOpen(direction, { displayName: `Walk-in vocale (${direction})` }, {
+          source: 'voice', notes: `comando vocale: "${transcript}"`
+        });
+        return;
+      }
+
+      // Match contro guestData (se siamo in tab Ospiti Attesi)
+      // o currentData (tab Visitatori)
+      const candidates = [];
+      if (Array.isArray(guestData)) {
+        guestData.forEach(g => {
+          const fn = _voiceNormalize(g.first_name);
+          const ln = _voiceNormalize(g.last_name);
+          // Match esatto cognome
+          if (payload === ln) candidates.push({ kind: 'guest', record: g, match: 'lastname_exact', score: 1.0 });
+          // Match esatto nome+cognome
+          else if (payload === `${fn} ${ln}` || payload === `${ln} ${fn}`) candidates.push({ kind: 'guest', record: g, match: 'fullname_exact', score: 1.0 });
+          // Cognome contenuto in payload (es. "apri il signor rossi")
+          else if (ln && payload.includes(ln)) candidates.push({ kind: 'guest', record: g, match: 'lastname_contained', score: 0.85 });
+        });
+      }
+      if (Array.isArray(currentData)) {
+        currentData.forEach(v => {
+          const fn = _voiceNormalize(v.first_name);
+          const ln = _voiceNormalize(v.last_name);
+          if (payload === ln) candidates.push({ kind: 'visitor', record: v, match: 'lastname_exact', score: 1.0 });
+          else if (payload === `${fn} ${ln}` || payload === `${ln} ${fn}`) candidates.push({ kind: 'visitor', record: v, match: 'fullname_exact', score: 1.0 });
+          else if (ln && payload.includes(ln)) candidates.push({ kind: 'visitor', record: v, match: 'lastname_contained', score: 0.85 });
+        });
+      }
+
+      // Dedup per id
+      const seen = new Set();
+      const unique = candidates.filter(c => {
+        const id = c.record.id;
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+
+      // Score: max-first
+      unique.sort((a, b) => b.score - a.score);
+      const topScore = unique[0]?.score || 0;
+      const topMatches = unique.filter(c => c.score === topScore);
+
+      if (topMatches.length === 0) {
+        _voiceSetStatus(`❓ Nessun match per "${payload}"`, 'heard');
+        gateToast(`🎤 Non trovo "${payload}"`, 'error', 'Controlla pronuncia o cognome');
+        return;
+      }
+      if (topMatches.length > 1) {
+        // Ambiguità: cerca disambigua con nome se contenuto in payload
+        const refined = topMatches.filter(c => {
+          const fn = _voiceNormalize(c.record.first_name);
+          return fn && payload.includes(fn);
+        });
+        if (refined.length === 1) {
+          _voiceFireMatch(refined[0], direction, transcript, confidence);
+          return;
+        }
+        // Mostra modal candidate
+        _voiceShowDisambiguationModal(topMatches, direction, transcript);
+        return;
+      }
+
+      // Match unico: FIRE
+      _voiceFireMatch(topMatches[0], direction, transcript, confidence);
+    }
+
+    function _voiceFireMatch(match, direction, transcript, confidence) {
+      _voiceCooldownUntil = Date.now() + 4000;
+      const rec = match.record;
+      const name = `${rec.first_name || ''} ${rec.last_name || ''}`.trim();
+      _voiceSetStatus(`✅ ${name} → ${direction === 'entry' ? 'IN' : 'OUT'}`, 'heard');
+      gateToast(`🎤 ${name} → ${direction === 'entry' ? 'INGRESSO' : 'USCITA'}`, 'success', `vocale (${Math.round(confidence*100)}%)`);
+      // Triggera apertura SENZA bottone visivo (no btn riferimento → toast feedback)
+      const ctx = {
+        displayName: name,
+        guestId:    match.kind === 'guest'   ? rec.id : null,
+        visitorId:  match.kind === 'visitor' ? rec.id : (rec.matched_visitor_id || null),
+      };
+      triggerGateOpen(direction, ctx, { source: 'voice', notes: `vocale: "${transcript}" (${Math.round(confidence*100)}%)` });
+    }
+
+    function _voiceShowDisambiguationModal(candidates, direction, transcript) {
+      // Modal semplice via confirm (evita modal HTML complesso per ora)
+      const lines = candidates.slice(0, 6).map((c, i) =>
+        `${i + 1}. ${c.record.first_name || ''} ${c.record.last_name || ''} ${c.record.company ? '— ' + c.record.company : ''}`
+      ).join('\n');
+      const input = prompt(
+        `🎤 Più ospiti corrispondono a "${transcript}":\n\n${lines}\n\nDigita il numero (1-${candidates.length}) o ANNULLA:`,
+        ''
+      );
+      const idx = parseInt(input, 10) - 1;
+      if (!isNaN(idx) && idx >= 0 && idx < candidates.length) {
+        _voiceFireMatch(candidates[idx], direction, transcript, 1.0);
+      } else {
+        gateToast('🎤 Comando annullato', 'info');
+      }
+    }
+
+    // Quando l'utente cambia tab o fa logout, ferma il riconoscimento
+    window.addEventListener('beforeunload', () => { if (_voiceActive) _voiceStopRecognition(); });
 
     function _stopAllPollTimers() {
       try {
@@ -4833,12 +5498,18 @@
           <td>${badgeHtml}</td>
           <td>
             <div class="action-row">
+              <span class="gate-actions" title="Apertura tornello manuale per ${esc(row.first_name || '')} ${esc(row.last_name || '')}">
+                <button type="button" class="btn-gate-in"  onclick="openGateForVisitor(this,'entry')" title="Apri ingresso (TORNELLO_IN) per questo visitatore. Registra movimento entrata.">🚪 IN</button>
+                <button type="button" class="btn-gate-out" onclick="openGateForVisitor(this,'exit')"  title="Apri uscita (TORNELLO_OUT) per questo visitatore. Registra movimento uscita.">🚪 OUT</button>
+              </span>
               ${assignBtn}
               ${concludeBtn}
               <button type="button" class="btn-icon btn-details-icon" data-id="${esc(row.id)}" onclick="openDetailsModal(this)" title="Dettagli (doc completo, firma, storico timbrature)">ℹ️</button>
             </div>
           </td>
         `;
+        // Permetti accesso ai dati riga dal click handler (openGateForVisitor cerca in currentData via tr.dataset.id)
+        tr.dataset.id = row.id;
         tbody.appendChild(tr);
       });
 
@@ -7703,6 +8374,10 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           <td>${emailHtml}</td>
           <td>${statusHtml}</td>
           <td>
+            <span class="gate-actions" title="Apertura manuale tornello (workaround sync XAtlas) — INGRESSO/USCITA per questo ospite">
+              <button type="button" class="btn-gate-in"  onclick="openGateForGuest(this,'entry')" title="Apri TORNELLO_IN per ${esc(g.first_name || '')} ${esc(g.last_name || '')}. Click → tornello apre in ~1 sec. Registra entrata in visitor_movements.">🚪 IN</button>
+              <button type="button" class="btn-gate-out" onclick="openGateForGuest(this,'exit')"  title="Apri TORNELLO_OUT per ${esc(g.first_name || '')} ${esc(g.last_name || '')}. Click → tornello apre in ~1 sec. Registra uscita.">🚪 OUT</button>
+            </span>
             ${!arrived ? `<button type="button" class="btn-signature-handoff" data-id="${esc(g.id)}" onclick="reopenSignatureHandoff(this)" title="Riapre il dialog per passare la firma all'ospite (tablet kiosk, QR cellulare o email). Disponibile finché l'ospite non ha firmato.">✍️ Firma</button>` : ''}
             ${(!arrived && !preAssign) ? `<button type="button" class="btn-badge-assign" data-id="${esc(g.id)}" onclick="openPreAssignModal(this)" title="Apri modale per pre-assegnare un badge a questo ospite (creazione visitor stub xatlas_status='pending', l'agente attiverà il badge nei tornelli).">Pre-assegna Badge</button>` : ''}
             <button type="button" class="btn-delete" data-id="${esc(g.id)}" onclick="deleteGuest(this)" title="Rimuove questo ospite dalla guest_list. NON è permesso se ha già firmato il QR o ha un visitor pre-assegnato (audit/integrità).">Rimuovi</button>

@@ -956,3 +956,99 @@ $$;
 REVOKE ALL ON FUNCTION public.list_app_users() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.list_app_users() FROM anon;
 GRANT EXECUTE ON FUNCTION public.list_app_users() TO authenticated;
+
+
+-- ============================================================
+-- MIGRATION v25 — Coda apertura tornelli manuale (workaround sync XAtlas)
+-- ============================================================
+-- File completo: supabase/migration_v25_gate_open_queue.sql
+-- Applicata: 2026-06-06 (sera, pre-evento DM 10-11/6)
+--
+-- Workaround per sync WSM->FMC XAtlas rotto dal 15/05/2026:
+-- l'admin platform offre un bottone "Apri tornello" che inserisce in
+-- gate_open_queue. L'agente Python (su srvxatlas, telnet locale 8189)
+-- processa la coda invocando EXEC <gate_id> openEntryOneShot/openExitOneShot
+-- sui tornelli SuperTraxLite (TORNELLO_IN=202, TORNELLO_OUT=205) e X0
+-- (AXG_INGRESSO=240, AXG_PORTELLO=242). Latenza misurata: 300-800 ms.
+--
+-- Idempotenza via UNIQUE idempotency_key. Audit gratis via trigger.
+
+CREATE TABLE IF NOT EXISTS gate_open_queue (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gate_id           INTEGER NOT NULL CHECK (gate_id IN (202, 205, 240, 242)),
+  direction         TEXT    NOT NULL CHECK (direction IN ('entry', 'exit')),
+  visitor_id        UUID REFERENCES visitors(id)    ON DELETE SET NULL,
+  guest_id          UUID REFERENCES guest_list(id)  ON DELETE SET NULL,
+  operator_email    TEXT NOT NULL,
+  status            TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'opening', 'opened', 'failed')),
+  requested_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  executed_at       TIMESTAMPTZ,
+  agent_response    TEXT,
+  error_message     TEXT,
+  idempotency_key   TEXT NOT NULL UNIQUE,
+  notes             TEXT
+);
+
+CREATE INDEX IF NOT EXISTS gate_open_queue_pending
+  ON gate_open_queue (requested_at) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS gate_open_queue_by_operator
+  ON gate_open_queue (operator_email, requested_at DESC);
+CREATE INDEX IF NOT EXISTS gate_open_queue_by_visitor
+  ON gate_open_queue (visitor_id, requested_at DESC) WHERE visitor_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS gate_open_queue_by_guest
+  ON gate_open_queue (guest_id, requested_at DESC) WHERE guest_id IS NOT NULL;
+
+ALTER TABLE gate_open_queue ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "gate_open_queue_auth_select" ON gate_open_queue;
+DROP POLICY IF EXISTS "gate_open_queue_auth_insert" ON gate_open_queue;
+CREATE POLICY "gate_open_queue_auth_select"
+  ON gate_open_queue FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "gate_open_queue_auth_insert"
+  ON gate_open_queue FOR INSERT WITH CHECK (
+    auth.role() = 'authenticated'
+    AND operator_email = COALESCE(auth.jwt() ->> 'email', auth.email())
+  );
+
+CREATE OR REPLACE FUNCTION gate_open_audit_trigger()
+RETURNS TRIGGER AS $$
+DECLARE
+  gate_name TEXT;
+BEGIN
+  gate_name := CASE NEW.gate_id
+    WHEN 202 THEN 'TORNELLO_IN'
+    WHEN 205 THEN 'TORNELLO_OUT'
+    WHEN 240 THEN 'AXG_INGRESSO'
+    WHEN 242 THEN 'AXG_PORTELLO'
+    ELSE 'UNKNOWN(' || NEW.gate_id::text || ')'
+  END;
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO audit_log (user_email, action, entity, entity_id, details)
+    VALUES (
+      NEW.operator_email, 'gate_open_request', 'gate_open_queue', NEW.id::text,
+      jsonb_build_object('gate_id', NEW.gate_id, 'gate_name', gate_name,
+        'direction', NEW.direction, 'visitor_id', NEW.visitor_id,
+        'guest_id', NEW.guest_id, 'notes', NEW.notes)
+    );
+  ELSIF TG_OP = 'UPDATE' AND OLD.status IN ('pending','opening') AND NEW.status IN ('opened','failed') THEN
+    INSERT INTO audit_log (user_email, action, entity, entity_id, details)
+    VALUES (
+      NEW.operator_email,
+      CASE NEW.status WHEN 'opened' THEN 'gate_open_success' ELSE 'gate_open_failed' END,
+      'gate_open_queue', NEW.id::text,
+      jsonb_build_object('gate_id', NEW.gate_id, 'gate_name', gate_name,
+        'direction', NEW.direction, 'visitor_id', NEW.visitor_id, 'guest_id', NEW.guest_id,
+        'executed_at', NEW.executed_at,
+        'latency_ms', EXTRACT(EPOCH FROM (NEW.executed_at - NEW.requested_at)) * 1000,
+        'agent_response', LEFT(COALESCE(NEW.agent_response, ''), 200),
+        'error_message', NEW.error_message)
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS gate_open_audit ON gate_open_queue;
+CREATE TRIGGER gate_open_audit
+  AFTER INSERT OR UPDATE ON gate_open_queue
+  FOR EACH ROW EXECUTE FUNCTION gate_open_audit_trigger();
