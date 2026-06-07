@@ -2083,10 +2083,24 @@
       try {
         const hdrs    = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
 
+        // FIX 2026-06-06: filtro event_id sulla guest_list. Senza filtro, il kiosk
+        // mostrava TUTTI gli ospiti di tutti gli eventi storici (134 = 96 MD chiuso
+        // + 38 DM attivo), confondendo l'operatrice. Con CURRENT_EVENT noto, vediamo
+        // SOLO gli ospiti dell'evento attivo. Se non c'è evento attivo, fallback a
+        // 14 giorni di expected_date per evitare di mostrare tutto lo storico.
+        const guestEventFilter = (typeof CURRENT_EVENT !== 'undefined' && CURRENT_EVENT && CURRENT_EVENT.id)
+          ? `&event_id=eq.${encodeURIComponent(CURRENT_EVENT.id)}`
+          : (() => {
+              const cutoff = new Date();
+              cutoff.setDate(cutoff.getDate() - 14);
+              return `&expected_date=gte.${cutoff.toISOString().slice(0,10)}`;
+            })();
+
         // Tutti gli ospiti registrati (filtrati poi per chi non ha ancora passato il tornello)
         const gRes = await fetch(
           `${SUPABASE_URL}/rest/v1/guest_list` +
           `?select=id,first_name,last_name,email,company,job_title,person_to_visit,visit_reason,expected_date,handoff_requested_at` +
+          `${guestEventFilter}` +
           `&order=last_name.asc`,
           { headers: hdrs }
         );
