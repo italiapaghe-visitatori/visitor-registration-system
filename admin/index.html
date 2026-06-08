@@ -1822,6 +1822,24 @@
     .gate-toast .gate-toast-title { font-weight: 700; margin-bottom: 3px; }
     .gate-toast .gate-toast-detail { font-size: 11.5px; opacity: 0.85; font-weight: 500; }
 
+    /* ──────────────────────────────────────────────────────────────────
+       EVENT_TYPE conditional UI (decisione titolare 08/06/2026)
+       qr_only = no badge, no tornelli → nasconde sezioni workflow badge.
+       Marcato via body.event-type-qr-only (applyEventTypeUI runtime).
+       ──────────────────────────────────────────────────────────────────
+       Elementi con class .js-badge-only spariscono in modalita' qr_only.
+       Include: tab Pre-assegnazione, tab Acquisizione, bottoni toolbar
+       Compila/Pre-assegna/Miniature/Cartoncini, bottoni "Pre-assegna Badge"
+       per ospite, e qualsiasi altro elemento marcato con la classe. */
+    body.event-type-qr-only .js-badge-only,
+    body.event-type-qr-only .btn-badge-assign {
+      display: none !important;
+    }
+    /* Gate Bar (Apertura tornelli) nascosta in qr_only (no tornelli da aprire) */
+    body.event-type-qr-only #gate-bar {
+      display: none !important;
+    }
+
     /* ── Filtri rapidi a pillole (Ospiti Attesi: per giorno + turno) ──
        Risolve confusione lista eventi multi-giornata (es. Corso Primo Soccorso
        9-19/06): clicco "9 giugno" e vedo SOLO gli 11 di domani. Click su pillola
@@ -3258,8 +3276,8 @@
         <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')" title="Registro passaggi: chi è dentro ora, chi è uscito, stato badge XAtlas, firme e documenti. La vista 'security/reception' durante l'evento.">Visitatori</button>
         <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')" title="Lista ospiti invitati prima dell'evento: stato invio email QR, badge pronti, arrivi. La vista 'segreteria' nella fase preparatoria.">Ospiti Attesi</button>
         <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')" title="Gestione eventi: crea/avvia/chiudi, pool badge dedicato, generazione QR pubblico. Solo un evento può essere attivo alla volta.">🎫 Eventi</button>
-        <button type="button" class="btn btn-light" id="tab-drafts" onclick="switchView('drafts')" title="Editor pre-assegnazione massiva badge: importa CSV partecipanti, assegna badge (manuale/auto-numera/pool) con validazione live e cross-check multi-utente, esporta o importa direttamente in Ospiti Attesi.">📝 Pre-assegnazione</button>
-        <button type="button" class="btn btn-light" id="tab-acquire" onclick="switchView('acquire')" title="Modalità Acquisizione &amp; Pair Badge: scansiona velocemente i badge fisici col lettore RFID USB (o digitazione manuale) per popolare il pool, poi assegnali agli ospiti in 3 modalità (auto-sequenziale, click+scan, drag-drop). 96 badge in 5 minuti totali.">🔍 Acquisizione</button>
+        <button type="button" class="btn btn-light js-badge-only" id="tab-drafts" onclick="switchView('drafts')" title="Editor pre-assegnazione massiva badge: importa CSV partecipanti, assegna badge (manuale/auto-numera/pool) con validazione live e cross-check multi-utente, esporta o importa direttamente in Ospiti Attesi.">📝 Pre-assegnazione</button>
+        <button type="button" class="btn btn-light js-badge-only" id="tab-acquire" onclick="switchView('acquire')" title="Modalità Acquisizione &amp; Pair Badge: scansiona velocemente i badge fisici col lettore RFID USB (o digitazione manuale) per popolare il pool, poi assegnali agli ospiti in 3 modalità (auto-sequenziale, click+scan, drag-drop). 96 badge in 5 minuti totali.">🔍 Acquisizione</button>
         <button type="button" class="btn btn-light" id="tab-audit" onclick="switchView('audit')" title="Storico azioni operatori (chi ha fatto cosa, quando, su cosa). Utile per accountability in ambienti multi-utente.">📋 Audit</button>
       </div>
     </div>
@@ -3477,12 +3495,12 @@
         <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
         <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" title="Scarica un CSV vuoto con le colonne corrette (Nome, Cognome, Email, Azienda, Persona_da_Visitare, Motivo_Visita, Data_Prevista, Numero_Badge) + 3 righe di esempio.">📄 Template</button>
 
-        <span class="toolbar-divider"></span>
-        <span class="toolbar-label">Badge</span>
-        <button type="button" class="btn btn-primary" onclick="openFillBadgesModal()" title="Griglia editabile per assegnare badge ai nominativi importati senza usare Excel">📝 Compila</button>
-        <button type="button" class="btn btn-warning" onclick="startBulkPreAssign()" title="Wizard sequenziale: pre-assegna badge a tutti gli ospiti senza badge">⚡ Pre-assegna</button>
-        <button type="button" class="btn btn-secondary" onclick="openMiniLabelsModal()" title="Stampa miniature da incollare sui badge fisici dei pre-assegnati">🏷️ Miniature</button>
-        <button type="button" class="btn btn-secondary" onclick="openCardListText()" title="Lista testuale copia-incolla (cognome + nome + badge) per design cartoncini esterni con loghi.">📋 Cartoncini</button>
+        <span class="toolbar-divider js-badge-only"></span>
+        <span class="toolbar-label js-badge-only">Badge</span>
+        <button type="button" class="btn btn-primary js-badge-only" onclick="openFillBadgesModal()" title="Griglia editabile per assegnare badge ai nominativi importati senza usare Excel">📝 Compila</button>
+        <button type="button" class="btn btn-warning js-badge-only" onclick="startBulkPreAssign()" title="Wizard sequenziale: pre-assegna badge a tutti gli ospiti senza badge">⚡ Pre-assegna</button>
+        <button type="button" class="btn btn-secondary js-badge-only" onclick="openMiniLabelsModal()" title="Stampa miniature da incollare sui badge fisici dei pre-assegnati">🏷️ Miniature</button>
+        <button type="button" class="btn btn-secondary js-badge-only" onclick="openCardListText()" title="Lista testuale copia-incolla (cognome + nome + badge) per design cartoncini esterni con loghi.">📋 Cartoncini</button>
 
         <span class="toolbar-divider"></span>
         <span class="toolbar-label">QR</span>
@@ -4077,7 +4095,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-08d · stats solo evento attivo</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-08e · event_type qr_only + kiosk today</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -7163,9 +7181,9 @@
       const prevActiveId = activeEvent ? activeEvent.id : null;
       try {
         const res = await api(`${SUPABASE_URL}/rest/v1/events?is_active=eq.true&select=*&limit=1`);
-        if (!res || !res.ok) { banner.style.display = 'none'; activeEvent = null; return; }
+        if (!res || !res.ok) { banner.style.display = 'none'; activeEvent = null; applyEventTypeUI(null); return; }
         const rows = await res.json();
-        if (!rows.length) { banner.style.display = 'none'; activeEvent = null; return; }
+        if (!rows.length) { banner.style.display = 'none'; activeEvent = null; applyEventTypeUI(null); return; }
         activeEvent = rows[0];
         document.getElementById('aeb-name').textContent = activeEvent.name;
         const range = activeEvent.event_start_date === activeEvent.event_end_date
@@ -7173,6 +7191,8 @@
           : `${fmtItDate(activeEvent.event_start_date)} → ${fmtItDate(activeEvent.event_end_date)}`;
         document.getElementById('aeb-date').textContent = range;
         banner.style.display = 'flex';
+        // Applica UI conditionals in base a event_type (qr_only nasconde Badge/Pool/Pre-assegna)
+        applyEventTypeUI(activeEvent);
         // Se l'evento attivo è cambiato (o appena scoperto), ripopola il filtro evento
         // della tab Visitatori così la segretaria vede subito SOLO i visitatori del
         // giorno invece di tutto lo storico misto.
@@ -7184,6 +7204,21 @@
       } catch (_) {
         banner.style.display = 'none';
       }
+    }
+
+    // Adatta UI admin in base a event_type dell'evento attivo.
+    // qr_only (no badge, no tornelli, decisione titolare 08/06/2026):
+    //   - Nasconde bottoni toolbar Compila/Pre-assegna/Miniature/Cartoncini (workflow badge)
+    //   - Nasconde tab "Acquisizione" (scan badge)
+    //   - Nasconde colonna Badge nelle tabelle (gestita via body class CSS)
+    //   - Mantiene Gate Open System per tracking OUT manuale opzionale
+    // turnstile (workflow classico): tutto visibile.
+    function applyEventTypeUI(event) {
+      const t = event && event.event_type ? event.event_type : 'turnstile';
+      // Body class per CSS conditionals
+      document.body.classList.toggle('event-type-qr-only', t === 'qr_only');
+      document.body.classList.toggle('event-type-turnstile', t === 'turnstile');
+      document.body.dataset.eventType = t;
     }
     pollTimers.push(setInterval(refreshActiveEventBanner, 15000));
 

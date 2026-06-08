@@ -1216,18 +1216,22 @@
 </head>
 <body>
 
-  <!-- BANNER QR (visibile solo se html.qr-mode) -->
+  <!-- BANNER QR (visibile solo se html.qr-mode).
+       sottotitolo cambia in base a CURRENT_EVENT.event_type:
+       - turnstile: "...firma e ritira il badge alla reception"
+       - qr_only:   "...firma il modulo" (no badge, decisione titolare 08/06) -->
   <div class="qr-banner">
     📱 Registrazione self-service
-    <small>Scegli il tuo nome dalla lista, firma e ritira il badge alla reception</small>
+    <small id="qr-banner-subtitle">Scegli il tuo nome dalla lista, firma e ritira il badge alla reception</small>
   </div>
 
-  <!-- SCHERMATA FINALE QR (mostrata dopo submit in modalità QR) -->
+  <!-- SCHERMATA FINALE QR (mostrata dopo submit in modalità QR).
+       desk-cta cambia in base a event_type (impostato a runtime in adaptKioskToEventType) -->
   <div id="qr-success">
     <div class="checkmark">✓</div>
     <h1>Registrazione completata!</h1>
     <p>Grazie per esserti registrato.</p>
-    <div class="desk-cta">📍 Recarsi al desk per il ritiro del badge il giorno dell'evento</div>
+    <div class="desk-cta" id="qr-success-desk-cta">📍 Recarsi al desk per il ritiro del badge il giorno dell'evento</div>
   </div>
 
   <!-- SCHERMATA QR NON VALIDO (scaduto / non ancora attivo / evento non trovato) -->
@@ -2091,11 +2095,16 @@
         // FIX 2026-06-06: filtro event_id sulla guest_list. Senza filtro, il kiosk
         // mostrava TUTTI gli ospiti di tutti gli eventi storici (134 = 96 MD chiuso
         // + 38 DM attivo), confondendo l'operatrice. Con CURRENT_EVENT noto, vediamo
-        // SOLO gli ospiti dell'evento attivo. Se non c'è evento attivo, fallback a
-        // 14 giorni di expected_date per evitare di mostrare tutto lo storico.
+        // SOLO gli ospiti dell'evento attivo.
+        // FIX 2026-06-08: aggiungo filtro `expected_date = oggi`. In eventi multi-
+        // giornata (es. Corso Primo Soccorso 9-19/06 con 64 ospiti su 3 date), il
+        // kiosk mostrava tutti i 64. Operatore al desk il 9/06 deve vedere SOLO gli
+        // 11 di oggi per evitare confusione. Decisione titolare 08/06/2026.
+        const todayKioskIso = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD locale
         const guestEventFilter = (typeof CURRENT_EVENT !== 'undefined' && CURRENT_EVENT && CURRENT_EVENT.id)
-          ? `&event_id=eq.${encodeURIComponent(CURRENT_EVENT.id)}`
+          ? `&event_id=eq.${encodeURIComponent(CURRENT_EVENT.id)}&expected_date=eq.${todayKioskIso}`
           : (() => {
+              // Fallback no evento: 14 gg di expected_date per non mostrare storico antico
               const cutoff = new Date();
               cutoff.setDate(cutoff.getDate() - 14);
               return `&expected_date=gte.${cutoff.toISOString().slice(0,10)}`;
@@ -2186,6 +2195,32 @@
       } catch (_) { return null; }
     }
 
+    // Adatta i testi del kiosk in base a event_type dell'evento attivo.
+    // qr_only (no badge, no tornelli): rimuove riferimenti a "badge" e "reception
+    // per il ritiro". Decisione titolare 08/06/2026: niente piu' badge per alcuni
+    // eventi (es. Corso Primo Soccorso), solo registrazione QR.
+    function adaptKioskToEventType(event) {
+      if (!event) return;
+      const isQrOnly = event.event_type === 'qr_only';
+      // Body class per CSS conditionals
+      document.body.classList.toggle('event-type-qr-only', isQrOnly);
+      document.body.classList.toggle('event-type-turnstile', !isQrOnly);
+      // Sottotitolo banner
+      const subtitle = document.getElementById('qr-banner-subtitle');
+      if (subtitle) {
+        subtitle.textContent = isQrOnly
+          ? 'Scegli il tuo nome dalla lista e firma il modulo'
+          : 'Scegli il tuo nome dalla lista, firma e ritira il badge alla reception';
+      }
+      // Desk CTA finale dopo registrazione
+      const deskCta = document.getElementById('qr-success-desk-cta');
+      if (deskCta) {
+        deskCta.textContent = isQrOnly
+          ? '✅ Registrazione confermata — al giorno dell\'evento ti basterà presentarti al desk'
+          : '📍 Recarsi al desk per il ritiro del badge il giorno dell\'evento';
+      }
+    }
+
     (async function bootstrap() {
       if (ACCESS_BLOCKED) return; // schermata di blocco già renderizzata
       if (IS_QR_MODE) {
@@ -2196,6 +2231,8 @@
         }
         // 2. Carica evento (anche se poi mostriamo "già registrato" servono name/date per il messaggio)
         CURRENT_EVENT = await loadEventForQr();
+        // 2b. Adatta UI in base a event_type (qr_only nasconde riferimenti a badge)
+        adaptKioskToEventType(CURRENT_EVENT);
         // 3. Lock-out localStorage: se questo device ha già firmato, mostra schermata con info evento
         if (lockoutCheckLocalStorage()) return;
         // 4. Valida range date evento (skip too_early per QR nominali con guest_id)
@@ -2229,6 +2266,8 @@
       } else {
         // KIOSK MODE: se c'è un evento attivo, lo usiamo per taggare le nuove registrazioni
         CURRENT_EVENT = await loadActiveEventForKiosk();
+        // Adatta UI in base a event_type (qr_only nasconde riferimenti a badge)
+        adaptKioskToEventType(CURRENT_EVENT);
         // Prefill da admin: l'operatore ha appena aggiunto un ospite e passa il tablet
         // per la firma. Carica direttamente la sua scheda, salta la ricerca.
         if (PREFILL_GUEST_ID) {
@@ -2260,6 +2299,7 @@
     setInterval(async () => {
       if (!IS_QR_MODE) {
         CURRENT_EVENT = await loadActiveEventForKiosk();
+        adaptKioskToEventType(CURRENT_EVENT);
       }
     }, 60000);
 
