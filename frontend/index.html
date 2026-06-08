@@ -1544,7 +1544,10 @@
         document.getElementById('consent-label').innerHTML = consentField.label;
       }
 
-      // Visit reasons
+      // Visit reasons: dropdown statico (CONFIG.visitReasons) + gli eventi
+      // attivi/futuri caricati dinamicamente dal DB in cima (optgroup in bold
+      // nativo del browser). Auto-aggiornati ogni caricamento del frontend.
+      // Se c'e' un evento attivo (kiosk mode), lo preselezioniamo come default.
       const sel = document.getElementById('visit_reason');
       sel.innerHTML = '';
       CONFIG.visitReasons.forEach(r => {
@@ -1553,6 +1556,8 @@
         opt.textContent = r.label;
         sel.appendChild(opt);
       });
+      // Async (no await per non bloccare il render iniziale del form)
+      loadEventsForReasonDropdown(sel).catch(_ => {});
 
       // Document types
       const docSel = document.getElementById('document_type');
@@ -2206,6 +2211,65 @@
         const rows = await res.json();
         return rows[0] || null;
       } catch (_) { return null; }
+    }
+
+    // Carica eventi attivi + futuri (non chiusi e con data fine >= oggi) e li
+    // prepone al dropdown "Motivo della Visita" come <optgroup> (visualizzato
+    // in grassetto nativo del browser). Se c'e' un evento attivo, lo
+    // pre-seleziona automaticamente cosi' l'ospite non deve sceglierlo.
+    // Decisione titolare 09/06/2026: dropdown deve riflettere automaticamente
+    // gli eventi creati in admin, no edit manuale config.
+    async function loadEventsForReasonDropdown(selectEl) {
+      try {
+        const todayIso = new Date().toLocaleDateString('en-CA');
+        const url = `${SUPABASE_URL}/rest/v1/events`
+          + `?or=(is_active.eq.true,and(closed_at.is.null,event_end_date.gte.${todayIso}))`
+          + `&select=id,name,is_active,event_start_date,event_end_date,closed_at`
+          + `&order=is_active.desc,event_start_date.asc&limit=20`;
+        const res = await fetch(url, {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+        if (!res.ok) return;
+        const events = await res.json();
+        if (!events || !events.length) return;
+
+        // Filtra fuori eventi chiusi (per sicurezza, anche se la query gia' lo fa)
+        const open = events.filter(e => !e.closed_at);
+        if (!open.length) return;
+
+        // Costruisce optgroup
+        const group = document.createElement('optgroup');
+        group.label = '🗓️ Eventi (clicca quello pertinente)';
+
+        let activeEventName = null;
+        open.forEach(ev => {
+          const opt = document.createElement('option');
+          // Il valore salvato in visit_reason e' il nome dell'evento. Compatibile
+          // col dataset esistente (visit_reason e' text libero).
+          opt.value = ev.name;
+          const dStart = ev.event_start_date.split('-').reverse().join('/');
+          const dEnd = ev.event_end_date.split('-').reverse().join('/');
+          const dateLabel = ev.event_start_date === ev.event_end_date
+            ? dStart
+            : `${dStart}→${dEnd}`;
+          const prefix = ev.is_active ? '🟢 ATTIVO · ' : '⏳ ';
+          opt.textContent = `${prefix}${ev.name} (${dateLabel})`;
+          group.appendChild(opt);
+          if (ev.is_active && !activeEventName) activeEventName = ev.name;
+        });
+
+        // Inserisci optgroup IN CIMA al select (prima del primo elemento esistente)
+        if (selectEl.firstChild) {
+          selectEl.insertBefore(group, selectEl.firstChild);
+        } else {
+          selectEl.appendChild(group);
+        }
+
+        // Preseleziona evento attivo se presente (default smart per la reception)
+        if (activeEventName) {
+          selectEl.value = activeEventName;
+        }
+      } catch (_) { /* fail silent: dropdown continua a funzionare coi reasons statici */ }
     }
 
     // Adatta i testi del kiosk in base a event_type dell'evento attivo.
