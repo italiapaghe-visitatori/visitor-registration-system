@@ -1737,7 +1737,10 @@
     // niente auto-reset del form (un device = un utente), polling guest_list più frequente (8s).
     const QS = new URLSearchParams(window.location.search);
     const IS_QR_MODE = QS.get('mode') === 'qr';
-    const QR_EVENT_ID = QS.get('event') || null;
+    // FIX 2026-06-09: QR_EVENT_ID era const, ma per il kiosk reception generico
+    // (?mode=qr senza event) facciamo fallback all'evento attivo durante il
+    // bootstrap. Serve let per consentire la riassegnazione.
+    let   QR_EVENT_ID = QS.get('event') || null;
     const QR_GUEST_ID = QS.get('guest') || null;  // QR personale per ospite specifico (privacy)
     const KIOSK_AUTHORIZE = QS.get('kiosk_authorize') || null;
     // Prefill: l'admin ha appena aggiunto un ospite (o un walk-in stub) dall'admin
@@ -2224,13 +2227,25 @@
     (async function bootstrap() {
       if (ACCESS_BLOCKED) return; // schermata di blocco già renderizzata
       if (IS_QR_MODE) {
-        // 1. Se manca event_id nel querystring → QR non valido
+        // 1. Fallback evento attivo (FIX 2026-06-09): se il QR e' "generico kiosk"
+        // (?mode=qr senza event), prendiamo l'evento attivo corrente. Permette
+        // al tablet reception di restare fisso sullo stesso URL anche quando
+        // l'admin switcha evento attivo. Solo se manca QR_EVENT_ID e nessun
+        // guest_id (perche' i QR personali devono sempre avere event esplicito).
+        if (!QR_EVENT_ID && !QR_GUEST_ID) {
+          const activeFallback = await loadActiveEventForKiosk();
+          if (activeFallback && activeFallback.id) {
+            QR_EVENT_ID = activeFallback.id;
+            CURRENT_EVENT = activeFallback;   // gia' caricato, evita seconda fetch
+          }
+        }
+        // 2. Se ancora manca event_id (anche dopo fallback) → QR non valido
         if (!QR_EVENT_ID) {
           showQrInvalidScreen('missing_event', 'Questo QR non è completo. Richiedi un QR aggiornato alla reception.');
           return;
         }
-        // 2. Carica evento (anche se poi mostriamo "già registrato" servono name/date per il messaggio)
-        CURRENT_EVENT = await loadEventForQr();
+        // 3. Carica evento (skip se gia' settato dal fallback)
+        if (!CURRENT_EVENT) CURRENT_EVENT = await loadEventForQr();
         // 2b. Adatta UI in base a event_type (qr_only nasconde riferimenti a badge)
         adaptKioskToEventType(CURRENT_EVENT);
         // 3. Lock-out localStorage: se questo device ha già firmato, mostra schermata con info evento
