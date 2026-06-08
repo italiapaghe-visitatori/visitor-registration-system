@@ -1823,6 +1823,105 @@
     .gate-toast .gate-toast-detail { font-size: 11.5px; opacity: 0.85; font-weight: 500; }
 
     /* ──────────────────────────────────────────────────────────────────
+       TAB RIEPILOGO cross-evento (dashboard supervisione)
+       ────────────────────────────────────────────────────────────────── */
+    .summary-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%);
+      border-radius: 10px;
+      border-left: 5px solid #3182ce;
+    }
+    .summary-title { font-weight: 800; font-size: 16px; color: #2c5282; flex-shrink: 0; }
+    .summary-hint { flex: 1; font-size: 12px; color: #2a4365; opacity: 0.85; min-width: 280px; }
+
+    .summary-stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .summary-mini-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border-top: 4px solid #3182ce;
+    }
+    .summary-mini-card.signed  { border-top-color: #38b2ac; }
+    .summary-mini-card.inside  { border-top-color: #48bb78; }
+    .summary-mini-card.out     { border-top-color: #4299e1; }
+    .summary-mini-card.events  { border-top-color: #805ad5; }
+    .summary-mini-card h4 {
+      font-size: 11px;
+      color: #718096;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0 0 4px 0;
+    }
+    .summary-mini-card .v {
+      font-size: 26px;
+      font-weight: 800;
+      color: #2d3748;
+      line-height: 1;
+    }
+
+    .summary-table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .summary-table-container { overflow-x: auto; }
+    .summary-table { width: 100%; border-collapse: collapse; }
+    .summary-table th {
+      background: #f7fafc;
+      color: #2d3748;
+      font-weight: 700;
+      font-size: 12.5px;
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 2px solid #e2e8f0;
+      white-space: nowrap;
+    }
+    .summary-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #edf2f7;
+      font-size: 13px;
+      color: #2d3748;
+    }
+    .summary-table tr:hover td { background: #f7fafc; }
+    .summary-table tr.is-active td { background: #ebf8ff; font-weight: 600; }
+    .summary-table tr.is-active:hover td { background: #bee3f8; }
+
+    .summary-event-name { font-weight: 700; color: #2c5282; }
+    .summary-event-name small { display: block; font-size: 11px; color: #718096; font-weight: 500; margin-top: 2px; }
+    .summary-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .summary-badge.type-turnstile { background: #fef5e7; color: #c05621; border: 1px solid #f6ad55; }
+    .summary-badge.type-qr_only   { background: #e6fffa; color: #234e52; border: 1px solid #38b2ac; }
+    .summary-badge.status-active  { background: #c6f6d5; color: #22543d; border: 1px solid #48bb78; }
+    .summary-badge.status-future  { background: #fefcbf; color: #744210; border: 1px solid #ecc94b; }
+    .summary-badge.status-ready   { background: #fed7d7; color: #742a2a; border: 1px solid #fc8181; }
+    .summary-badge.status-closed  { background: #e2e8f0; color: #4a5568; border: 1px solid #a0aec0; }
+    .summary-pct {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .summary-pct.high { background: #c6f6d5; color: #22543d; }
+    .summary-pct.mid  { background: #fefcbf; color: #744210; }
+    .summary-pct.low  { background: #fed7d7; color: #742a2a; }
+
+    /* ──────────────────────────────────────────────────────────────────
        EVENT_TYPE conditional UI (decisione titolare 08/06/2026)
        qr_only = no badge, no tornelli → nasconde sezioni workflow badge.
        Marcato via body.event-type-qr-only (applyEventTypeUI runtime).
@@ -3276,6 +3375,7 @@
         <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')" title="Registro passaggi: chi è dentro ora, chi è uscito, stato badge XAtlas, firme e documenti. La vista 'security/reception' durante l'evento.">Visitatori</button>
         <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')" title="Lista ospiti invitati prima dell'evento: stato invio email QR, badge pronti, arrivi. La vista 'segreteria' nella fase preparatoria.">Ospiti Attesi</button>
         <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')" title="Gestione eventi: crea/avvia/chiudi, pool badge dedicato, generazione QR pubblico. Solo un evento può essere attivo alla volta.">🎫 Eventi</button>
+        <button type="button" class="btn btn-light" id="tab-summary" onclick="switchView('summary')" title="Dashboard riepilogo: ogni evento (attivo/futuro/pronto + ultimi 30 giorni chiusi) con conteggi totali, firmati, dentro ora, usciti, %. Vista cross-evento utile per supervisione.">📊 Riepilogo</button>
         <button type="button" class="btn btn-light js-badge-only" id="tab-drafts" onclick="switchView('drafts')" title="Editor pre-assegnazione massiva badge: importa CSV partecipanti, assegna badge (manuale/auto-numera/pool) con validazione live e cross-check multi-utente, esporta o importa direttamente in Ospiti Attesi.">📝 Pre-assegnazione</button>
         <button type="button" class="btn btn-light js-badge-only" id="tab-acquire" onclick="switchView('acquire')" title="Modalità Acquisizione &amp; Pair Badge: scansiona velocemente i badge fisici col lettore RFID USB (o digitazione manuale) per popolare il pool, poi assegnali agli ospiti in 3 modalità (auto-sequenziale, click+scan, drag-drop). 96 badge in 5 minuti totali.">🔍 Acquisizione</button>
         <button type="button" class="btn btn-light" id="tab-audit" onclick="switchView('audit')" title="Storico azioni operatori (chi ha fatto cosa, quando, su cosa). Utile per accountability in ambienti multi-utente.">📋 Audit</button>
@@ -3613,6 +3713,41 @@
               </tr>
             </thead>
             <tbody id="event-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: RIEPILOGO CROSS-EVENTO ──
+         Dashboard supervisione tutti gli eventi: attivi + futuri + pronti +
+         chiusi ultimi 30 giorni. Refresh ogni 30s mentre la tab e' aperta. -->
+    <div class="view" id="view-summary">
+      <div class="summary-toolbar">
+        <span class="summary-title">📊 Riepilogo eventi</span>
+        <span class="summary-hint">Stato aggiornato di ogni evento (attivi + futuri + chiusi ultimi 30 gg). Auto-refresh ogni 30s.</span>
+        <button type="button" class="btn btn-secondary" onclick="loadSummary()" title="Forza refresh immediato dei dati riepilogo">🔄 Aggiorna ora</button>
+      </div>
+      <div class="summary-stats-bar" id="summary-stats-bar">
+        <!-- Popolato runtime da loadSummary -->
+      </div>
+      <div class="summary-table-wrap">
+        <div id="summary-status" class="table-status">Caricamento riepilogo...</div>
+        <div class="summary-table-container" id="summary-table-container" style="display:none">
+          <table class="summary-table">
+            <thead>
+              <tr>
+                <th>Evento</th>
+                <th>Date</th>
+                <th>Tipo</th>
+                <th>Stato</th>
+                <th title="Totale ospiti in guest_list">Totali</th>
+                <th title="Firmati (QR completato da casa o kiosk)">✍️ Firmati</th>
+                <th title="Entrati e non ancora usciti">🟢 Dentro</th>
+                <th title="Usciti (xatlas_status=checked_out)">🔵 Usciti</th>
+                <th title="% Firmati rispetto al totale">%</th>
+              </tr>
+            </thead>
+            <tbody id="summary-table-body"></tbody>
           </table>
         </div>
       </div>
@@ -4095,7 +4230,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-08e · event_type qr_only + kiosk today</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-08f · tab Riepilogo cross-evento</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -5268,6 +5403,8 @@
       if (drView) drView.classList.toggle('active', v === 'drafts');
       const acView = document.getElementById('view-acquire');
       if (acView) acView.classList.toggle('active', v === 'acquire');
+      const smView = document.getElementById('view-summary');
+      if (smView) smView.classList.toggle('active', v === 'summary');
       document.getElementById('tab-visitors').classList.toggle('active-tab', v === 'visitors');
       document.getElementById('tab-guests').classList.toggle('active-tab', v === 'guests');
       const evTab = document.getElementById('tab-events');
@@ -5278,11 +5415,14 @@
       if (drTab) drTab.classList.toggle('active-tab', v === 'drafts');
       const acTab = document.getElementById('tab-acquire');
       if (acTab) acTab.classList.toggle('active-tab', v === 'acquire');
+      const smTab = document.getElementById('tab-summary');
+      if (smTab) smTab.classList.toggle('active-tab', v === 'summary');
       if (v === 'guests') loadGuestList();
       if (v === 'events') loadEvents();
       if (v === 'audit')  loadAuditLog();
       if (v === 'drafts') loadDrafts();
       if (v === 'acquire') loadAcquireSessions();
+      if (v === 'summary') { loadSummary(); startSummaryAutoRefresh(); }
       // Flash visuale sulla view appena attivata: feedback immediato che il click è andato
       // a segno (oltre allo scroll-to-top). Soprattutto utile per chi è nuovo alla piattaforma.
       const newView = document.querySelector('.view.active');
@@ -7007,6 +7147,158 @@
       pair_badge_bulk:         { label: 'Pair bulk (auto)',      color: 'audit-color-green'  },
       pair_undo:               { label: 'Pair: undo',            color: 'audit-color-yellow' },
     };
+
+    // ── RIEPILOGO CROSS-EVENTO (tab "📊 Riepilogo") ──
+    // Carica eventi attivi/futuri/pronti + chiusi ultimi 30 gg, calcola
+    // contatori (totali, firmati, dentro, usciti) e renderizza la tabella.
+    // Strategia query: 1 query per events + 1 query per visitors (con event_id
+    // e signature/entry/exit). Aggregazione client-side per evitare RPC custom.
+    let _summaryRefreshTimer = null;
+    async function loadSummary() {
+      const status = document.getElementById('summary-status');
+      const cont   = document.getElementById('summary-table-container');
+      const tbody  = document.getElementById('summary-table-body');
+      if (!status || !cont || !tbody) return;
+      try {
+        // 1. Carica eventi: NON chiusi OR chiusi negli ultimi 30 gg
+        const cutoff = new Date(Date.now() - 30 * 86400 * 1000).toISOString();
+        const evRes = await api(`${SUPABASE_URL}/rest/v1/events?or=(closed_at.is.null,closed_at.gte.${encodeURIComponent(cutoff)})&select=id,name,event_start_date,event_end_date,is_active,event_type,closed_at&order=event_start_date.desc`);
+        if (!evRes || !evRes.ok) throw new Error(`HTTP ${evRes?.status}`);
+        const events = await evRes.json();
+        if (!events.length) {
+          status.textContent = 'Nessun evento da riepilogare (attivo, futuro o chiuso ultimi 30 gg).';
+          cont.style.display = 'none';
+          status.style.display = 'block';
+          return;
+        }
+        const eventIds = events.map(e => e.id);
+        const inFilter = eventIds.map(id => `"${id}"`).join(',');
+
+        // 2. Carica guest_list count per evento (1 query)
+        const glRes = await api(`${SUPABASE_URL}/rest/v1/guest_list?event_id=in.(${inFilter})&select=event_id`);
+        const glRows = (glRes && glRes.ok) ? await glRes.json() : [];
+        const guestCountByEvent = new Map();
+        glRows.forEach(g => guestCountByEvent.set(g.event_id, (guestCountByEvent.get(g.event_id) || 0) + 1));
+
+        // 3. Carica visitors signed/inside/out per evento (1 query lean, no signature blob)
+        const vRes = await api(`${SUPABASE_URL}/rest/v1/visitors?event_id=in.(${inFilter})&select=event_id,signature,entry_time,exit_time,xatlas_status`);
+        const vRows = (vRes && vRes.ok) ? await vRes.json() : [];
+        const signedByEvent = new Map();
+        const insideByEvent = new Map();
+        const outByEvent = new Map();
+        vRows.forEach(v => {
+          const eid = v.event_id;
+          if (v.signature) signedByEvent.set(eid, (signedByEvent.get(eid) || 0) + 1);
+          if (v.entry_time && !v.exit_time && v.xatlas_status !== 'checked_out') {
+            insideByEvent.set(eid, (insideByEvent.get(eid) || 0) + 1);
+          }
+          if (v.xatlas_status === 'checked_out') outByEvent.set(eid, (outByEvent.get(eid) || 0) + 1);
+        });
+
+        // 4. Calcola aggregati globali per stats bar
+        const today = new Date().toLocaleDateString('en-CA');
+        let totalGuests = 0, totalSigned = 0, totalInside = 0, totalOut = 0, activeCount = 0;
+        events.forEach(e => {
+          totalGuests += guestCountByEvent.get(e.id) || 0;
+          totalSigned += signedByEvent.get(e.id) || 0;
+          totalInside += insideByEvent.get(e.id) || 0;
+          totalOut    += outByEvent.get(e.id) || 0;
+          if (e.is_active) activeCount++;
+        });
+
+        // 5. Render stats bar
+        const statsBar = document.getElementById('summary-stats-bar');
+        if (statsBar) {
+          statsBar.innerHTML = '';
+          const cards = [
+            { cls: 'events',  label: 'Eventi in vista', v: String(events.length) },
+            { cls: '',        label: 'Totale ospiti',   v: String(totalGuests) },
+            { cls: 'signed',  label: '✍️ Firmati',      v: String(totalSigned) },
+            { cls: 'inside',  label: '🟢 Dentro ora',   v: String(totalInside) },
+            { cls: 'out',     label: '🔵 Usciti',       v: String(totalOut) },
+          ];
+          cards.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'summary-mini-card ' + c.cls;
+            const h4 = document.createElement('h4'); h4.textContent = c.label;
+            const v = document.createElement('div'); v.className = 'v'; v.textContent = c.v;
+            div.appendChild(h4); div.appendChild(v);
+            statsBar.appendChild(div);
+          });
+        }
+
+        // 6. Render tabella eventi
+        tbody.innerHTML = '';
+        events.forEach(e => {
+          const tot     = guestCountByEvent.get(e.id) || 0;
+          const signed  = signedByEvent.get(e.id) || 0;
+          const inside  = insideByEvent.get(e.id) || 0;
+          const out     = outByEvent.get(e.id) || 0;
+          const pct     = tot > 0 ? Math.round((signed / tot) * 100) : 0;
+          // Stato calcolato (replica logica view-events)
+          let statusKey, statusLabel;
+          if (e.closed_at) { statusKey = 'closed'; statusLabel = '🔒 Chiuso'; }
+          else if (e.is_active) { statusKey = 'active'; statusLabel = '🟢 Attivo'; }
+          else if (today < e.event_start_date) { statusKey = 'future'; statusLabel = '⏳ Futuro'; }
+          else { statusKey = 'ready'; statusLabel = '🟡 Pronto'; }
+          const typeLabel = e.event_type === 'qr_only' ? '📱 Solo QR' : '🚪 Con tornelli';
+          const range = e.event_start_date === e.event_end_date
+            ? e.event_start_date.split('-').reverse().join('/')
+            : `${e.event_start_date.split('-').reverse().join('/')} → ${e.event_end_date.split('-').reverse().join('/')}`;
+          const pctCls = pct >= 70 ? 'high' : (pct >= 30 ? 'mid' : 'low');
+
+          const tr = document.createElement('tr');
+          if (e.is_active) tr.classList.add('is-active');
+          // Costruzione cell via createElement (XSS-safe)
+          const tdName = document.createElement('td');
+          const nameDiv = document.createElement('div'); nameDiv.className = 'summary-event-name'; nameDiv.textContent = e.name;
+          tdName.appendChild(nameDiv);
+          if (e.closed_at) {
+            const small = document.createElement('small'); small.textContent = `chiuso ${new Date(e.closed_at).toLocaleDateString('it-IT')}`;
+            tdName.appendChild(small);
+          }
+          tr.appendChild(tdName);
+
+          const tdDate = document.createElement('td'); tdDate.textContent = range; tr.appendChild(tdDate);
+
+          const tdType = document.createElement('td');
+          const typeBadge = document.createElement('span'); typeBadge.className = `summary-badge type-${e.event_type || 'turnstile'}`; typeBadge.textContent = typeLabel;
+          tdType.appendChild(typeBadge); tr.appendChild(tdType);
+
+          const tdStatus = document.createElement('td');
+          const statusBadge = document.createElement('span'); statusBadge.className = `summary-badge status-${statusKey}`; statusBadge.textContent = statusLabel;
+          tdStatus.appendChild(statusBadge); tr.appendChild(tdStatus);
+
+          const tdTot = document.createElement('td'); tdTot.textContent = String(tot); tr.appendChild(tdTot);
+          const tdSig = document.createElement('td'); tdSig.textContent = String(signed); tr.appendChild(tdSig);
+          const tdIn  = document.createElement('td'); tdIn.textContent  = String(inside); tr.appendChild(tdIn);
+          const tdOut = document.createElement('td'); tdOut.textContent = String(out); tr.appendChild(tdOut);
+
+          const tdPct = document.createElement('td');
+          const pctBadge = document.createElement('span'); pctBadge.className = `summary-pct ${pctCls}`; pctBadge.textContent = pct + '%';
+          tdPct.appendChild(pctBadge); tr.appendChild(tdPct);
+
+          tbody.appendChild(tr);
+        });
+
+        status.style.display = 'none';
+        cont.style.display = '';
+      } catch (err) {
+        status.textContent = 'Errore caricamento riepilogo: ' + (err.message || err);
+        status.style.display = 'block';
+        cont.style.display = 'none';
+      }
+    }
+
+    function startSummaryAutoRefresh() {
+      if (_summaryRefreshTimer) return;
+      _summaryRefreshTimer = setInterval(() => {
+        if (currentView === 'summary' && document.visibilityState !== 'hidden') {
+          loadSummary();
+        }
+      }, 30000);
+      pollTimers.push(_summaryRefreshTimer);
+    }
 
     async function loadAuditLog() {
       const status = document.getElementById('audit-table-status');
