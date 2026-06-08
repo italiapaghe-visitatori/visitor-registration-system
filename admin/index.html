@@ -4077,7 +4077,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-08 · filtri giorno+turno Ospiti Attesi</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-08b · filtri stale fix</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -6497,6 +6497,29 @@
       renderGuestTable(guestData, arrivedSet);
     }
 
+    // FIX 2026-06-08: bug "Mar 9 giugno non esce niente". Causa: dopo certi flussi
+    // (es. switch evento, refresh, switch tab) guestDayFilter resta puntato a una
+    // data che potrebbe non esistere piu' nei nuovi dati. Risultato: lista vuota.
+    // Questa funzione valida i filtri correnti e li resetta se puntano a valori
+    // non piu' presenti nei dati. Da chiamare dopo ogni caricamento di guestData.
+    function _validateGuestFilters() {
+      if (!Array.isArray(guestData) || guestData.length === 0) return;
+      if (guestDayFilter) {
+        const haveDay = guestData.some(g => g.expected_date === guestDayFilter);
+        if (!haveDay) {
+          guestDayFilter = null;
+          guestSlotFilter = null;   // se sparisce il giorno, perde senso il turno
+          return;
+        }
+      }
+      if (guestSlotFilter) {
+        // Verifica che almeno un guest (nel filtro giorno se attivo) abbia quel turno
+        const subset = guestDayFilter ? guestData.filter(g => g.expected_date === guestDayFilter) : guestData;
+        const haveSlot = subset.some(g => _detectSlot(g.notes) === guestSlotFilter);
+        if (!haveSlot) guestSlotFilter = null;
+      }
+    }
+
     function _detectSlot(notes) {
       // Categorizza il turno in base a 'notes' (label normalizzate via SQL).
       // Fallback: stringa contiene "Mattina" / "Pomeriggio" / "Giornata".
@@ -8541,6 +8564,10 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     // audit log per consultazione di registrazioni precedenti.
 
     function renderGuestTable(data, arrivedSet) {
+      // Valida i filtri correnti contro i dati attuali: se puntano a una data o
+      // turno non piu' presenti (es. switch evento), reset automatico per evitare
+      // la lista vuota fantasma.
+      try { _validateGuestFilters(); } catch (_) {}
       // Aggiorna le pillole filtri (auto-popolate dai dati)
       try { renderGuestFilters(); } catch (_) {}
 
