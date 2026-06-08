@@ -840,28 +840,31 @@
     html.qr-mode #screensaver { display: none !important; }
 
     /* Banner top informativo per chi accede dal QR.
-       FIX 2026-06-09: era position:sticky dentro body flex column con align-items:
-       center → il banner si stringeva sulla larghezza del contenuto e appariva
-       decentrato sopra la card. Soluzione: align-self:stretch + width:100% per
-       rispettare la larghezza del body (incluso padding), no sticky (non serve in
-       UX kiosk e creava conflitti visivi sullo scroll della lista ospiti). */
+       FIX 2026-06-09 v2: forzato position:static !important + flex-shrink:0 per
+       evitare qualsiasi comportamento "sticky" che facesse seguire il banner
+       allo scroll coprendo i campi del form sottostante. Riduzione padding +
+       font-size per ridurre footprint verticale e migliorare UX scroll. */
     .qr-banner {
       display: none;
       background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       color: #fff;
-      padding: 14px 18px;
+      padding: 10px 16px;
       text-align: center;
       font-weight: 700;
-      font-size: 14px;
+      font-size: 13.5px;
       letter-spacing: 0.3px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.12);
       width: 100%;
       box-sizing: border-box;
       align-self: stretch;
       border-radius: 12px;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
+      flex-shrink: 0;
+      position: static !important;     /* niente sticky/fixed, mai */
+      top: auto !important;
+      z-index: auto !important;
     }
-    .qr-banner small { display: block; font-weight: 500; opacity: 0.9; font-size: 12px; margin-top: 3px; }
+    .qr-banner small { display: block; font-weight: 500; opacity: 0.9; font-size: 11.5px; margin-top: 2px; }
     html.qr-mode .qr-banner { display: block; }
 
     /* QR personale: nasconde la lista ospiti (privacy) e mostra messaggio dedicato */
