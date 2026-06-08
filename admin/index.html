@@ -1708,13 +1708,19 @@
     }
     .btn-details:hover { background: #eef2ff; }
 
-    .btn-badge-assign {
+    .btn-badge-assign,
+    .btn-event-action {
       background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
       color: #fff; border: none; border-radius: 7px;
       padding: 5px 10px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.18s; white-space: nowrap; margin-right: 4px;
       box-shadow: 0 2px 6px rgba(237,137,54,0.4);
     }
-    .btn-badge-assign:hover { box-shadow: 0 3px 10px rgba(237,137,54,0.55); }
+    .btn-badge-assign:hover,
+    .btn-event-action:hover { box-shadow: 0 3px 10px rgba(237,137,54,0.55); }
+    /* btn-event-action (Avvia/Chiudi/Archivia eventi) e' visivamente identico
+       a btn-badge-assign ma NON viene nascosto in qr_only. Separato dal 2026-06-09
+       perche' i bottoni gestione evento devono restare cliccabili sempre, anche
+       quando l'evento attivo e' qr_only. */
 
     .btn-signature-handoff {
       background: linear-gradient(135deg, #48bb78 0%, #2f855a 100%);
@@ -7593,12 +7599,12 @@
         const actions = [];
         // Avvia: solo se non chiuso, non attivo E data non passata
         if (!e.closed_at && !e.is_active && !isPastDate) {
-          actions.push(`<button class="btn-badge-assign" onclick="activateEvent('${e.id}')" title="Avvia questo evento (lo rende l'evento attivo del sistema). Disattiva eventuali altri attivi. I visitatori registrati da kiosk/QR verranno taggati con questo evento.">Avvia</button>`);
+          actions.push(`<button class="btn-event-action" onclick="activateEvent('${e.id}')" title="Avvia questo evento (lo rende l'evento attivo del sistema). Disattiva eventuali altri attivi. I visitatori registrati da kiosk/QR verranno taggati con questo evento.">Avvia</button>`);
         }
-        if (e.is_active) actions.push(`<button class="btn-badge-assign" onclick="closeActiveEvent()" title="Chiudi l'evento corrente: archivia massivamente i visitor, libera il pool, imposta closed_at. Non reversibile.">Chiudi</button>`);
+        if (e.is_active) actions.push(`<button class="btn-event-action" onclick="closeActiveEvent()" title="Chiudi l'evento corrente: archivia massivamente i visitor, libera il pool, imposta closed_at. Non reversibile.">Chiudi</button>`);
         // Auto-chiudi: rapido per archivare formalmente un evento "Passato" (set closed_at = ora)
         if (isPastDate) {
-          actions.push(`<button class="btn-badge-assign" onclick="markEventClosed('${e.id}')" title="Archivia formalmente l'evento (set closed_at = ora). Dopo questa azione l'evento sarà solo consultabile.">🔒 Archivia</button>`);
+          actions.push(`<button class="btn-event-action" onclick="markEventClosed('${e.id}')" title="Archivia formalmente l'evento (set closed_at = ora). Dopo questa azione l'evento sarà solo consultabile.">🔒 Archivia</button>`);
         }
         const tipPart = e.closed_at || isPastDate
           ? 'Visualizza i partecipanti dell\'evento (sola lettura, evento concluso).'
@@ -9045,7 +9051,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           <td>${emailHtml}</td>
           <td>${statusHtml}</td>
           <td>
-            <span class="gate-actions" title="Apertura manuale tornello (workaround sync XAtlas) — INGRESSO/USCITA per questo ospite">
+            <span class="gate-actions js-badge-only" title="Apertura manuale tornello (workaround sync XAtlas) — INGRESSO/USCITA per questo ospite">
               <button type="button" class="btn-gate-in"  onclick="openGateForGuest(this,'entry')" title="Apri TORNELLO_IN per ${esc(g.first_name || '')} ${esc(g.last_name || '')}. Click → tornello apre in ~1 sec. Registra entrata in visitor_movements.">🚪 IN</button>
               <button type="button" class="btn-gate-out" onclick="openGateForGuest(this,'exit')"  title="Apri TORNELLO_OUT per ${esc(g.first_name || '')} ${esc(g.last_name || '')}. Click → tornello apre in ~1 sec. Registra uscita.">🚪 OUT</button>
             </span>

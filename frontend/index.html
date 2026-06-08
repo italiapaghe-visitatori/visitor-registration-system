@@ -1839,6 +1839,21 @@
     // Ospite preselezionato (solo in QR personale)
     let QR_PERSONAL_GUEST = null;
 
+    // Testi CTA "cosa fare il giorno dell'evento" — UN solo punto di verita'.
+    // Decisione titolare 08/06/2026: qr_only = no badge, no cauzione, no
+    // reception per ritiro fisico; turnstile = workflow classico col badge.
+    // Definiti qui per essere disponibili a tutte le funzioni che li usano
+    // (showQrAlreadyRegistered, adaptKioskToEventType, showQrSuccessScreen).
+    const DESK_CTA_QR_ONLY     = '✅ Registrazione confermata — al giorno dell\'evento ti basterà presentarti al desk';
+    const DESK_CTA_TURNSTILE   = '📍 Recarsi al desk per il ritiro del badge il giorno dell\'evento';
+    const BANNER_SUB_QR_ONLY   = 'Scegli il tuo nome dalla lista e firma il modulo';
+    const BANNER_SUB_TURNSTILE = 'Scegli il tuo nome dalla lista, firma e ritira il badge alla reception';
+
+    function deskCtaText(event) {
+      const isQrOnly = event && event.event_type === 'qr_only';
+      return isQrOnly ? DESK_CTA_QR_ONLY : DESK_CTA_TURNSTILE;
+    }
+
     // ── QR VALIDITY + LOCK-OUT (3 livelli) ───────────
     // Livello 1: localStorage flag → device bloccato dopo registrazione
     // Livello 2: filtro guest_list già firmati (signature IS NOT NULL) → sparisce dalla lista
@@ -2046,11 +2061,13 @@
       if (!el) return;
       el.querySelector('h1').textContent = 'Registrazione già effettuata';
       el.querySelector('p').textContent  = 'Hai già completato la registrazione per questo evento.';
-      el.querySelector('.desk-cta').textContent = '📍 Recarsi al desk per il ritiro del badge il giorno dell\'evento';
-      // Inietta info evento + orario di firma
+      // FIX 2026-06-09: era hardcoded "Recarsi al desk per ritirare badge",
+      // sbagliato per eventi qr_only. Usa helper deskCtaText coerente con
+      // event_type. Fallback su CURRENT_EVENT se data non porta event_type.
       const evt = (data && (data.event_name || data.event_start_date))
-        ? { name: data.event_name, event_start_date: data.event_start_date, event_end_date: data.event_end_date }
+        ? { name: data.event_name, event_start_date: data.event_start_date, event_end_date: data.event_end_date, event_type: data.event_type || (CURRENT_EVENT && CURRENT_EVENT.event_type) }
         : CURRENT_EVENT;
+      el.querySelector('.desk-cta').textContent = deskCtaText(evt);
       injectEventInfo('#qr-success', evt, data && data.signed_at ? data.signed_at : null);
       // Aggiungo (se non già presente) il bottone "Non sei tu?" — utile in caso di
       // device condiviso (PC ufficio, tablet famiglia) o registrazione precedente
@@ -2300,28 +2317,18 @@
     }
 
     // Adatta i testi del kiosk in base a event_type dell'evento attivo.
-    // qr_only (no badge, no tornelli): rimuove riferimenti a "badge" e "reception
-    // per il ritiro". Decisione titolare 08/06/2026: niente piu' badge per alcuni
-    // eventi (es. Corso Primo Soccorso), solo registrazione QR.
     function adaptKioskToEventType(event) {
       if (!event) return;
       const isQrOnly = event.event_type === 'qr_only';
-      // Body class per CSS conditionals
       document.body.classList.toggle('event-type-qr-only', isQrOnly);
       document.body.classList.toggle('event-type-turnstile', !isQrOnly);
-      // Sottotitolo banner
       const subtitle = document.getElementById('qr-banner-subtitle');
       if (subtitle) {
-        subtitle.textContent = isQrOnly
-          ? 'Scegli il tuo nome dalla lista e firma il modulo'
-          : 'Scegli il tuo nome dalla lista, firma e ritira il badge alla reception';
+        subtitle.textContent = isQrOnly ? BANNER_SUB_QR_ONLY : BANNER_SUB_TURNSTILE;
       }
-      // Desk CTA finale dopo registrazione
       const deskCta = document.getElementById('qr-success-desk-cta');
       if (deskCta) {
-        deskCta.textContent = isQrOnly
-          ? '✅ Registrazione confermata — al giorno dell\'evento ti basterà presentarti al desk'
-          : '📍 Recarsi al desk per il ritiro del badge il giorno dell\'evento';
+        deskCta.textContent = deskCtaText(event);
       }
     }
 
