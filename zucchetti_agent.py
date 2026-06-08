@@ -1696,18 +1696,53 @@ def send_fmc_command(cmd: str, timeout_sec: float = 8.0) -> str:
 
     Usa connessione effimera (apre/chiude per ogni comando) per evitare
     state pollution tra chiamate concorrenti da diversi worker.
+
+    FIX 2026-06-10: prima inviava il comando dopo un fisso sleep(0.3) +
+    read_very_eager(). Su OrangeLink 1.9.24.83 il banner iniziale e' ~3KB
+    e con TCP slow-start arriva a frammenti, quindi a 0.3s tipicamente
+    il banner era ancora a meta'. Il comando finiva nello stream PRIMA
+    che FMC fosse pronto a parsarlo, FMC scartava i caratteri come "menu
+    non riconosciuto" e ri-spammava il banner come help. Risultato:
+    response={banner} che la heuristic NON riconosce come success.
+
+    Nuovo approccio: aspetta ATTIVAMENTE il prompt iniziale "FM#NNN@"
+    (= banner terminato, FMC pronto). Solo allora invia il comando.
     """
     tn = telnetlib.Telnet(FMC_TELNET_HOST, FMC_TELNET_PORT, timeout=5)
     try:
-        # Svuota banner iniziale
-        time.sleep(0.3)
-        try:
-            tn.read_very_eager()
-        except Exception:
-            pass
+        # 1. Drena banner iniziale finche' non vediamo prompt FM#@
+        init_deadline = time.monotonic() + 4.0
+        init_buf = b""
+        prompt_seen = False
+        while time.monotonic() < init_deadline:
+            try:
+                chunk = tn.read_very_eager()
+            except Exception:
+                chunk = b""
+            if chunk:
+                init_buf += chunk
+                if b"FM#" in init_buf and b"@" in init_buf:
+                    prompt_seen = True
+                    # Aspetta ancora 150ms per assicurare trailing bytes
+                    time.sleep(0.15)
+                    try:
+                        extra = tn.read_very_eager()
+                        if extra:
+                            init_buf += extra
+                    except Exception:
+                        pass
+                    break
+            time.sleep(0.1)
+        if not prompt_seen:
+            log.warning(
+                f"send_fmc_command: prompt FM#@ non visto entro 4s (banner len={len(init_buf)}); "
+                f"invio comando comunque ma probabilmente fallira'."
+            )
+
+        # 2. Invia il comando ora che FMC e' pronto
         tn.write((cmd + "\r\n").encode("ascii"))
-        # Lettura risposta con cumulative wait. Le aperture sono veloci (<300ms)
-        # ma il timer di sicurezza copre eventuali rallentamenti FMC.
+
+        # 3. Lettura risposta col timer di sicurezza
         deadline = time.monotonic() + timeout_sec
         buf = b""
         while time.monotonic() < deadline:
@@ -1717,9 +1752,7 @@ def send_fmc_command(cmd: str, timeout_sec: float = 8.0) -> str:
                 chunk = b""
             if chunk:
                 buf += chunk
-                # Se vediamo il prompt finale "FM#NNN@" significa che l'EXEC è completato.
                 if b"FM#" in buf and b"@" in buf:
-                    # Aspetta ancora 100ms per assicurare trailing bytes
                     time.sleep(0.1)
                     try:
                         more = tn.read_very_eager()
@@ -1738,20 +1771,32 @@ def send_fmc_command(cmd: str, timeout_sec: float = 8.0) -> str:
 def _fmc_response_indicates_success(resp: str) -> bool:
     """Heuristic: il comando openEntryOneShot ritorna tipicamente
     'Executed openEntryOneShot:\\ntrue' nella risposta. Cerchiamo signal positivi.
+
+    FIX 2026-06-10: aggiunto fail-fast se la response e' un banner di help
+    di OrangeLink (= comando non riconosciuto da FMC). Prima cadeva nel
+    ramo 'executed' generic e ritornava True (falso positivo) o False.
     """
     if not resp:
         return False
     low = resp.lower()
-    # Signal positivo: il metodo è stato eseguito e ha ritornato true
-    if "executed" in low and "true" in low:
-        return True
-    # Signal negativo esplicito
-    if "exception" in low or "error" in low or "no such method" in low:
+    # Fail fast: response contiene il banner di help di OrangeLink → FMC
+    # ha mostrato l'help perche' non ha riconosciuto il comando.
+    # Marker univoci del banner: "available commands", "specificationtitle",
+    # "implementationtitle". Se qualcuno presente → fallimento certo.
+    if "available commands" in low or "implementationtitle" in low or "specificationtitle" in low:
+        return False
+    # Signal negativo esplicito (controllato PRIMA del positivo per evitare
+    # falsi positivi quando 'executed' compare nel messaggio d'errore)
+    if "exception" in low or "no such method" in low or "command not found" in low:
         return False
     if "executed" in low and "false" in low:
         return False
-    # Per i metodi *OneShot* il device a volte ritorna OK come "executed: " senza valore
-    # ma con prompt seguente: consideriamo successo se vediamo "executed" senza errori
+    # Signal positivo: il metodo e' stato eseguito e ha ritornato true
+    if "executed" in low and "true" in low:
+        return True
+    # Per i metodi *OneShot* il device a volte ritorna OK come "executed: " senza
+    # valore ma con prompt seguente: consideriamo successo se vediamo "executed"
+    # senza errori e senza essere il banner
     if "executed" in low:
         return True
     return False
