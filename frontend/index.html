@@ -258,6 +258,10 @@
 
     /* ── BADGE AGREEMENT DOCUMENT ── */
     #badge-agreement-group { margin-bottom: 22px; }
+    /* Modalita' qr_only (no badge, no tornelli): nasconde modulo consegna
+       badge + cauzione 5 euro. Decisione titolare 09/06/2026: per eventi
+       qr_only nessun badge fisico = niente cauzione da spiegare. */
+    body.event-type-qr-only #badge-agreement-group { display: none !important; }
 
     .agreement-doc {
       background: linear-gradient(180deg, #fafbfd 0%, #f7f9fc 100%);
@@ -2698,14 +2702,18 @@
         if (consentBox) consentBox.classList.remove('invalid');
       }
 
-      // Badge agreement
-      const badgeAgreementBox = document.getElementById('badge-agreement-box');
-      const badgeAgreementEl  = document.getElementById('badge_agreement');
-      if (!badgeAgreementEl.checked) {
-        if (badgeAgreementBox) badgeAgreementBox.classList.add('invalid');
-        valid = false;
-      } else {
-        if (badgeAgreementBox) badgeAgreementBox.classList.remove('invalid');
+      // Badge agreement: validazione SKIP per eventi qr_only (no badge =
+       // nessun modulo consegna da accettare). Per eventi turnstile resta
+       // obbligatorio come prima.
+      if (!document.body.classList.contains('event-type-qr-only')) {
+        const badgeAgreementBox = document.getElementById('badge-agreement-box');
+        const badgeAgreementEl  = document.getElementById('badge_agreement');
+        if (!badgeAgreementEl.checked) {
+          if (badgeAgreementBox) badgeAgreementBox.classList.add('invalid');
+          valid = false;
+        } else {
+          if (badgeAgreementBox) badgeAgreementBox.classList.remove('invalid');
+        }
       }
 
       return valid;
