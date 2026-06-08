@@ -3487,7 +3487,7 @@
         <span class="toolbar-divider"></span>
         <span class="toolbar-label">QR</span>
         <button type="button" class="btn btn-info" onclick="openQrModal()" title="Genera QR generico al desk per registrazione self-service">📱 Genera QR</button>
-        <button type="button" class="btn btn-info" onclick="bulkSendQrEmail()" title="Invia QR personale via email a tutti gli ospiti dell'evento attivo">📧 Invia QR a tutti</button>
+        <button type="button" class="btn btn-info" onclick="bulkSendQrEmail()" title="Invia QR personale via email agli ospiti VISIBILI nella lista. Se hai un filtro attivo (es. solo 9 giugno), invia solo a quelli filtrati. Per inviare a tutti, clicca prima la pillola 'Tutti'.">📧 Invia QR ai visibili</button>
 
         <span class="toolbar-divider"></span>
         <span class="guest-search-wrap">
@@ -4077,7 +4077,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-08b · filtri stale fix</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-08c · QR bulk rispetta filtri</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -7696,22 +7696,42 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         const e = emailStatusByGuest.get(g.id);
         return e ? e.status : null;
       };
-      // Filtra ospiti rilevanti
-      const candidates = guestData.filter(g => !arrivedSet.has(g.id));
+      // Filtra ospiti rilevanti: rispetta i filtri pillole giorno+turno attivi
+      // (FIX 2026-06-08: prima ignorava i filtri e mandava a TUTTI gli ospiti
+      // dell'evento, contraddicendo l'aspettativa che il bottone agisca sui
+      // dati visibili. Ora "Invia QR a tutti" = a tutti i VISIBILI nella lista).
+      let candidates = guestData.filter(g => !arrivedSet.has(g.id));
+      const totalNoFilter = candidates.length;
+      const filterParts = [];
+      if (guestDayFilter) {
+        candidates = candidates.filter(g => g.expected_date === guestDayFilter);
+        filterParts.push(`Giorno: ${_fmtItDateShort(guestDayFilter)}`);
+      }
+      if (guestSlotFilter) {
+        candidates = candidates.filter(g => _detectSlot(g.notes) === guestSlotFilter);
+        filterParts.push(`Turno: ${guestSlotFilter}`);
+      }
+      const hasFilters = filterParts.length > 0;
       const withEmail    = candidates.filter(g => g.email && g.email.trim());
       const withoutEmail = candidates.filter(g => !g.email || !g.email.trim());
       const alreadySent  = withEmail.filter(g => getStatus(g) === 'sent');
       const failed       = withEmail.filter(g => getStatus(g) === 'failed');
       const neverSent    = withEmail.filter(g => !getStatus(g));
 
-      const summary = `Invio massivo QR personali per evento "${activeEvent.name}":\n\n` +
-                      `• Ospiti totali (non arrivati): ${candidates.length}\n` +
-                      `• Mai inviata: ${neverSent.length}\n` +
-                      `• Inviate ma fallite: ${failed.length}\n` +
-                      `• Già inviate con successo: ${alreadySent.length}\n` +
-                      `• Senza email (skip): ${withoutEmail.length}\n\n` +
-                      `OK = invia alle ${neverSent.length + failed.length} non ancora consegnate (mai inviate + fallite).\n` +
-                      `Annulla = non fare nulla.`;
+      let summary = `Invio massivo QR personali per evento "${activeEvent.name}":\n\n`;
+      if (hasFilters) {
+        summary += `🔎 FILTRI ATTIVI: ${filterParts.join(' · ')}\n` +
+                   `   Stai per inviare SOLO agli ospiti visibili con i filtri attuali\n` +
+                   `   (${candidates.length} di ${totalNoFilter} totali non arrivati).\n` +
+                   `   Per inviare a TUTTI, clicca prima la pillola "Tutti" per togliere i filtri.\n\n`;
+      }
+      summary += `• Ospiti ${hasFilters ? 'filtrati' : 'totali'} (non arrivati): ${candidates.length}\n` +
+                 `• Mai inviata: ${neverSent.length}\n` +
+                 `• Inviate ma fallite: ${failed.length}\n` +
+                 `• Già inviate con successo: ${alreadySent.length}\n` +
+                 `• Senza email (skip): ${withoutEmail.length}\n\n` +
+                 `OK = invia alle ${neverSent.length + failed.length} non ancora consegnate (mai inviate + fallite).\n` +
+                 `Annulla = non fare nulla.`;
       if (!confirm(summary)) return;
 
       let toSend = [...neverSent, ...failed];
