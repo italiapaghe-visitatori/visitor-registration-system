@@ -6518,6 +6518,14 @@
       } catch (_) { return iso; }
     }
 
+    // Defense in depth: anche se expected_date e' DATE in Postgres e i dati provengono
+    // da insert sotto RLS authenticated, validiamo il formato prima di interpolare
+    // dentro l'attributo onclick. Lo stesso per le chiavi slot (whitelist statica).
+    // esc() esistente non escapa l'apostrofo, percio' senza questa guardia un valore
+    // malformato come "2026-06-09'); alert(1); //" potrebbe rompere il contesto.
+    const _isValidIsoDate = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+    const _VALID_SLOT_KEYS = new Set(['mattina', 'giornata', 'pomeriggio']);
+
     function renderGuestFilters() {
       const bar = document.getElementById('guest-filters-bar');
       const dayCont = document.getElementById('guest-day-pills');
@@ -6533,7 +6541,7 @@
       const byDay = new Map();
       baseData.forEach(g => {
         const d = g.expected_date || null;
-        if (!d) return;
+        if (!_isValidIsoDate(d)) return;     // skip eventuali date malformate (paranoia)
         byDay.set(d, (byDay.get(d) || 0) + 1);
       });
       const days = [...byDay.keys()].sort();
@@ -6546,21 +6554,39 @@
       bar.style.display = '';
 
       const totale = baseData.length;
-      let dayHtml = `<span class="guest-pill ${!guestDayFilter ? 'active' : ''}" onclick="setGuestDayFilter(null)">Tutti <span class="pill-count">${totale}</span></span>`;
+      // Costruisco le pillole con createElement per evitare interpolation in attributi
+      // (XSS hardening): textContent + dataset + addEventListener.
+      dayCont.innerHTML = '';
+      const allPill = document.createElement('span');
+      allPill.className = 'guest-pill' + (!guestDayFilter ? ' active' : '');
+      allPill.innerHTML = 'Tutti <span class="pill-count"></span>';
+      allPill.querySelector('.pill-count').textContent = String(totale);
+      allPill.addEventListener('click', () => setGuestDayFilter(null));
+      dayCont.appendChild(allPill);
+
       days.forEach(d => {
+        if (!_isValidIsoDate(d)) return;     // defense in depth
         const lbl = _fmtItDateShort(d);
         const n = byDay.get(d) || 0;
-        const active = guestDayFilter === d;
-        dayHtml += `<span class="guest-pill ${active ? 'active' : ''}" onclick="setGuestDayFilter('${d}')">${esc(lbl)} <span class="pill-count">${n}</span></span>`;
+        const pill = document.createElement('span');
+        pill.className = 'guest-pill' + (guestDayFilter === d ? ' active' : '');
+        pill.dataset.date = d;
+        // textContent + nested count span: niente HTML interpolation
+        pill.appendChild(document.createTextNode(lbl + ' '));
+        const cnt = document.createElement('span');
+        cnt.className = 'pill-count';
+        cnt.textContent = String(n);
+        pill.appendChild(cnt);
+        pill.addEventListener('click', () => setGuestDayFilter(pill.dataset.date));
+        dayCont.appendChild(pill);
       });
-      dayCont.innerHTML = dayHtml;
 
       // Pillole turno: rispetto al filtro giorno corrente
       const filtered = guestDayFilter ? baseData.filter(g => g.expected_date === guestDayFilter) : baseData;
       const bySlot = new Map();
       filtered.forEach(g => {
         const s = _detectSlot(g.notes);
-        if (s) bySlot.set(s, (bySlot.get(s) || 0) + 1);
+        if (s && _VALID_SLOT_KEYS.has(s)) bySlot.set(s, (bySlot.get(s) || 0) + 1);
       });
 
       if (bySlot.size < 2) {
@@ -6573,14 +6599,33 @@
           { key: 'giornata',   label: '🟢 Giornata' },
           { key: 'pomeriggio', label: '🌇 Pomeriggio' },
         ];
-        let slotHtml = `<span class="guest-pill ${!guestSlotFilter ? 'active' : ''}" onclick="setGuestSlotFilter(null)">Tutti <span class="pill-count">${filtered.length}</span></span>`;
+
+        slotCont.innerHTML = '';
+        const allSlot = document.createElement('span');
+        allSlot.className = 'guest-pill' + (!guestSlotFilter ? ' active' : '');
+        allSlot.appendChild(document.createTextNode('Tutti '));
+        const allCnt = document.createElement('span');
+        allCnt.className = 'pill-count';
+        allCnt.textContent = String(filtered.length);
+        allSlot.appendChild(allCnt);
+        allSlot.addEventListener('click', () => setGuestSlotFilter(null));
+        slotCont.appendChild(allSlot);
+
         slotsOrder.forEach(s => {
+          if (!_VALID_SLOT_KEYS.has(s.key)) return;   // defense in depth (whitelist)
           const n = bySlot.get(s.key) || 0;
           if (n === 0) return;
-          const active = guestSlotFilter === s.key;
-          slotHtml += `<span class="guest-pill ${active ? 'active' : ''}" onclick="setGuestSlotFilter('${s.key}')">${s.label} <span class="pill-count">${n}</span></span>`;
+          const pill = document.createElement('span');
+          pill.className = 'guest-pill' + (guestSlotFilter === s.key ? ' active' : '');
+          pill.dataset.slot = s.key;
+          pill.appendChild(document.createTextNode(s.label + ' '));
+          const cnt = document.createElement('span');
+          cnt.className = 'pill-count';
+          cnt.textContent = String(n);
+          pill.appendChild(cnt);
+          pill.addEventListener('click', () => setGuestSlotFilter(pill.dataset.slot));
+          slotCont.appendChild(pill);
         });
-        slotCont.innerHTML = slotHtml;
       }
     }
 
