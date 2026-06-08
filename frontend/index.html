@@ -839,7 +839,12 @@
     /* In modalità QR nascondiamo lo screensaver: il device è personale, non condiviso */
     html.qr-mode #screensaver { display: none !important; }
 
-    /* Banner top informativo per chi accede dal QR */
+    /* Banner top informativo per chi accede dal QR.
+       FIX 2026-06-09: era position:sticky dentro body flex column con align-items:
+       center → il banner si stringeva sulla larghezza del contenuto e appariva
+       decentrato sopra la card. Soluzione: align-self:stretch + width:100% per
+       rispettare la larghezza del body (incluso padding), no sticky (non serve in
+       UX kiosk e creava conflitti visivi sullo scroll della lista ospiti). */
     .qr-banner {
       display: none;
       background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
@@ -850,9 +855,11 @@
       font-size: 14px;
       letter-spacing: 0.3px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-      position: sticky;
-      top: 0;
-      z-index: 50;
+      width: 100%;
+      box-sizing: border-box;
+      align-self: stretch;
+      border-radius: 12px;
+      margin-bottom: 18px;
     }
     .qr-banner small { display: block; font-weight: 500; opacity: 0.9; font-size: 12px; margin-top: 3px; }
     html.qr-mode .qr-banner { display: block; }
