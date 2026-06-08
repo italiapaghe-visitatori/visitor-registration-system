@@ -45,7 +45,14 @@ const CONFIG = {
     }
   },
   
-  // ===== MOTIVI VISITA (Alphabetical order + extra coerenti) =====
+  // ===== MOTIVI VISITA =====
+  // Solo voci generiche/atemporali. Gli eventi specifici (Corso, Formazione,
+  // Team Building, ecc.) sono caricati DINAMICAMENTE dal DB events e prependati
+  // al dropdown via loadEventsForReasonDropdown in index.html. Cosi' creare un
+  // nuovo evento in admin lo rende automaticamente disponibile come motivo
+  // visita, senza editare questo file. Pulizia 2026-06-09: rimossi "Team
+  // Building DVI CL 1e 10" e "Formazione Direzione Marketing" che erano
+  // hardcoded e duplicavano la lista dinamica.
   visitReasons: [
     { value: '', label: 'Seleziona...' },
     { value: 'Appuntamento di lavoro', label: 'Appuntamento di lavoro' },
@@ -53,8 +60,6 @@ const CONFIG = {
     { value: 'Consegna documenti', label: 'Consegna documenti' },
     { value: 'Corso di formazione in aula', label: 'Corso di formazione in aula' },
     { value: 'Fornitore', label: 'Fornitore' },
-    { value: 'Team Building DVI CL 1e 10', label: 'Team Building DVI CL 1e 10' },
-    { value: 'Formazione Direzione Marketing', label: 'Formazione Direzione Marketing' },
     { value: 'Incontro di lavoro', label: 'Incontro di lavoro' },
     { value: 'Intervista di lavoro', label: 'Intervista di lavoro' },
     { value: 'Manutenzione/assistenza tecnica', label: 'Manutenzione/assistenza tecnica' },
