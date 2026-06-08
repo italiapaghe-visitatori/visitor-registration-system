@@ -1558,8 +1558,17 @@
         opt.textContent = r.label;
         sel.appendChild(opt);
       });
-      // Async (no await per non bloccare il render iniziale del form)
-      loadEventsForReasonDropdown(sel).catch(_ => {});
+      // Async (no await per non bloccare il render iniziale del form).
+      // Log esplicito errori invece di catch muto (per debug). Retry dopo
+      // 1.5s come safety net se la prima chiamata fallisce per race condition
+      // di rete (la funzione e' idempotente: rimuove optgroup precedente).
+      loadEventsForReasonDropdown(sel).catch(err => console.warn('[Visit reasons] errore boot:', err));
+      setTimeout(() => {
+        if (!sel.querySelector('optgroup[data-source="events-db"]')) {
+          console.log('[Visit reasons] retry: optgroup mancante dopo 1.5s, riprovo');
+          loadEventsForReasonDropdown(sel).catch(err => console.warn('[Visit reasons] errore retry:', err));
+        }
+      }, 1500);
 
       // Document types
       const docSel = document.getElementById('document_type');
@@ -2223,6 +2232,10 @@
     // gli eventi creati in admin, no edit manuale config.
     async function loadEventsForReasonDropdown(selectEl) {
       try {
+        // Idempotente: rimuovi optgroup precedente (se esiste) prima di aggiungerne uno nuovo.
+        // Permette retry sicuro senza duplicare gruppi.
+        selectEl.querySelectorAll('optgroup[data-source="events-db"]').forEach(g => g.remove());
+
         const todayIso = new Date().toLocaleDateString('en-CA');
         const url = `${SUPABASE_URL}/rest/v1/events`
           + `?or=(is_active.eq.true,and(closed_at.is.null,event_end_date.gte.${todayIso}))`
@@ -2231,23 +2244,30 @@
         const res = await fetch(url, {
           headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          console.warn('[Visit reasons] HTTP', res.status, 'da Supabase events');
+          return;
+        }
         const events = await res.json();
-        if (!events || !events.length) return;
+        if (!events || !events.length) {
+          console.log('[Visit reasons] nessun evento attivo/futuro');
+          return;
+        }
 
-        // Filtra fuori eventi chiusi (per sicurezza, anche se la query gia' lo fa)
         const open = events.filter(e => !e.closed_at);
-        if (!open.length) return;
+        if (!open.length) {
+          console.log('[Visit reasons] tutti gli eventi sono chiusi');
+          return;
+        }
 
-        // Costruisce optgroup
+        // optgroup con marker data-source per identificazione idempotente
         const group = document.createElement('optgroup');
         group.label = '🗓️ Eventi (clicca quello pertinente)';
+        group.setAttribute('data-source', 'events-db');
 
         let activeEventName = null;
         open.forEach(ev => {
           const opt = document.createElement('option');
-          // Il valore salvato in visit_reason e' il nome dell'evento. Compatibile
-          // col dataset esistente (visit_reason e' text libero).
           opt.value = ev.name;
           const dStart = ev.event_start_date.split('-').reverse().join('/');
           const dEnd = ev.event_end_date.split('-').reverse().join('/');
@@ -2260,18 +2280,19 @@
           if (ev.is_active && !activeEventName) activeEventName = ev.name;
         });
 
-        // Inserisci optgroup IN CIMA al select (prima del primo elemento esistente)
         if (selectEl.firstChild) {
           selectEl.insertBefore(group, selectEl.firstChild);
         } else {
           selectEl.appendChild(group);
         }
 
-        // Preseleziona evento attivo se presente (default smart per la reception)
         if (activeEventName) {
           selectEl.value = activeEventName;
         }
-      } catch (_) { /* fail silent: dropdown continua a funzionare coi reasons statici */ }
+        console.log('[Visit reasons] optgroup aggiunto con', open.length, 'eventi. Attivo:', activeEventName || '(nessuno)');
+      } catch (e) {
+        console.warn('[Visit reasons] errore caricamento:', e);
+      }
     }
 
     // Adatta i testi del kiosk in base a event_type dell'evento attivo.
