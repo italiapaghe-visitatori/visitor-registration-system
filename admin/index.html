@@ -1822,6 +1822,75 @@
     .gate-toast .gate-toast-title { font-weight: 700; margin-bottom: 3px; }
     .gate-toast .gate-toast-detail { font-size: 11.5px; opacity: 0.85; font-weight: 500; }
 
+    /* ── Filtri rapidi a pillole (Ospiti Attesi: per giorno + turno) ──
+       Risolve confusione lista eventi multi-giornata (es. Corso Primo Soccorso
+       9-19/06): clicco "9 giugno" e vedo SOLO gli 11 di domani. Click su pillola
+       attiva = rimuove filtro (torna a "Tutti").
+    */
+    .guest-filters-bar {
+      margin: 10px 0 12px 0;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+      border-radius: 10px;
+      border-left: 5px solid #ed8936;
+      box-shadow: 0 1px 4px rgba(237,137,54,0.18);
+    }
+    .guest-filters-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 2px 0;
+    }
+    .guest-filters-label {
+      font-weight: 800;
+      font-size: 13px;
+      color: #7c2d12;
+      min-width: 80px;
+    }
+    .guest-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .guest-pill {
+      background: #fff;
+      color: #7c2d12;
+      border: 1.5px solid #fdba74;
+      border-radius: 16px;
+      padding: 5px 12px;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.18s;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .guest-pill:hover {
+      background: #fff7ed;
+      border-color: #ed8936;
+      transform: translateY(-1px);
+    }
+    .guest-pill.active {
+      background: linear-gradient(135deg, #ed8936 0%, #c05621 100%);
+      color: #fff;
+      border-color: #c05621;
+      box-shadow: 0 2px 8px rgba(237,137,54,0.5);
+    }
+    .guest-pill .pill-count {
+      display: inline-block;
+      margin-left: 4px;
+      padding: 1px 6px;
+      background: rgba(0,0,0,0.08);
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .guest-pill.active .pill-count {
+      background: rgba(255,255,255,0.25);
+      color: #fff;
+    }
+
     /* Gate Bar header (above stats in Ospiti Attesi) */
     .gate-bar {
       display: flex;
@@ -3428,6 +3497,21 @@
         </span>
       </div>
 
+      <!-- FILTRI RAPIDI: pillole per giorno + per turno orario.
+           Si auto-popolano in base ai dati caricati: solo le date/turni effettivamente
+           presenti negli ospiti dell'evento attivo compaiono come pillola. Click toggle:
+           click su pillola attiva = rimuove filtro (torna a "Tutti"). -->
+      <div class="guest-filters-bar" id="guest-filters-bar" style="display:none">
+        <div class="guest-filters-row">
+          <span class="guest-filters-label">📅 Giorno</span>
+          <div class="guest-pills" id="guest-day-pills"></div>
+        </div>
+        <div class="guest-filters-row" id="guest-slot-row" style="display:none">
+          <span class="guest-filters-label">🕐 Turno</span>
+          <div class="guest-pills" id="guest-slot-pills"></div>
+        </div>
+      </div>
+
       <div class="table-wrap">
         <div id="guest-table-status" class="table-status">Caricamento ospiti...</div>
         <div class="table-scroll table-hidden" id="guest-table-container">
@@ -3993,7 +4077,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-06b · gate-open + voice + storico</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-08 · filtri giorno+turno Ospiti Attesi</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -6396,6 +6480,110 @@
       if (inp) inp.focus();
     }
 
+    // ── FILTRI RAPIDI per giorno e turno (Ospiti Attesi) ──
+    // Risolve UX evento multi-giornata (es. Corso Primo Soccorso 9-19/06):
+    // pillole auto-popolate da expected_date e da notes (Mattina/Pomeriggio/Giornata).
+    let guestDayFilter = null;       // null = "Tutti" | "2026-06-09" | etc.
+    let guestSlotFilter = null;      // null = "Tutti" | "mattina" | "pomeriggio" | "giornata"
+
+    function setGuestDayFilter(date) {
+      guestDayFilter = (guestDayFilter === date) ? null : date;  // click toggle
+      renderGuestFilters();
+      renderGuestTable(guestData, arrivedSet);
+    }
+    function setGuestSlotFilter(slot) {
+      guestSlotFilter = (guestSlotFilter === slot) ? null : slot;
+      renderGuestFilters();
+      renderGuestTable(guestData, arrivedSet);
+    }
+
+    function _detectSlot(notes) {
+      // Categorizza il turno in base a 'notes' (label normalizzate via SQL).
+      // Fallback: stringa contiene "Mattina" / "Pomeriggio" / "Giornata".
+      if (!notes) return null;
+      const n = notes.toLowerCase();
+      if (n.includes('giornata')) return 'giornata';
+      if (n.includes('mattina'))  return 'mattina';
+      if (n.includes('pomeriggio')) return 'pomeriggio';
+      return null;
+    }
+
+    function _fmtItDateShort(iso) {
+      if (!iso) return '';
+      try {
+        const d = new Date(iso + 'T00:00:00');
+        const dayNames = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+        const monthNames = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+        return `${dayNames[d.getDay()]} ${d.getDate()} ${monthNames[d.getMonth()]}`;
+      } catch (_) { return iso; }
+    }
+
+    function renderGuestFilters() {
+      const bar = document.getElementById('guest-filters-bar');
+      const dayCont = document.getElementById('guest-day-pills');
+      const slotCont = document.getElementById('guest-slot-pills');
+      const slotRow = document.getElementById('guest-slot-row');
+      if (!bar || !dayCont || !slotCont) return;
+
+      const data = Array.isArray(guestData) ? guestData : [];
+      // Base data per il count: rispetta showArrived (non mostra arrivati se filtrato)
+      const baseData = showArrived ? data : data.filter(g => !arrivedSet.has(g.id));
+
+      // Pillole giorno: ordinate per data crescente
+      const byDay = new Map();
+      baseData.forEach(g => {
+        const d = g.expected_date || null;
+        if (!d) return;
+        byDay.set(d, (byDay.get(d) || 0) + 1);
+      });
+      const days = [...byDay.keys()].sort();
+
+      // Mostra il filtro SOLO se ci sono almeno 2 date diverse (sennò inutile)
+      if (days.length < 2) {
+        bar.style.display = 'none';
+        return;
+      }
+      bar.style.display = '';
+
+      const totale = baseData.length;
+      let dayHtml = `<span class="guest-pill ${!guestDayFilter ? 'active' : ''}" onclick="setGuestDayFilter(null)">Tutti <span class="pill-count">${totale}</span></span>`;
+      days.forEach(d => {
+        const lbl = _fmtItDateShort(d);
+        const n = byDay.get(d) || 0;
+        const active = guestDayFilter === d;
+        dayHtml += `<span class="guest-pill ${active ? 'active' : ''}" onclick="setGuestDayFilter('${d}')">${esc(lbl)} <span class="pill-count">${n}</span></span>`;
+      });
+      dayCont.innerHTML = dayHtml;
+
+      // Pillole turno: rispetto al filtro giorno corrente
+      const filtered = guestDayFilter ? baseData.filter(g => g.expected_date === guestDayFilter) : baseData;
+      const bySlot = new Map();
+      filtered.forEach(g => {
+        const s = _detectSlot(g.notes);
+        if (s) bySlot.set(s, (bySlot.get(s) || 0) + 1);
+      });
+
+      if (bySlot.size < 2) {
+        // Mostra pillole turno solo se c'e' varieta'
+        slotRow.style.display = 'none';
+      } else {
+        slotRow.style.display = '';
+        const slotsOrder = [
+          { key: 'mattina',    label: '🌅 Mattina' },
+          { key: 'giornata',   label: '🟢 Giornata' },
+          { key: 'pomeriggio', label: '🌇 Pomeriggio' },
+        ];
+        let slotHtml = `<span class="guest-pill ${!guestSlotFilter ? 'active' : ''}" onclick="setGuestSlotFilter(null)">Tutti <span class="pill-count">${filtered.length}</span></span>`;
+        slotsOrder.forEach(s => {
+          const n = bySlot.get(s.key) || 0;
+          if (n === 0) return;
+          const active = guestSlotFilter === s.key;
+          slotHtml += `<span class="guest-pill ${active ? 'active' : ''}" onclick="setGuestSlotFilter('${s.key}')">${s.label} <span class="pill-count">${n}</span></span>`;
+        });
+        slotCont.innerHTML = slotHtml;
+      }
+    }
+
     function toggleArrivedFilter() {
       showArrived = !showArrived;
       const btn = document.getElementById('btn-toggle-arrived');
@@ -8308,7 +8496,20 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
     // audit log per consultazione di registrazioni precedenti.
 
     function renderGuestTable(data, arrivedSet) {
+      // Aggiorna le pillole filtri (auto-popolate dai dati)
+      try { renderGuestFilters(); } catch (_) {}
+
       let visible = showArrived ? data : data.filter(g => !arrivedSet.has(g.id));
+
+      // Filtro giorno (pillole data)
+      if (guestDayFilter) {
+        visible = visible.filter(g => g.expected_date === guestDayFilter);
+      }
+
+      // Filtro turno (pillole orario)
+      if (guestSlotFilter) {
+        visible = visible.filter(g => _detectSlot(g.notes) === guestSlotFilter);
+      }
 
       // Filtro ricerca: match su nome, cognome, email, azienda (case-insensitive)
       if (guestSearchTerm) {
@@ -8322,9 +8523,17 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       }
 
       if (visible.length === 0) {
-        const msg = guestSearchTerm
-          ? `Nessun ospite corrisponde a "${guestSearchTerm}"`
-          : (showArrived ? 'Nessun ospite in lista.' : 'Tutti gli ospiti sono già arrivati.');
+        let msg;
+        if (guestSearchTerm) {
+          msg = `Nessun ospite corrisponde a "${guestSearchTerm}"`;
+        } else if (guestDayFilter || guestSlotFilter) {
+          const filtParts = [];
+          if (guestDayFilter) filtParts.push(_fmtItDateShort(guestDayFilter));
+          if (guestSlotFilter) filtParts.push(guestSlotFilter);
+          msg = `Nessun ospite per i filtri attivi (${filtParts.join(' · ')}). Click "Tutti" per resettare.`;
+        } else {
+          msg = (showArrived ? 'Nessun ospite in lista.' : 'Tutti gli ospiti sono già arrivati.');
+        }
         document.getElementById('guest-table-status').textContent = msg;
         document.getElementById('guest-table-status').style.display = 'block';
         document.getElementById('guest-table-container').classList.add('table-hidden');
