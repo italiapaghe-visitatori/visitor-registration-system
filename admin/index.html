@@ -4077,7 +4077,7 @@
     <img src="../assets/logo-ag.png" alt="AG" onerror="this.style.display='none'">
     <span class="dev-name">Antonio Gelormini</span>
     <span class="sep">|</span>
-    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-08c · QR bulk rispetta filtri</span>
+    <span class="dev-name" style="font-size:11px;color:#a0aec0">build 2026-06-08d · stats solo evento attivo</span>
   </footer>
 
   <script src="../frontend/config.js"></script>
@@ -6717,18 +6717,25 @@
         if (!res.ok) throw new Error(`Errore ${res.status}`);
         let rawGuestData = await res.json();
 
-        // Filtro evento chiuso: nascondi ospiti collegati a eventi gia chiusi.
-        // Gli ospiti con event_id=NULL (non collegati a un evento) restano visibili.
-        // Why: dopo la chiusura di un evento, la guest_list deve diventare read-only/nascosta
-        // per evitare azioni (Firma, Pre-assegna, Rimuovi) su contesti non piu attivi.
-        try {
-          const evRes = await api(`${SUPABASE_URL}/rest/v1/events?select=id&closed_at=not.is.null`);
-          const evData = evRes?.ok ? await evRes.json() : [];
-          const closedIds = new Set(evData.map(e => e.id));
-          if (closedIds.size > 0) {
-            rawGuestData = rawGuestData.filter(g => !g.event_id || !closedIds.has(g.event_id));
-          }
-        } catch (_) { /* best-effort: se fallisce mostro tutti */ }
+        // FIX 2026-06-08: filtra guestData per evento ATTIVO. Prima il sistema mostrava
+        // gli ospiti di tutti gli eventi non chiusi mescolati (es. PS 64 + DM 38 = 102),
+        // confondendo le stat cards e il count "Firmati" (che includeva firme di altri
+        // eventi). Adesso se c'e' un evento attivo, vediamo SOLO i suoi ospiti.
+        // Fallback (no evento attivo): mantieni il filtro "non chiusi" come prima.
+        if (activeEvent && activeEvent.id) {
+          rawGuestData = rawGuestData.filter(g => g.event_id === activeEvent.id);
+        } else {
+          // Filtro evento chiuso: nascondi ospiti collegati a eventi gia chiusi.
+          // Gli ospiti con event_id=NULL (non collegati a un evento) restano visibili.
+          try {
+            const evRes = await api(`${SUPABASE_URL}/rest/v1/events?select=id&closed_at=not.is.null`);
+            const evData = evRes?.ok ? await evRes.json() : [];
+            const closedIds = new Set(evData.map(e => e.id));
+            if (closedIds.size > 0) {
+              rawGuestData = rawGuestData.filter(g => !g.event_id || !closedIds.has(g.event_id));
+            }
+          } catch (_) { /* best-effort: se fallisce mostro tutti */ }
+        }
 
         guestData = rawGuestData;
 
