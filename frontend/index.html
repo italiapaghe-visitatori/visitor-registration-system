@@ -1931,13 +1931,18 @@
       return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     }
 
-    function checkQrValidity(event) {
+    function checkQrValidity(event, isPersonalQr) {
       // Ritorna { valid: bool, reason: string, message: string }
+      // FIX 2026-06-08: i QR PERSONALI (nominali, link inviato per email all'ospite)
+      // saltano il check "too_early". Razionale: la referente vuole pre-firmare gli
+      // ospiti DA CASA nei giorni precedenti l'evento, e il check sulla event_start_date
+      // bloccava la pre-firma. I QR generici (kiosk reception) mantengono il check
+      // per evitare firme accidentali fuori dalla finestra dell'evento.
       if (!event) return { valid: false, reason: 'not_found', message: 'Evento non trovato. Richiedi un QR aggiornato alla reception.' };
       const today = isoToday();
       const validFrom = event.qr_valid_from || event.event_start_date || null;
       const validTo   = event.event_end_date || event.event_start_date;
-      if (validFrom && today < validFrom) {
+      if (!isPersonalQr && validFrom && today < validFrom) {
         return { valid: false, reason: 'too_early', message: `Il QR sarà attivo dal ${formatItDate(validFrom)}. Riprova in quella data.` };
       }
       if (validTo && today > validTo) {
@@ -2193,8 +2198,8 @@
         CURRENT_EVENT = await loadEventForQr();
         // 3. Lock-out localStorage: se questo device ha già firmato, mostra schermata con info evento
         if (lockoutCheckLocalStorage()) return;
-        // 4. Valida range date evento
-        const validity = checkQrValidity(CURRENT_EVENT);
+        // 4. Valida range date evento (skip too_early per QR nominali con guest_id)
+        const validity = checkQrValidity(CURRENT_EVENT, !!QR_GUEST_ID);
         if (!validity.valid) {
           showQrInvalidScreen(validity.reason, validity.message);
           return;
