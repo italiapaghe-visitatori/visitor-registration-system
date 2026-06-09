@@ -6089,8 +6089,12 @@
     // silent=true: chiamato da auto-refresh ogni 10s. Non mostra "Caricamento..." (che farebbe
     // sparire la tabella e scattare un riflow), preserva scrollY della pagina e scrollTop
     // del contenitore tabella così l'utente non vede saltare la pagina.
-    async function loadData(silent = false) {
-      if (currentView !== 'visitors') return;
+    async function loadData(silent = false, force = false) {
+      // FIX 2026-06-09 sera: `force` bypassa il guard della view. Serve per
+      // l'ordinamento dalla "Panoramica visitatori" mostrata in fondo alle
+      // altre tab: il click sull'header chiamava sortBy → loadData che usciva
+      // subito (currentView != 'visitors') e la tabella non si riordinava mai.
+      if (currentView !== 'visitors' && !force) return;
       if (!silent) setTableStatus('Caricamento dati...');
       hideError();
       const sx = window.scrollX, sy = window.scrollY;
@@ -6376,7 +6380,9 @@
       sortDir = (sortCol === col && sortDir === 'asc') ? 'desc' : 'asc';
       sortCol = col;
       currentPage = 0;
-      loadData();
+      // force=true: l'ordinamento deve funzionare anche dalla Panoramica
+      // (tabella visitors mostrata in fondo alle altre tab).
+      loadData(false, true);
     }
 
     // Sorting client-side per Ospiti Attesi (lavora sull'array già caricato in guestData)
