@@ -2079,6 +2079,31 @@
       background: rgba(255,255,255,0.25);
       color: #fff;
     }
+    /* Pillola "oggi": evidenziata con bordo blu sottile + label OGGI prima
+       del nome del giorno. Resta cliccabile come le altre. */
+    .guest-pill.is-today {
+      border-color: #4299e1;
+      box-shadow: 0 0 0 1.5px rgba(66,153,225,0.35);
+      position: relative;
+    }
+    .guest-pill.is-today::before {
+      content: 'OGGI · ';
+      color: #2b6cb0;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+    }
+    .guest-pill.is-today.active::before { color: #fff; }
+    /* Pillola "completata" (tutti firmati, 0 da arrivare in modalita' "da arrivare"):
+       count in verde con ✓ per indicare che la giornata e' chiusa. */
+    .guest-pill.is-completed .pill-count {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+    .guest-pill.is-completed.active .pill-count {
+      background: rgba(255,255,255,0.95);
+      color: #22543d;
+    }
 
     /* Gate Bar header (above stats in Ospiti Attesi) */
     .gate-bar {
@@ -6943,18 +6968,47 @@
       allPill.addEventListener('click', () => setGuestDayFilter(null));
       dayCont.appendChild(allPill);
 
+      // FIX 2026-06-10: mostra TUTTE le giornate dell'evento, anche quando
+       // il count "da arrivare" e' 0. Per giornate completate (tutti firmati)
+       // mostriamo "✓ N" in verde. Cosi' resta visibile il giorno di oggi
+       // anche dopo che tutti gli ospiti hanno firmato.
+      const todayIso = todayLocalIso();
+      const dashByDateLocal = (window._eventDashboardLast || {}).by_date || null;
       days.forEach(d => {
         if (!_isValidIsoDate(d)) return;     // defense in depth
         const lbl = _fmtItDateShort(d);
-        const n = countForDate(d);
-        if (n === 0 && !showArrived) return; // niente pillola vuota in modalita' "da arrivare"
+        const waiting = countForDate(d);  // in modalita' "da arrivare" e' il count da_arrivare
+        const dayInfo = dashByDateLocal ? dashByDateLocal[d] : null;
+        const total  = dayInfo ? (dayInfo.total  || 0) : 0;
+        const signed = dayInfo ? (dayInfo.signed || 0) : 0;
+        // Salta SOLO se la giornata non esiste proprio (total=0)
+        if (total === 0) return;
+
         const pill = document.createElement('span');
-        pill.className = 'guest-pill' + (guestDayFilter === d ? ' active' : '');
+        const isToday = d === todayIso;
+        const isCompleted = !showArrived && waiting === 0 && signed > 0;
+        pill.className = 'guest-pill'
+          + (guestDayFilter === d ? ' active' : '')
+          + (isToday ? ' is-today' : '')
+          + (isCompleted ? ' is-completed' : '');
         pill.dataset.date = d;
+        pill.title = isToday
+          ? `Oggi (${lbl}): ${signed} firmati su ${total} attesi`
+          : `${lbl}: ${signed} firmati su ${total} attesi`;
         pill.appendChild(document.createTextNode(lbl + ' '));
         const cnt = document.createElement('span');
         cnt.className = 'pill-count';
-        cnt.textContent = String(n);
+        // Label intelligente:
+        // - showArrived ON: mostra sempre il totale
+        // - showArrived OFF + tutti firmati: "✓ N" (in verde) per indicare completato
+        // - showArrived OFF altrimenti: count da_arrivare normale
+        if (showArrived) {
+          cnt.textContent = String(total);
+        } else if (isCompleted) {
+          cnt.textContent = '✓ ' + signed;
+        } else {
+          cnt.textContent = String(waiting);
+        }
         pill.appendChild(cnt);
         pill.addEventListener('click', () => setGuestDayFilter(pill.dataset.date));
         dayCont.appendChild(pill);
