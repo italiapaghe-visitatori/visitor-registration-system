@@ -3807,6 +3807,9 @@
         <span id="email-queue-status" class="agent-status" style="display:none" title="Email QR in coda">
           <span id="email-queue-text">📧 0</span>
         </span>
+        <span id="net-status" class="agent-status" style="display:none" title="Connessione del dispositivo">
+          <span class="dot"></span><span id="net-status-text">Offline</span>
+        </span>
         <button type="button" class="btn btn-light" onclick="openUsersModal()" title="Gestione operatori admin: lista, invito via email, reset password">👤 Operatori</button>
         <button type="button" class="btn btn-light" onclick="exportCSV()" title="Esporta CSV visitatori">📊 CSV</button>
         <button type="button" class="btn btn-light" onclick="refreshCurrentView()" title="Ricarica dati della tab attiva">🔄</button>
@@ -7168,6 +7171,58 @@
       detailsCurrentId = null;
     }
 
+    // ── INDICATORE CONNESSIONE DISPOSITIVO (navigator.onLine) ──
+    // Sulle reti WiFi degli eventi capita di perdere connettivita': se il tablet
+    // e' offline le azioni (firma, entra, ecc.) non vengono salvate. Mostriamo
+    // un pill + banner rosso fisso cosi' l'operatrice non clicca a vuoto.
+    function _updateNetStatus() {
+      const online = navigator.onLine;
+      const pill = document.getElementById('net-status');
+      const txt  = document.getElementById('net-status-text');
+      let banner = document.getElementById('net-offline-banner');
+      if (online) {
+        if (pill) pill.style.display = 'none';
+        if (banner) banner.remove();
+      } else {
+        if (pill) { pill.style.display = ''; pill.className = 'agent-status err'; }
+        if (txt) txt.textContent = 'Dispositivo OFFLINE';
+        if (!banner) {
+          banner = document.createElement('div');
+          banner.id = 'net-offline-banner';
+          banner.setAttribute('role', 'alert');
+          banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(135deg,#e53e3e,#c53030);color:#fff;text-align:center;padding:10px 16px;font-weight:800;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,0.3)';
+          banner.textContent = '⚠️ CONNESSIONE ASSENTE — le azioni NON vengono salvate. Attendi il ritorno della rete prima di registrare ingressi/firme.';
+          document.body.appendChild(banner);
+        }
+      }
+    }
+    window.addEventListener('online',  _updateNetStatus);
+    window.addEventListener('offline', _updateNetStatus);
+    _updateNetStatus();
+
+    // ── SCORCIATOIE TASTIERA GLOBALI (velocita' al desk) ──
+    //   "/"  → focus sul campo ricerca ospite (se nessun input gia' attivo)
+    //   ESC  → chiude la modale aperta; se nessuna modale, pulisce ricerca/filtri
+    document.addEventListener('keydown', e => {
+      const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+      const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable);
+      // "/" focus ricerca — solo se non si sta gia' scrivendo
+      if (e.key === '/' && !typing) {
+        const inp = document.getElementById('guest-search-input');
+        if (inp) { e.preventDefault(); inp.focus(); }
+        return;
+      }
+      if (e.key === 'Escape') {
+        const openModal = document.querySelector('.modal-overlay.active');
+        if (openModal) { closeModal(); return; }
+        // Nessuna modale: se sto scrivendo nella ricerca, la pulisco
+        if (e.target && e.target.id === 'guest-search-input') {
+          if (typeof clearGuestSearch === 'function') clearGuestSearch();
+          else { e.target.value = ''; e.target.blur(); }
+        }
+      }
+    });
+
     // Chiusura modale su click fuori: deve essere un click "pulito" sull'overlay,
     // NON un mouseup arrivato sull'overlay dopo che il mousedown era partito DENTRO
     // la modale (capita selezionando testo o trascinando fuori involontariamente).
@@ -7232,7 +7287,9 @@
     // ── RICERCA OSPITE (filtro client-side su nome/cognome/email/azienda) ──
     let guestSearchTerm = '';
     function onGuestSearchInput(val) {
-      guestSearchTerm = (val || '').toLowerCase().trim();
+      // Normalizzazione accent/punteggiatura-insensitive (riusa _voiceNormalize):
+      // "dalonzo" trova "D'ALONZO", "locane" trova "LO CANE", "dalo" trova "D'Alò".
+      guestSearchTerm = _voiceNormalize(val || '');
       const clearBtn = document.getElementById('guest-search-clear');
       if (clearBtn) clearBtn.style.display = guestSearchTerm ? '' : 'none';
       renderGuestTable(guestData, arrivedSet);
@@ -10475,13 +10532,14 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         visible = visible.filter(g => _detectSlot(g.notes) === guestSlotFilter);
       }
 
-      // Filtro ricerca: match su nome, cognome, email, azienda (case-insensitive)
+      // Filtro ricerca: match accent/punteggiatura-insensitive su nome, cognome,
+      // email, azienda. guestSearchTerm e' gia' normalizzato in onGuestSearchInput.
       if (guestSearchTerm) {
         visible = visible.filter(g => {
-          const blob = [
+          const blob = _voiceNormalize([
             g.first_name || '', g.last_name || '',
             g.email || '', g.company || ''
-          ].join(' ').toLowerCase();
+          ].join(' '));
           return blob.includes(guestSearchTerm);
         });
       }
@@ -10708,6 +10766,33 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           // Errore query: non bloccare (il check è soft, opzionale)
         }
       }
+
+      // Alert OMONIMO: stesso nome+cognome gia' presente OGGI nell'evento attivo
+      // (in memoria, no query extra). Previene doppie registrazioni / badge
+      // duplicati (problema visto agli eventi MD). Non bloccante.
+      try {
+        const nameNorm = _voiceNormalize(`${ln} ${fn}`);
+        const todayIso = todayLocalIso();
+        const omonimi = (Array.isArray(guestData) ? guestData : []).filter(g => {
+          if (!activeEvent || g.event_id !== activeEvent.id) return false;
+          if (g.expected_date && g.expected_date !== todayIso) return false;
+          return _voiceNormalize(`${g.last_name || ''} ${g.first_name || ''}`) === nameNorm;
+        });
+        if (omonimi.length > 0) {
+          const stato = omonimi.some(g => arrivedSet.has(g.id)) ? 'risulta GIA\' ARRIVATO/firmato' : 'e\' gia\' in lista';
+          const proceed2 = confirm(
+            `⚠️ "${fn} ${ln}" ${stato} oggi in questo evento.\n\n`
+            + `Verifica che non sia un doppione prima di aggiungerlo.\n\n`
+            + `OK per aggiungere comunque, Annulla per fermarti.`
+          );
+          if (!proceed2) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Aggiungi ospite';
+            return;
+          }
+          try { auditLog('duplicate_name_confirmed', 'guest_list', null, { name: `${fn} ${ln}`, existing: omonimi.length }); } catch (_) {}
+        }
+      } catch (_) { /* soft check, non bloccare */ }
 
       const attachToEvent = document.getElementById('ag-attach-event')?.checked;
       const payload = {
