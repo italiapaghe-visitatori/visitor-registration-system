@@ -1979,6 +1979,14 @@
     body.event-type-qr-only #gate-bar {
       display: none !important;
     }
+    /* SPECULARE di .js-badge-only: gli elementi marcati .js-qr-only esistono
+       SOLO in modalita' qr_only (tracking presenze manuale al desk). In
+       modalita' turnstile le presenze le traccia il TORNELLO (entry/exit via
+       agente XAtlas): i bottoni manuali Entra/Esce/bulk creerebbero conflitto
+       e confusione coi dati reali dei varchi. */
+    body.event-type-turnstile .js-qr-only {
+      display: none !important;
+    }
     /* Bottoni Pausa/Rientro — tracking manuale per qr_only (no tornello). */
     .btn-pause {
       background: linear-gradient(135deg, #fff 0%, #f7fafc 100%);
@@ -4060,8 +4068,9 @@
           </div>
         </div>
 
-        <!-- STAZIONE 2: PRESENZE AL DESK (bulk actions per qr_only) -->
-        <div class="toolbar-station station-presenze">
+        <!-- STAZIONE 2: PRESENZE AL DESK — SOLO qr_only (in turnstile le
+             presenze le traccia il tornello, questa stazione sparisce) -->
+        <div class="toolbar-station station-presenze js-qr-only">
           <div class="toolbar-station-header">
             <span class="ts-dot"></span>
             <span class="ts-title">Presenze al desk</span>
@@ -7593,6 +7602,9 @@
     // desk: controllo nominativo/documento → click Entra → tracking presenza
     // con valore probatorio (entry/exit_time + audit_log con operatore).
     function renderVisitorPauseButton(row) {
+      // SOLO qr_only: in turnstile le presenze le scrive il tornello via
+      // agente XAtlas — il tracking manuale confliggerebbe coi dati varchi.
+      if (!document.body.classList.contains('event-type-qr-only')) return '';
       if ((row.xatlas_status || '') === 'checked_out') {
         return '<span class="pause-state-closed" title="Visita conclusa">🏁</span>';
       }
@@ -7646,6 +7658,8 @@
     }
 
     function renderPauseButton(g) {
+      // SOLO qr_only: in turnstile le presenze le scrive il tornello.
+      if (!document.body.classList.contains('event-type-qr-only')) return '';
       if (!g.matched_visitor_id) return '';
       const state = _getVisitorState(g.matched_visitor_id);
       if (state === 'closed') {
