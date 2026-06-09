@@ -1973,6 +1973,27 @@
       display: inline-block; padding: 4px 10px; font-size: 11.5px; font-weight: 700;
       color: #2d3748; background: #edf2f7; border-radius: 7px; margin-right: 4px;
     }
+    /* Bottoni MASSA Pausa/Rientro nella toolbar */
+    .btn-mass-enter {
+      background: linear-gradient(135deg, #48bb78 0%, #2f855a 100%);
+      color: #fff; border: none;
+    }
+    .btn-mass-enter:hover { box-shadow: 0 4px 12px rgba(72,187,120,0.4); }
+    .btn-mass-out {
+      background: linear-gradient(135deg, #ecc94b 0%, #d69e2e 100%);
+      color: #744210; border: none;
+    }
+    .btn-mass-out:hover { box-shadow: 0 4px 12px rgba(214,158,46,0.4); }
+    .btn-mass-back {
+      background: linear-gradient(135deg, #4299e1 0%, #2c5282 100%);
+      color: #fff; border: none;
+    }
+    .btn-mass-back:hover { box-shadow: 0 4px 12px rgba(66,153,225,0.4); }
+    .btn-mass-enter:disabled,
+    .btn-mass-out:disabled,
+    .btn-mass-back:disabled {
+      opacity: 0.45; cursor: not-allowed; box-shadow: none;
+    }
     /* Box multi-giornata (eventi con ospiti su piu' date). */
     .multi-day-box {
       margin: 14px 0;
@@ -3753,6 +3774,12 @@
         <button type="button" class="btn btn-secondary" id="btn-toggle-arrived" onclick="toggleArrivedFilter()" title="Commuta tra mostrare/nascondere gli ospiti che hanno già firmato il QR (signature popolata). Default: nasconde gli arrivati per concentrarsi sui non ancora arrivati.">👁️ Mostra arrivati</button>
 
         <button type="button" class="btn btn-secondary" id="btn-print-guests" onclick="printGuestList()" title="Stampa un elenco cartaceo degli ospiti attesi (rispetta i filtri pillole giorno+turno attivi). Genera una pagina A4 con nome/azienda/mansione/turno/stato firma, ottima da tenere sotto mano al desk.">🖨️ Stampa elenco</button>
+
+        <span class="toolbar-divider"></span>
+        <span class="toolbar-label">Massa</span>
+        <button type="button" class="btn btn-mass-enter" id="btn-mass-enter" onclick="bulkPauseAction('enter')" title="Segna ENTRATA per TUTTI gli ospiti che hanno firmato ma non sono ancora dentro. Usalo all'inizio della giornata quando tutti arrivano insieme. Chiede conferma prima di applicare.">🟢 Entrano tutti</button>
+        <button type="button" class="btn btn-mass-out" id="btn-mass-out" onclick="bulkPauseAction('exit')" title="Segna USCITA per TUTTI gli ospiti dentro adesso (pausa pranzo, intervallo, fine giornata). Chiede conferma prima di applicare.">🍽️ Tutti in pausa</button>
+        <button type="button" class="btn btn-mass-back" id="btn-mass-back" onclick="bulkPauseAction('return')" title="Segna RIENTRO per TUTTI gli ospiti in pausa (rientro dalla pausa pranzo). Chiede conferma prima di applicare.">🔄 Tutti rientrati</button>
 
         <span class="toolbar-divider"></span>
         <span class="toolbar-label">Ospiti</span>
@@ -7209,6 +7236,103 @@
         return '';
       }
       return `<button type="button" class="btn-pause ${cls}" data-id="${esc(g.id)}" data-vid="${esc(g.matched_visitor_id)}" onclick="onPauseClick(this)" title="${esc(title)}">${label}</button>`;
+    }
+
+    // BULK action: pausa/rientro di massa per tutti gli ospiti dell'evento attivo
+    // che sono nello stato compatibile. Rispetta il filtro pillola giorno se attivo.
+    async function bulkPauseAction(action) {
+      if (!activeEvent || !activeEvent.id) {
+        alert('Nessun evento attivo. Avvia un evento dalla tab Eventi.');
+        return;
+      }
+      // Determina filtro: visitor candidati in base a action
+      // Conta sulla _visitorStateMap (gia' caricata da loadGuests)
+      const candidates = [];
+      (Array.isArray(guestData) ? guestData : []).forEach(g => {
+        if (!g.matched_visitor_id) return;
+        // Rispetta filtro giorno se attivo
+        if (guestDayFilter && g.expected_date !== guestDayFilter) return;
+        const state = _getVisitorState(g.matched_visitor_id);
+        if (action === 'enter'  && state === 'never_entered') candidates.push(g);
+        if (action === 'exit'   && state === 'inside')        candidates.push(g);
+        if (action === 'return' && state === 'on_break')      candidates.push(g);
+      });
+
+      const labels = {
+        enter:  { verb: 'segnare ENTRATA',  past: 'entrato',   color: 'verde' },
+        exit:   { verb: 'segnare USCITA',   past: 'in pausa',  color: 'giallo' },
+        return: { verb: 'segnare RIENTRO',  past: 'rientrato', color: 'azzurro' },
+      };
+      const L = labels[action];
+      if (!L) return;
+
+      if (candidates.length === 0) {
+        alert(`Nessun ospite da ${L.verb.toLowerCase()}.\n\n`
+            + (action === 'enter'  ? 'Tutti gli ospiti firmati sono gia\' dentro o usciti.' :
+               action === 'exit'   ? 'Nessuno e\' dentro adesso.' :
+                                     'Nessuno e\' in pausa adesso.'));
+        return;
+      }
+
+      const dayLabel = guestDayFilter ? ` per il ${guestDayFilter.split('-').reverse().join('/')}` : '';
+      const ok = confirm(
+        `Stai per ${L.verb} a ${candidates.length} ospiti${dayLabel}.\n\n`
+        + `Orario corrente verra' salvato nel record di ogni ospite (entry_time/exit_time).\n\n`
+        + `Procedere?`
+      );
+      if (!ok) return;
+
+      // Disabilita i 3 bottoni durante l'operazione
+      ['btn-mass-enter','btn-mass-out','btn-mass-back'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) b.disabled = true;
+      });
+
+      const nowIso = new Date().toISOString();
+      let ok_count = 0, fail = 0;
+      // PATCH parallele (Promise.allSettled per non bloccare in caso di errore singolo)
+      const promises = candidates.map(async g => {
+        let patchBody;
+        if (action === 'enter')  patchBody = { entry_time: nowIso, exit_time: null };
+        if (action === 'exit')   patchBody = { exit_time: nowIso };
+        if (action === 'return') patchBody = { entry_time: nowIso, exit_time: null };
+        try {
+          const res = await api(
+            `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(g.matched_visitor_id)}`,
+            {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+              body: JSON.stringify(patchBody)
+            }
+          );
+          if (res && res.ok) { ok_count++; } else { fail++; }
+        } catch (_) { fail++; }
+      });
+      await Promise.allSettled(promises);
+
+      // Audit log unico per la bulk
+      try {
+        auditLog('manual_bulk_' + action, 'visitor', null, {
+          event_id: activeEvent.id,
+          count: ok_count,
+          failed: fail,
+          day_filter: guestDayFilter || null
+        });
+      } catch (_) {}
+
+      // Riabilita bottoni
+      ['btn-mass-enter','btn-mass-out','btn-mass-back'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) b.disabled = false;
+      });
+
+      if (fail > 0) {
+        alert(`✔ ${ok_count} ospiti aggiornati\n✖ ${fail} errori\n\nProva ad agire singolarmente per quelli falliti.`);
+      } else {
+        alert(`✔ ${ok_count} ospiti ${L.past} con successo.`);
+      }
+      // Refresh dati
+      await loadGuests(true);
     }
 
     async function onPauseClick(btn) {
