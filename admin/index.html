@@ -1978,88 +1978,93 @@
        Layout a stazioni semantiche: ogni gruppo e' una "card" con
        header label proprio. Color coding per dominio funzionale.
        ════════════════════════════════════════════════════════════════ */
+    /* COMPATTA — singola riga orizzontale. Header inline a sinistra come
+       "etichetta verticale", bottoni a destra. Risparmio verticale ~70%
+       rispetto al layout a card. */
     .toolbar-cockpit {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
       align-items: stretch;
       padding: 0;
       background: transparent;
     }
     .toolbar-station {
       display: flex;
-      flex-direction: column;
-      gap: 7px;
-      padding: 9px 12px 11px;
-      border-radius: 14px;
-      background: linear-gradient(180deg, #fafafa 0%, #f5f5f4 100%);
+      flex-direction: row;     /* orizzontale: label + buttons sulla stessa riga */
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px 4px 8px;
+      border-radius: 10px;
+      background: #fff;
       border: 1px solid #e7e5e4;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 1px 2px rgba(0,0,0,0.04);
-      transition: box-shadow 0.18s, transform 0.18s;
+      border-left-width: 3px;  /* striscia verticale colorata identifica la stazione */
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      transition: box-shadow 0.16s;
     }
-    .toolbar-station:hover {
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 4px 14px rgba(0,0,0,0.06);
-    }
+    .toolbar-station:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.07); }
     .toolbar-station-header {
       display: flex;
       align-items: center;
-      gap: 7px;
-      font-size: 10px;
+      gap: 5px;
+      font-size: 9.5px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 1.4px;
+      letter-spacing: 1.1px;
       color: #57534e;
-      padding: 0 2px;
       user-select: none;
+      padding-right: 6px;
+      border-right: 1px solid #e7e5e4;
+      white-space: nowrap;
     }
     .toolbar-station-header .ts-dot {
-      width: 7px; height: 7px; border-radius: 50%;
+      width: 6px; height: 6px; border-radius: 50%;
       background: currentColor;
       opacity: 0.85;
-      box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
     }
     .toolbar-station-buttons {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 5px;
       align-items: center;
     }
 
-    /* Color coding per stazione */
-    .station-vista          { background: linear-gradient(180deg, #fafafa, #f5f5f4); border-color: #e7e5e4; }
+    /* Color coding per stazione: striscia verticale a sx + header label.
+       Background bianco per leggibilita' bottoni; identita' nella bordatura. */
+    .station-vista          { border-left-color: #78716c; }
     .station-vista .toolbar-station-header          { color: #57534e; }
-    .station-presenze       { background: linear-gradient(180deg, #f0fdf4, #ecfdf5); border-color: #bbf7d0; }
+    .station-presenze       { border-left-color: #16a34a; }
     .station-presenze .toolbar-station-header       { color: #15803d; }
-    .station-comunicazione  { background: linear-gradient(180deg, #eff6ff, #dbeafe); border-color: #bfdbfe; }
+    .station-comunicazione  { border-left-color: #2563eb; }
     .station-comunicazione .toolbar-station-header  { color: #1d4ed8; }
-    .station-gestione       { background: linear-gradient(180deg, #faf5ff, #f3e8ff); border-color: #e9d5ff; }
+    .station-gestione       { border-left-color: #8b5cf6; }
     .station-gestione .toolbar-station-header       { color: #7c3aed; }
-    .station-badge          { background: linear-gradient(180deg, #fff7ed, #ffedd5); border-color: #fed7aa; }
+    .station-badge          { border-left-color: #ea580c; }
     .station-badge .toolbar-station-header          { color: #c2410c; }
 
-    /* ── Bottoni cockpit (compatti, uniformi, semantici) ────────── */
+    /* ── Bottoni cockpit (ultra-compatti per fit-in-one-row) ───────── */
     .btn-cockpit {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 7px 12px;
-      border-radius: 9px;
-      font-size: 12.5px;
+      gap: 5px;
+      padding: 4px 9px;
+      border-radius: 7px;
+      font-size: 11.5px;
       font-weight: 600;
-      letter-spacing: 0.1px;
+      letter-spacing: 0.05px;
       cursor: pointer;
       border: 1px solid #d6d3d1;
       background: #fff;
       color: #1c1917;
-      transition: all 0.16s cubic-bezier(0.4,0,0.2,1);
+      transition: all 0.14s cubic-bezier(0.4,0,0.2,1);
       white-space: nowrap;
-      line-height: 1.2;
+      line-height: 1.15;
     }
-    .btn-cockpit:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+    .btn-cockpit:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.08); }
     .btn-cockpit:active { transform: translateY(0); }
     .btn-cockpit:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
     .btn-cockpit:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
-    .btn-cockpit .bc-icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
+    .btn-cockpit .bc-icon { font-size: 12.5px; line-height: 1; flex-shrink: 0; }
     .btn-cockpit .bc-text { font-weight: 600; }
 
     /* Vista */
@@ -2123,32 +2128,32 @@
     }
     .btn-cockpit-badge-soft:hover { background: #fff7ed; border-color: #fdba74; }
 
-    /* Search inline nella stazione Vista */
+    /* Search inline nella stazione Vista - compatto */
     .cockpit-search {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 10px 4px 10px;
+      gap: 5px;
+      padding: 2px 8px;
       background: #fff;
       border: 1px solid #d6d3d1;
-      border-radius: 9px;
-      min-width: 220px;
-      transition: border-color 0.16s, box-shadow 0.16s;
+      border-radius: 7px;
+      min-width: 180px;
+      transition: border-color 0.14s, box-shadow 0.14s;
     }
     .cockpit-search:focus-within {
       border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+      box-shadow: 0 0 0 2px rgba(99,102,241,0.12);
     }
-    .cockpit-search .guest-search-icon { font-size: 13px; opacity: 0.6; }
+    .cockpit-search .guest-search-icon { font-size: 12px; opacity: 0.55; }
     .cockpit-search input[type="search"] {
-      border: none; outline: none; padding: 4px 0;
-      font-size: 12.5px; background: transparent; min-width: 160px;
+      border: none; outline: none; padding: 3px 0;
+      font-size: 11.5px; background: transparent; min-width: 140px;
       color: #1c1917;
     }
     .cockpit-search input[type="search"]::placeholder { color: #a8a29e; }
     .cockpit-search .guest-search-clear {
       border: none; background: transparent; color: #a8a29e;
-      cursor: pointer; font-size: 16px; padding: 0 4px; line-height: 1;
+      cursor: pointer; font-size: 14px; padding: 0 3px; line-height: 1;
     }
     .cockpit-search .guest-search-clear:hover { color: #1c1917; }
 
