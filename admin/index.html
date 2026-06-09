@@ -6799,17 +6799,50 @@
       if (!bar || !dayCont || !slotCont) return;
 
       const data = Array.isArray(guestData) ? guestData : [];
-      // Base data per il count: rispetta showArrived (non mostra arrivati se filtrato)
-      const baseData = showArrived ? data : data.filter(g => !arrivedSet.has(g.id));
 
-      // Pillole giorno: ordinate per data crescente
-      const byDay = new Map();
-      baseData.forEach(g => {
-        const d = g.expected_date || null;
-        if (!_isValidIsoDate(d)) return;     // skip eventuali date malformate (paranoia)
-        byDay.set(d, (byDay.get(d) || 0) + 1);
-      });
-      const days = [...byDay.keys()].sort();
+      // FIX 2026-06-10 (DEFINITIVO): conteggi pillole dalla VIEW server-side
+      // event_dashboard (window._eventDashboardLast). Fallback ai vecchi
+      // calcoli locali se la view non e' ancora caricata o evento non attivo.
+      // Allinea pillole a stat card per coerenza totale (no piu' +1/-1 drift).
+      const dash = window._eventDashboardLast || null;
+      const dashByDate = dash && dash.by_date ? dash.by_date : null;
+      const dashBySlot = dash && dash.by_slot ? dash.by_slot : null;
+      // Funzione conteggio per data: usa view se disponibile, altrimenti loop locale
+      const countForDate = (d) => {
+        if (dashByDate && dashByDate[d]) {
+          const x = dashByDate[d];
+          return showArrived ? (x.total || 0) : (x.waiting || 0);
+        }
+        // Fallback locale
+        return data.filter(g => g.expected_date === d && (showArrived || !arrivedSet.has(g.id))).length;
+      };
+      // Funzione conteggio per slot (rispetta filtro giornata se attivo)
+      const countForSlot = (slotKey) => {
+        // Se c'e' filtro giorno e siamo "tutti i giorni": prende da_arrivare/total da by_slot
+        // della view (che e' sull'intero evento). Quando c'e' filtro giorno preciso,
+        // ricade su loop locale perche' la view non ha by_date+by_slot incrociati.
+        if (!guestDayFilter && dashBySlot && dashBySlot[slotKey]) {
+          const x = dashBySlot[slotKey];
+          return showArrived ? (x.total || 0) : (x.waiting || 0);
+        }
+        const dayFiltered = guestDayFilter ? data.filter(g => g.expected_date === guestDayFilter) : data;
+        const baseFiltered = showArrived ? dayFiltered : dayFiltered.filter(g => !arrivedSet.has(g.id));
+        return baseFiltered.filter(g => _detectSlot(g.notes) === slotKey).length;
+      };
+
+      // Set delle date da mostrare come pillole: usa view se possibile
+      let days = [];
+      if (dashByDate) {
+        days = Object.keys(dashByDate).filter(_isValidIsoDate).sort();
+      } else {
+        const byDayLocal = new Map();
+        data.forEach(g => {
+          const d = g.expected_date || null;
+          if (!_isValidIsoDate(d)) return;
+          byDayLocal.set(d, true);
+        });
+        days = [...byDayLocal.keys()].sort();
+      }
 
       // Mostra il filtro SOLO se ci sono almeno 2 date diverse (sennò inutile)
       if (days.length < 2) {
@@ -6818,14 +6851,12 @@
       }
       bar.style.display = '';
 
-      // FIX 2026-06-10 (Fix #6 audit workflow): label + count espliciti.
-      // - showArrived=false (default): "Da arrivare X / Y" — visibili / totali
-      // - showArrived=true: "Tutti X" — totali assoluti
-      // Risolve ambiguità "Tutti 54" che confondeva con stat card "Totale 67".
-      const totaleVisibili = baseData.length;
-      const totaleAssoluto = data.length;
-      // Costruisco le pillole con createElement per evitare interpolation in attributi
-      // (XSS hardening): textContent + dataset + addEventListener.
+      // Totali per pillola "Tutti / Da arrivare"
+      const totaleAssoluto = dash ? (dash.total_guests || 0) : data.length;
+      const totaleVisibili = showArrived
+        ? totaleAssoluto
+        : (dash ? (dash.waiting || 0) : data.filter(g => !arrivedSet.has(g.id)).length);
+
       dayCont.innerHTML = '';
       const allPill = document.createElement('span');
       allPill.className = 'guest-pill' + (!guestDayFilter ? ' active' : '');
@@ -6843,11 +6874,11 @@
       days.forEach(d => {
         if (!_isValidIsoDate(d)) return;     // defense in depth
         const lbl = _fmtItDateShort(d);
-        const n = byDay.get(d) || 0;
+        const n = countForDate(d);
+        if (n === 0 && !showArrived) return; // niente pillola vuota in modalita' "da arrivare"
         const pill = document.createElement('span');
         pill.className = 'guest-pill' + (guestDayFilter === d ? ' active' : '');
         pill.dataset.date = d;
-        // textContent + nested count span: niente HTML interpolation
         pill.appendChild(document.createTextNode(lbl + ' '));
         const cnt = document.createElement('span');
         cnt.className = 'pill-count';
@@ -6858,46 +6889,39 @@
       });
 
       // Pillole turno: rispetto al filtro giorno corrente
-      const filtered = guestDayFilter ? baseData.filter(g => g.expected_date === guestDayFilter) : baseData;
-      const bySlot = new Map();
-      filtered.forEach(g => {
-        const s = _detectSlot(g.notes);
-        if (s && _VALID_SLOT_KEYS.has(s)) bySlot.set(s, (bySlot.get(s) || 0) + 1);
-      });
+      const slotsOrder = [
+        { key: 'mattina',    label: '🌅 Mattina' },
+        { key: 'giornata',   label: '🟢 Giornata' },
+        { key: 'pomeriggio', label: '🌇 Pomeriggio' },
+      ];
+      const slotCounts = slotsOrder.map(s => ({ ...s, n: countForSlot(s.key) }));
+      const slotTotalVisible = slotCounts.reduce((sum, s) => sum + s.n, 0);
+      const slotsWithData = slotCounts.filter(s => s.n > 0);
 
-      if (bySlot.size < 2) {
-        // Mostra pillole turno solo se c'e' varieta'
+      if (slotsWithData.length < 2) {
         slotRow.style.display = 'none';
       } else {
         slotRow.style.display = '';
-        const slotsOrder = [
-          { key: 'mattina',    label: '🌅 Mattina' },
-          { key: 'giornata',   label: '🟢 Giornata' },
-          { key: 'pomeriggio', label: '🌇 Pomeriggio' },
-        ];
-
         slotCont.innerHTML = '';
         const allSlot = document.createElement('span');
         allSlot.className = 'guest-pill' + (!guestSlotFilter ? ' active' : '');
         allSlot.appendChild(document.createTextNode('Tutti '));
         const allCnt = document.createElement('span');
         allCnt.className = 'pill-count';
-        allCnt.textContent = String(filtered.length);
+        allCnt.textContent = String(slotTotalVisible);
         allSlot.appendChild(allCnt);
         allSlot.addEventListener('click', () => setGuestSlotFilter(null));
         slotCont.appendChild(allSlot);
 
-        slotsOrder.forEach(s => {
+        slotsWithData.forEach(s => {
           if (!_VALID_SLOT_KEYS.has(s.key)) return;   // defense in depth (whitelist)
-          const n = bySlot.get(s.key) || 0;
-          if (n === 0) return;
           const pill = document.createElement('span');
           pill.className = 'guest-pill' + (guestSlotFilter === s.key ? ' active' : '');
           pill.dataset.slot = s.key;
           pill.appendChild(document.createTextNode(s.label + ' '));
           const cnt = document.createElement('span');
           cnt.className = 'pill-count';
-          cnt.textContent = String(n);
+          cnt.textContent = String(s.n);
           pill.appendChild(cnt);
           pill.addEventListener('click', () => setGuestSlotFilter(pill.dataset.slot));
           slotCont.appendChild(pill);
