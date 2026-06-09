@@ -2151,8 +2151,12 @@
         // kiosk mostrava tutti i 64. Operatore al desk il 9/06 deve vedere SOLO gli
         // 11 di oggi per evitare confusione. Decisione titolare 08/06/2026.
         const todayKioskIso = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD locale
+        // FIX 2026-06-09 sera: include anche expected_date NULL. Gli ospiti DM
+        // (import maggio) non hanno data per-ospite (evento 2 giorni, stesso
+        // gruppo) → con eq.oggi sparivano TUTTI dal kiosk e chi doveva ancora
+        // firmare non si trovava in lista. NULL = "qualsiasi giornata evento".
         const guestEventFilter = (typeof CURRENT_EVENT !== 'undefined' && CURRENT_EVENT && CURRENT_EVENT.id)
-          ? `&event_id=eq.${encodeURIComponent(CURRENT_EVENT.id)}&expected_date=eq.${todayKioskIso}`
+          ? `&event_id=eq.${encodeURIComponent(CURRENT_EVENT.id)}&or=(expected_date.eq.${todayKioskIso},expected_date.is.null)`
           : (() => {
               // Fallback no evento: 14 gg di expected_date per non mostrare storico antico
               const cutoff = new Date();

@@ -4058,6 +4058,10 @@
               <span class="bc-icon">🖨️</span>
               <span class="bc-text">Stampa elenco</span>
             </button>
+            <button type="button" class="btn-cockpit btn-cockpit-print" id="btn-print-unsigned" onclick="printGuestList(true)" title="Stampa SOLO gli ospiti che devono ancora firmare/arrivare (rispetta i filtri pillole attivi). Utile al desk per sapere a colpo d'occhio chi manca." aria-label="Stampa solo da firmare">
+              <span class="bc-icon">✍️</span>
+              <span class="bc-text">Stampa da firmare</span>
+            </button>
             <button type="button" class="btn-cockpit btn-cockpit-qr" onclick="openQrModal()" title="Genera QR generico al desk per registrazione self-service" aria-label="Genera QR per il desk">
               <span class="bc-icon">📱</span>
               <span class="bc-text">Genera QR</span>
@@ -7859,7 +7863,7 @@
     // dell'evento attivo, rispettando i filtri pillole (giorno + turno).
     // Il foglio mostra: cognome+nome | azienda | mansione | turno | firma OK/da fare.
     // Adattato a qr_only/turnstile: titolo + colonne pertinenti.
-    function printGuestList() {
+    function printGuestList(onlyUnsigned) {
       if (!activeEvent || !activeEvent.id) {
         alert('Nessun evento attivo. Avvia un evento dalla tab Eventi prima di stampare l\'elenco.');
         return;
@@ -7879,6 +7883,14 @@
           const k = _slotKeyFromNotes(g.notes);
           return k === slotFilter;
         });
+      }
+      // Modalita' "solo da firmare": esclude chi ha gia' firmato (arrivedSet)
+      if (onlyUnsigned) {
+        rows = rows.filter(g => !arrivedSet.has(g.id));
+        if (rows.length === 0) {
+          alert('🎉 Tutti gli ospiti dei filtri attivi hanno gia\' firmato. Niente da stampare.');
+          return;
+        }
       }
       // 2. Ordina per cognome + nome
       rows.sort((a, b) => {
@@ -7965,7 +7977,7 @@
 </head>
 <body>
   <header>
-    <h1>📋 Elenco Ospiti — ${esc(activeEvent.name)}</h1>
+    <h1>${onlyUnsigned ? '✍️ Da firmare' : '📋 Elenco Ospiti'} — ${esc(activeEvent.name)}</h1>
     <div class="meta">
       <span><b>Periodo:</b> ${esc(periodoLabel)}</span>
       <span><b>Filtro turno:</b> ${esc(slotLabel)}</span>
