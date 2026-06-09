@@ -3222,7 +3222,7 @@
       </div>
 
       <div class="modal-actions">
-        <button type="button" class="btn-save" onclick="saveDetails()" title="Salva le modifiche ai dati del visitor (consenso, note, badge, etc.) e chiudi la modale.">Salva e chiudi</button>
+        <button type="button" class="btn-save" onclick="saveDetails()" title="Salva le modifiche ai dati del visitatore e chiudi la modale.">Salva e chiudi</button>
         <button type="button" class="btn-cancel" onclick="closeModal()" title="Chiudi la modale.">Chiudi</button>
       </div>
 
@@ -3436,7 +3436,7 @@
           </select>
           <p style="font-size:11px; color:#718096; margin:6px 0 0;">Oppure digita un numero qualsiasi nel campo qui sotto (anche fuori pool).</p>
         </div>
-        <div class="modal-field">
+        <div class="modal-field js-badge-only">
           <label>Numero badge pre-assegnato</label>
           <input type="text" id="ag-badge-number" placeholder="📡 Appoggia il badge sul lettore HDWR oppure digita le 6 cifre" inputmode="numeric" pattern="\d{3,12}" maxlength="12">
           <div id="ag-badge-scan-status" class="badge-scan-status"></div>
@@ -6313,13 +6313,17 @@
           gTypeHtml += ' <span class="gtype-walkin-tag" title="Aggiunto al banco (non era in lista invitati)">walk-in</span>';
         }
 
+        // qr_only: niente terminologia badge. "Associa badge" nascosto,
+        // "Concludi visita" senza menzione del badge.
+        const _qrOnlyRow = document.body.classList.contains('event-type-qr-only');
         const canAssign = !row.xatlas_status;
-        const assignBtn = canAssign
+        const assignBtn = (canAssign && !_qrOnlyRow)
           ? `<button type="button" class="btn-badge-assign" data-id="${esc(row.id)}" onclick="openBadgeModal(this)" title="Associa badge">🎟️</button>`
           : '';
         const canConclude = row.xatlas_status === 'active' && row.event_id;
+        const concludeTip = _qrOnlyRow ? 'Concludi visita (archivia il visitatore)' : 'Concludi visita (archivia + libera badge)';
         const concludeBtn = canConclude
-          ? `<button type="button" class="btn-icon btn-conclude-icon" data-id="${esc(row.id)}" onclick="concludeVisitor(this)" title="Concludi visita (archivia + libera badge)">⏹</button>`
+          ? `<button type="button" class="btn-icon btn-conclude-icon" data-id="${esc(row.id)}" onclick="concludeVisitor(this)" title="${concludeTip}">⏹</button>`
           : '';
 
         const eventHtml = row.event_name
@@ -10065,7 +10069,9 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         btn.style.background = '#48bb78';
         btn.style.color = '#fff';
         btn.style.minWidth = '90px';
-        btn.title = `Click di nuovo per concludere ${row.first_name} ${row.last_name} (badge ${row.badge_number || '—'})`;
+        btn.title = document.body.classList.contains('event-type-qr-only')
+          ? `Click di nuovo per concludere la visita di ${row.first_name} ${row.last_name}`
+          : `Click di nuovo per concludere ${row.first_name} ${row.last_name} (badge ${row.badge_number || '—'})`;
         // Reset timer: se non clicca entro 4s, torna allo stato iniziale
         const resetTimer = setTimeout(() => {
           btn.dataset.confirming = '';
@@ -10074,7 +10080,9 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           btn.style.background = '';
           btn.style.color = '';
           btn.style.minWidth = '';
-          btn.title = 'Concludi visita (archivia + libera badge)';
+          btn.title = document.body.classList.contains('event-type-qr-only')
+            ? 'Concludi visita (archivia il visitatore)'
+            : 'Concludi visita (archivia + libera badge)';
         }, 4000);
         btn.dataset.resetTimerId = resetTimer;
         return;
