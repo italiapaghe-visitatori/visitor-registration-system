@@ -1172,6 +1172,41 @@
       .filter-group.filter-actions { grid-column: auto; }
     }
 
+    /* ── FILTERS RAIL (redesign 2026-06-09) ──
+       I bottoni Filtra/Reset/Archivio NON sono piu' una cella della griglia
+       (si impilavano in verticale lasciando un buco a sinistra): vivono in
+       una barra dedicata sotto i campi, separata da una hairline tratteggiata.
+       Header inline con pallino, coerente con le stazioni cockpit. */
+    .filters-rail { display: flex; flex-direction: column; gap: 10px; }
+    .filters-rail-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.1px;
+      color: #57534e;
+      user-select: none;
+    }
+    .filters-rail-header .ts-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: currentColor; opacity: 0.85;
+    }
+    .filters-footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding-top: 10px;
+      border-top: 1px dashed #e8ecf4;
+    }
+    .filters-footer .btn { white-space: nowrap; }
+    .filters-footer-spacer { flex: 1 1 auto; }
+    @media (max-width: 640px) {
+      .filters-footer-spacer { display: none; }
+    }
+
     /* ── TABLE ── */
     .table-wrap {
       background: #fff;
@@ -3820,7 +3855,7 @@
           <div class="value" id="stat-active">—</div>
           <div class="sub">entrati, non usciti</div>
         </div>
-        <div class="stat-card stat-card-warning">
+        <div class="stat-card stat-card-warning js-badge-only">
           <span class="stat-icon">&#9203;</span>
           <h3>In attesa badge</h3>
           <div class="value" id="stat-pending">—</div>
@@ -3828,7 +3863,13 @@
         </div>
       </div>
 
-      <div class="filters">
+      <!-- FILTRI VISITATORI — campi in griglia, barra azioni dedicata sotto
+           (stile coerente con le stazioni cockpit di Ospiti Attesi). -->
+      <div class="filters filters-rail">
+        <div class="filters-rail-header">
+          <span class="ts-dot"></span>
+          <span class="ts-title">Filtri</span>
+        </div>
         <div class="filters-grid">
           <div class="filter-group">
             <label>Data inizio</label>
@@ -3874,14 +3915,12 @@
               <option value="Altro">Altro</option>
             </select>
           </div>
-          <div class="filter-group filter-actions">
-            <label>&nbsp;</label>
-            <div class="filter-actions-row">
-              <button type="button" class="btn btn-primary" onclick="applyFilters()" title="Applica i filtri inseriti (data inizio/fine, nome, cognome, evento, motivo) alla query Supabase e ricarica la tabella visitatori.">🔍 Filtra</button>
-              <button type="button" class="btn btn-secondary" onclick="resetFilters()" title="Cancella tutti i filtri e ricarica la lista completa dei visitatori (rispetta toggle archivio).">↺ Reset</button>
-              <button type="button" class="btn btn-secondary btn-archive" id="btn-toggle-archived" onclick="toggleArchived()" title="Commuta tra visitatori attivi (xatlas_status pending/active) e archivio (xatlas_status='checked_out').">📦 Vai all'Archivio</button>
-            </div>
-          </div>
+        </div>
+        <div class="filters-footer">
+          <button type="button" class="btn btn-primary" onclick="applyFilters()" title="Applica i filtri inseriti (data inizio/fine, nome, cognome, evento, motivo) alla query Supabase e ricarica la tabella visitatori.">🔍 Filtra</button>
+          <button type="button" class="btn btn-secondary" onclick="resetFilters()" title="Cancella tutti i filtri e ricarica la lista completa dei visitatori (rispetta toggle archivio).">↺ Reset</button>
+          <span class="filters-footer-spacer"></span>
+          <button type="button" class="btn btn-secondary btn-archive" id="btn-toggle-archived" onclick="toggleArchived()" title="Commuta tra visitatori attivi (xatlas_status pending/active) e archivio (xatlas_status='checked_out').">📦 Vai all'Archivio</button>
         </div>
       </div>
 
