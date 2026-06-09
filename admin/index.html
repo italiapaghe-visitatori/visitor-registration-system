@@ -8018,13 +8018,19 @@
         info.style.display = 'flex';
       }
 
-      // Aggiorna istruzioni step 4 in base a event_type
-      // qr_only = no badge da ritirare; turnstile = ritiro badge alla reception
+      // Aggiorna istruzioni step 4 in base a event_type:
+      // - qr_only = mostra il range di validità del QR (giorno di riferimento)
+      // - turnstile = istruzione "ritira badge alla reception"
       const step4 = document.getElementById('qr-instr-step4');
       if (step4) {
         const isQrOnly = ev.event_type === 'qr_only';
+        const vFrom = ev.qr_valid_from || ev.event_start_date;
+        const vTo   = ev.event_end_date;
+        const rangeText = vFrom === vTo
+          ? `solo il ${fmtItDate(vFrom)}`
+          : `dal ${fmtItDate(vFrom)} al ${fmtItDate(vTo)}`;
         step4.textContent = isQrOnly
-          ? 'Presentati al desk il giorno dell\'evento'
+          ? `QR attivo ${rangeText}`
           : 'Vai alla reception per il badge';
       }
       // Salva event_type sul modal per la stampa
@@ -8059,7 +8065,7 @@
       if (!w) { alert('Popup bloccato dal browser. Abilita i popup per stampare.'); return; }
       const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
       const step4 = isQrOnly
-        ? 'Presentati al desk il giorno dell\'evento'
+        ? `QR attivo ${evRange || ''}`.trim()
         : 'Vai alla reception per il badge';
       const subtitle = isQrOnly
         ? 'Registrazione QR self-service (senza badge fisico)'
