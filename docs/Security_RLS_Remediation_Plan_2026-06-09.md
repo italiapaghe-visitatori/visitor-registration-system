@@ -11,12 +11,29 @@ kiosk, by design). La vera linea di difesa è la **RLS**. L'audit ha trovato
 policy `USING(true)` per `anon` su tabelle con PII → chiunque estragga la anon
 key può scaricare dati personali senza login.
 
-## ✅ GIÀ FIXATO (2026-06-09, migration v31)
+## ✅ GIÀ FIXATO (2026-06-09)
 
-- **`event_dashboard`**: `REVOKE ALL FROM anon, PUBLIC` + `GRANT SELECT TO
-  authenticated, service_role`. La view serve solo al pannello admin
-  (autenticato); il kiosk non la usa (verificato 0 riferimenti). Applicato e
-  verificato: `has_table_privilege('anon', ..., 'SELECT') = false`.
+### v31 — `event_dashboard`
+`REVOKE ALL FROM anon, PUBLIC` + `GRANT SELECT TO authenticated, service_role`.
+La view serve solo al pannello admin (autenticato); il kiosk non la usa
+(verificato 0 riferimenti). Verificato: `has_table_privilege('anon',...)=false`.
+
+### v32 — `visitors` (column lockdown) + `visitor_movements` (revoke anon)
+- **visitors**: `REVOKE SELECT FROM anon` + `GRANT SELECT (id, guest_id,
+  first_name, last_name, signature, event_id, created_at) TO anon`. Bloccati
+  ad anon: `document_id, document_type, consent_ip, consent_user_agent, phone,
+  email, badge_number` e tutto il resto. INSERT/UPDATE-prestub anon invariati
+  (le firme usano `return=minimal`, non serve SELECT per scrivere).
+  **Verificato con anon key reale**: query kiosk → 200; `select=document_id`,
+  `consent_ip`, `select=*` → 42501 permission denied; INSERT/UPDATE anon = true.
+- **visitor_movements**: `REVOKE ALL FROM anon`. Nessun uso anon (kiosk 0 query
+  reali, agente usa service_role, admin è authenticated). Verificato: anon
+  `select=*` → 42501.
+
+**Residuo noto**: la colonna `signature` resta leggibile da anon (serve per il
+filtro `signature=is.null` del kiosk). Esposizione minore (immagine firma del
+solo evento corrente); la chiusura completa richiede una VIEW con
+`has_signature` boolean + modifica frontend → vedi sotto.
 
 ## ⚠️ DA FIXARE POST-EVENTO (con test del kiosk)
 
