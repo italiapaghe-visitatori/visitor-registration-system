@@ -2133,32 +2133,60 @@
     }
     .btn-cockpit-badge-soft:hover { background: #fff7ed; border-color: #fdba74; }
 
-    /* Search inline nella stazione Vista - compatto */
+    /* Search inline nella stazione Vista — leggibilita' garantita */
     .cockpit-search {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 2px 8px;
+      gap: 8px;
+      padding: 5px 12px;
       background: #fff;
       border: 1px solid #d6d3d1;
-      border-radius: 7px;
-      min-width: 180px;
+      border-radius: 8px;
+      min-width: 240px;
+      height: 30px;
+      box-sizing: border-box;
       transition: border-color 0.14s, box-shadow 0.14s;
     }
     .cockpit-search:focus-within {
       border-color: #6366f1;
       box-shadow: 0 0 0 2px rgba(99,102,241,0.12);
     }
-    .cockpit-search .guest-search-icon { font-size: 12px; opacity: 0.55; }
-    .cockpit-search input[type="search"] {
-      border: none; outline: none; padding: 3px 0;
-      font-size: 11.5px; background: transparent; min-width: 140px;
-      color: #1c1917;
+    .cockpit-search .guest-search-icon {
+      font-size: 13px;
+      opacity: 0.55;
+      flex-shrink: 0;
+      line-height: 1;
     }
-    .cockpit-search input[type="search"]::placeholder { color: #a8a29e; }
+    .cockpit-search input[type="search"] {
+      border: none;
+      outline: none;
+      padding: 0;
+      margin: 0;
+      font-size: 12.5px;
+      line-height: 1.2;
+      background: transparent;
+      flex: 1;
+      min-width: 0;
+      color: #1c1917;
+      /* Disabilita la X nativa di Chrome che sovrapponeva i caratteri */
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .cockpit-search input[type="search"]::-webkit-search-cancel-button,
+    .cockpit-search input[type="search"]::-webkit-search-decoration { display: none; }
+    .cockpit-search input[type="search"]::placeholder {
+      color: #a8a29e;
+      opacity: 1;
+    }
     .cockpit-search .guest-search-clear {
-      border: none; background: transparent; color: #a8a29e;
-      cursor: pointer; font-size: 14px; padding: 0 3px; line-height: 1;
+      border: none;
+      background: transparent;
+      color: #a8a29e;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0 2px;
+      line-height: 1;
+      flex-shrink: 0;
     }
     .cockpit-search .guest-search-clear:hover { color: #1c1917; }
 
