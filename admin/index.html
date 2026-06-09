@@ -6943,11 +6943,14 @@
 <html lang="it">
 <head>
   <meta charset="utf-8">
-  <title>Elenco Ospiti — ${esc(activeEvent.name)}</title>
+  <title> </title>
   <style>
-    @page { size: A4; margin: 14mm; }
+    /* @page margin 0 elimina header/footer automatici browser; padding interno
+       gestito da body per ricreare i margini. Title vuoto evita la stampa
+       del titolo della pagina. */
+    @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
-    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1a202c; margin: 0; padding: 0; font-size: 11pt; }
+    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1a202c; margin: 0; padding: 14mm; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     header { border-bottom: 3px solid #667eea; padding-bottom: 10px; margin-bottom: 18px; }
     header h1 { margin: 0 0 6px; font-size: 19pt; color: #2d3748; }
     header .meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 10.5pt; color: #4a5568; }
@@ -6969,7 +6972,9 @@
     tbody tr:not(.firmato) .check { color: #cbd5e0; }
     footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8.5pt; color: #718096; display: flex; justify-content: space-between; }
     @media print { .no-print { display: none !important; } header { break-inside: avoid; } tbody tr { break-inside: avoid; } }
-    .no-print { position: fixed; bottom: 16px; right: 16px; }
+    .no-print { position: fixed; bottom: 16px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+    .no-print .hint { background: #fef3c7; color: #78350f; padding: 8px 14px; border-radius: 8px; font-size: 10.5pt; max-width: 260px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .no-print .hint b { display: block; margin-bottom: 3px; }
     .no-print button { padding: 10px 18px; border: none; border-radius: 8px; background: #667eea; color: #fff; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
   </style>
 </head>
@@ -6999,7 +7004,13 @@
     <span>Stampato il ${esc(todayStr)} da ${esc(CURRENT_USER_EMAIL || '')}</span>
     <span>Generato da Gestione Visitatori — Italia Paghe / S2S</span>
   </footer>
-  <div class="no-print"><button onclick="window.print()">🖨️ Stampa</button></div>
+  <div class="no-print">
+    <div class="hint">
+      <b>💡 Se vedi titolo / data / URL nei bordi del foglio</b>
+      Nel dialog di stampa: <b>Altre opzioni</b> → togli <b>Intestazioni e piè di pagina</b>
+    </div>
+    <button onclick="window.print()">🖨️ Stampa</button>
+  </div>
   <script>
     window.addEventListener('load', function () {
       setTimeout(function () { window.print(); }, 350);
@@ -8072,13 +8083,16 @@
         : 'Pre-registrazione QR per ritiro badge';
 
       const html = `<!DOCTYPE html>
-<html lang="it"><head><meta charset="utf-8"><title>QR Registrazione — ${esc(eventName)}</title>
+<html lang="it"><head><meta charset="utf-8"><title> </title>
 <style>
-  @page { size: A4 portrait; margin: 10mm; }
+  /* Margin 0 sull'@page elimina (su Chrome/Edge) gli header/footer
+     automatici del browser: titolo pagina, data/ora, URL, numerazione.
+     Il padding interno della pagina viene ricreato dal .sheet. */
+  @page { size: A4 portrait; margin: 0; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1a202c; }
-  .sheet { display: flex; flex-direction: column; align-items: center; padding: 0; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1a202c; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .sheet { display: flex; flex-direction: column; align-items: center; padding: 14mm 12mm; }
   .brand-bar { width: 100%; background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; padding: 10px 22px; border-radius: 12px; margin-bottom: 10px; text-align: center; }
   .brand-bar h1 { margin: 0; font-size: 18pt; letter-spacing: 0.3px; }
   .brand-bar .subtitle { margin-top: 2px; font-size: 10pt; opacity: 0.92; }
@@ -8098,7 +8112,9 @@
     .brand-bar, .qr-frame, .steps, .event-card, footer { page-break-inside: avoid; break-inside: avoid; }
     .sheet { page-break-after: avoid; break-after: avoid; }
   }
-  .no-print { position: fixed; bottom: 14px; right: 14px; }
+  .no-print { position: fixed; bottom: 14px; right: 14px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .no-print .hint { background: #fef3c7; color: #78350f; padding: 8px 14px; border-radius: 8px; font-size: 11pt; max-width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .no-print .hint b { display: block; margin-bottom: 3px; }
   .no-print button { padding: 11px 20px; border: none; border-radius: 10px; background: #667eea; color: #fff; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
 </style></head>
 <body>
@@ -8123,7 +8139,13 @@
     </div>
     <footer>Gestione Visitatori — Italia Paghe / S2S</footer>
   </div>
-  <div class="no-print"><button onclick="window.print()">🖨️ Stampa</button></div>
+  <div class="no-print">
+    <div class="hint">
+      <b>💡 Se vedi titolo / data / URL nei bordi del foglio</b>
+      Nel dialog di stampa: <b>Altre opzioni</b> → togli <b>Intestazioni e piè di pagina</b>
+    </div>
+    <button onclick="window.print()">🖨️ Stampa</button>
+  </div>
   <script>
     window.addEventListener('load', function () {
       setTimeout(function () { window.print(); }, 600);
