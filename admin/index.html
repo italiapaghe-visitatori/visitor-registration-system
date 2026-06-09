@@ -7942,12 +7942,17 @@
   <meta charset="utf-8">
   <title> </title>
   <style>
-    /* @page margin 0 elimina header/footer automatici browser; padding interno
-       gestito da body per ricreare i margini. Title vuoto evita la stampa
-       del titolo della pagina. */
-    @page { size: A4; margin: 0; }
+    /* FIX 2026-06-09 sera: margini @page reali (12mm) invece di 0 + padding
+       body. Con margin 0 le pagine successive alla prima partivano col
+       contenuto attaccato al bordo superiore (il padding del body vale solo
+       a inizio/fine documento, non per-pagina). I margini @page si applicano
+       a OGNI pagina → la tabella respira anche su pagina 2+.
+       Title vuoto evita la stampa del titolo. Se appaiono data/URL nei bordi:
+       dialog di stampa → Altre opzioni → togliere "Intestazioni e pie' di
+       pagina" (Chrome ricorda la scelta). */
+    @page { size: A4; margin: 12mm 12mm 14mm; }
     * { box-sizing: border-box; }
-    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1a202c; margin: 0; padding: 14mm; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1a202c; margin: 0; padding: 0; font-size: 11pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     header { border-bottom: 3px solid #667eea; padding-bottom: 10px; margin-bottom: 18px; }
     header h1 { margin: 0 0 6px; font-size: 19pt; color: #2d3748; }
     header .meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 10.5pt; color: #4a5568; }
