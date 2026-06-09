@@ -2133,62 +2133,75 @@
     }
     .btn-cockpit-badge-soft:hover { background: #fff7ed; border-color: #fdba74; }
 
-    /* Search inline nella stazione Vista — leggibilita' garantita */
+    /* Search inline nella stazione Vista — leggibilita' garantita.
+       Standalone (NO collision con .guest-search-wrap legacy): icona inline
+       a flex, no absolute positioning, no padding asimmetrico sull'input. */
     .cockpit-search {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 5px 12px;
-      background: #fff;
-      border: 1px solid #d6d3d1;
-      border-radius: 8px;
-      min-width: 240px;
-      height: 30px;
-      box-sizing: border-box;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      padding: 5px 12px !important;
+      background: #fff !important;
+      border: 1px solid #d6d3d1 !important;
+      border-radius: 8px !important;
+      min-width: 240px !important;
+      height: 30px !important;
+      box-sizing: border-box !important;
+      position: static !important;
       transition: border-color 0.14s, box-shadow 0.14s;
     }
     .cockpit-search:focus-within {
-      border-color: #6366f1;
-      box-shadow: 0 0 0 2px rgba(99,102,241,0.12);
+      border-color: #6366f1 !important;
+      box-shadow: 0 0 0 2px rgba(99,102,241,0.12) !important;
     }
-    .cockpit-search .guest-search-icon {
-      font-size: 13px;
-      opacity: 0.55;
-      flex-shrink: 0;
-      line-height: 1;
+    .cockpit-search .cockpit-search-icon {
+      position: static !important;
+      font-size: 13px !important;
+      opacity: 0.55 !important;
+      flex-shrink: 0 !important;
+      line-height: 1 !important;
+      left: auto !important;
     }
     .cockpit-search input[type="search"] {
-      border: none;
-      outline: none;
-      padding: 0;
-      margin: 0;
-      font-size: 12.5px;
-      line-height: 1.2;
-      background: transparent;
-      flex: 1;
-      min-width: 0;
-      color: #1c1917;
-      /* Disabilita la X nativa di Chrome che sovrapponeva i caratteri */
-      -webkit-appearance: none;
-      appearance: none;
+      border: none !important;
+      outline: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      font-size: 12.5px !important;
+      line-height: 1.2 !important;
+      background: transparent !important;
+      flex: 1 1 auto !important;
+      width: auto !important;
+      height: auto !important;
+      min-width: 0 !important;
+      color: #1c1917 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      -webkit-appearance: none !important;
+      appearance: none !important;
     }
     .cockpit-search input[type="search"]::-webkit-search-cancel-button,
-    .cockpit-search input[type="search"]::-webkit-search-decoration { display: none; }
+    .cockpit-search input[type="search"]::-webkit-search-decoration { display: none !important; }
     .cockpit-search input[type="search"]::placeholder {
-      color: #a8a29e;
-      opacity: 1;
+      color: #a8a29e !important;
+      opacity: 1 !important;
     }
-    .cockpit-search .guest-search-clear {
-      border: none;
-      background: transparent;
-      color: #a8a29e;
+    .cockpit-search .cockpit-search-clear {
+      position: static !important;
+      border: none !important;
+      background: transparent !important;
+      color: #a8a29e !important;
       cursor: pointer;
-      font-size: 16px;
-      padding: 0 2px;
-      line-height: 1;
-      flex-shrink: 0;
+      font-size: 16px !important;
+      padding: 0 2px !important;
+      line-height: 1 !important;
+      flex-shrink: 0 !important;
+      width: auto !important;
+      height: auto !important;
+      border-radius: 0 !important;
+      right: auto !important;
     }
-    .cockpit-search .guest-search-clear:hover { color: #1c1917; }
+    .cockpit-search .cockpit-search-clear:hover { color: #1c1917 !important; }
 
     /* Responsive: stack verticale su schermi stretti */
     @media (max-width: 900px) {
@@ -3994,10 +4007,10 @@
               <span class="bc-icon">👁️</span>
               <span class="bc-text">Mostra arrivati</span>
             </button>
-            <span class="guest-search-wrap cockpit-search">
-              <span class="guest-search-icon" aria-hidden="true">🔍</span>
+            <span class="cockpit-search">
+              <span class="cockpit-search-icon" aria-hidden="true">🔍</span>
               <input type="search" id="guest-search-input" placeholder="Cerca cognome/nome..." oninput="onGuestSearchInput(this.value)" aria-label="Ricerca ospite per nome o cognome">
-              <button type="button" class="guest-search-clear" id="guest-search-clear" onclick="clearGuestSearch()" title="Pulisci ricerca" style="display:none" aria-label="Pulisci ricerca">×</button>
+              <button type="button" class="cockpit-search-clear" id="guest-search-clear" onclick="clearGuestSearch()" title="Pulisci ricerca" style="display:none" aria-label="Pulisci ricerca">×</button>
             </span>
           </div>
         </div>
