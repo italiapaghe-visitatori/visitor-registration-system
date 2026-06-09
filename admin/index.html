@@ -1944,6 +1944,64 @@
     body.event-type-qr-only #gate-bar {
       display: none !important;
     }
+    /* Box multi-giornata (eventi con ospiti su piu' date). */
+    .multi-day-box {
+      margin: 14px 0;
+      background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+      border: 1px solid #fed7aa;
+      border-left: 4px solid #f97316;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .multi-day-header {
+      padding: 12px 18px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #7c2d12;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.18s;
+    }
+    .multi-day-header:hover { background: rgba(249,115,22,0.08); }
+    .multi-day-toggle { font-size: 12px; transition: transform 0.18s; }
+    .multi-day-box.open .multi-day-toggle { transform: rotate(180deg); }
+    .multi-day-body {
+      padding: 0 18px 14px;
+      border-top: 1px solid #fed7aa;
+      background: rgba(255,255,255,0.5);
+    }
+    .multi-day-hint {
+      font-size: 12.5px;
+      color: #7c2d12;
+      margin: 10px 0 8px;
+      line-height: 1.45;
+    }
+    .multi-day-hint em { font-style: italic; opacity: 0.9; }
+    .multi-day-box ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 6px;
+    }
+    .multi-day-box li {
+      padding: 7px 12px;
+      background: #fff;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #2d3748;
+    }
+    .multi-day-box li strong { color: #7c2d12; }
+    .multi-day-box li .dates {
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 11.5px;
+      color: #9a3412;
+      font-family: 'Courier New', monospace;
+    }
     /* Radio selettore tipo evento nella modale Nuovo Evento: bordo colorato
        e background tinto quando selezionato per chiarezza visiva. */
     .event-type-opt:hover { border-color: #cbd5e0 !important; }
@@ -3595,10 +3653,10 @@
 
       <!-- Riepilogo -->
       <div class="stats-bar stats-5 guest-stats-bar">
-        <div class="stat-card stat-card-primary">
-          <h3>Totale ospiti</h3>
+        <div class="stat-card stat-card-primary" title="Totale presenze (ogni riga = una giornata di un ospite). Vedi 'Persone uniche' qui sotto per il count reale di persone distinte.">
+          <h3>Totale presenze</h3>
           <div class="value" id="g-stat-total">—</div>
-          <div class="sub">in lista</div>
+          <div class="sub"><span id="g-stat-unique-persons" style="font-weight:600">—</span> persone uniche</div>
         </div>
         <div class="stat-card" style="background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%); border-left:6px solid #38b2ac">
           <h3 style="color:#234e52">Firmati</h3>
@@ -3608,7 +3666,7 @@
         <div class="stat-card stat-card-warning">
           <h3>Da arrivare</h3>
           <div class="value" id="g-stat-waiting">—</div>
-          <div class="sub">non ancora al tornello</div>
+          <div class="sub">non ancora firmati</div>
         </div>
         <div class="stat-card stat-card-success">
           <h3>Dentro ora</h3>
@@ -3619,6 +3677,20 @@
           <h3>Usciti</h3>
           <div class="value" id="g-stat-out">—</div>
           <div class="sub">visita conclusa</div>
+        </div>
+      </div>
+
+      <!-- BOX MULTI-GIORNATA: ospiti che compaiono in piu' di una data
+           (es. corsi multi-giorno). Spiega la differenza fra "totale presenze"
+           e "persone uniche". Si apre/chiude col bottone toggle. -->
+      <div id="multi-day-box" class="multi-day-box" style="display:none">
+        <div class="multi-day-header" onclick="toggleMultiDayBox()" title="Click per espandere/chiudere">
+          <span>🔁 <strong id="multi-day-count">—</strong> ospiti compaiono in piu' giornate</span>
+          <span class="multi-day-toggle" id="multi-day-toggle">▼</span>
+        </div>
+        <div class="multi-day-body" id="multi-day-body" style="display:none">
+          <p class="multi-day-hint">Questi ospiti sono stati conteggiati 1 volta per ogni giornata in cui sono attesi. La somma "Totale presenze" li include come <em>presenze multiple</em>; in "Persone uniche" appaiono una sola volta.</p>
+          <ul id="multi-day-list"></ul>
         </div>
       </div>
 
@@ -6937,6 +7009,56 @@
       renderGuestTable(guestData, arrivedSet);
     }
 
+    // ── PERSONE UNICHE + MULTI-GIORNATA (dalla view event_dashboard v28) ──
+    // Distingue presenze totali (person-day) da persone uniche. Mostra
+    // box espandibile coi nomi che compaiono in piu' di una giornata.
+    function renderUniqueAndMultiDay(dash) {
+      if (!dash) return;
+      const uniqueEl = document.getElementById('g-stat-unique-persons');
+      if (uniqueEl) uniqueEl.textContent = dash.unique_persons != null ? dash.unique_persons : '—';
+
+      const box = document.getElementById('multi-day-box');
+      const countEl = document.getElementById('multi-day-count');
+      const listEl = document.getElementById('multi-day-list');
+      if (!box || !countEl || !listEl) return;
+
+      const attendees = Array.isArray(dash.multi_day_attendees) ? dash.multi_day_attendees : [];
+      const n = dash.multi_day_count || attendees.length;
+
+      if (n <= 0) {
+        box.style.display = 'none';
+        return;
+      }
+      box.style.display = 'block';
+      countEl.textContent = String(n);
+
+      // Costruisce lista con XSS hardening (textContent, no innerHTML)
+      listEl.innerHTML = '';
+      attendees.forEach(a => {
+        if (!a || !a.name) return;
+        const li = document.createElement('li');
+        const strong = document.createElement('strong');
+        strong.textContent = a.name;
+        li.appendChild(strong);
+        if (Array.isArray(a.dates) && a.dates.length) {
+          const dates = document.createElement('span');
+          dates.className = 'dates';
+          dates.textContent = ' · ' + a.dates.join(' + ');
+          li.appendChild(dates);
+        }
+        listEl.appendChild(li);
+      });
+    }
+
+    function toggleMultiDayBox() {
+      const box = document.getElementById('multi-day-box');
+      const body = document.getElementById('multi-day-body');
+      if (!box || !body) return;
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      box.classList.toggle('open', !open);
+    }
+
     // ── STAMPA ELENCO OSPITI (per il desk) ──────────────────
     // Apre una finestra dedicata con layout printable A4 dell'elenco ospiti
     // dell'evento attivo, rispettando i filtri pillole (giorno + turno).
@@ -7277,7 +7399,7 @@
         if (activeEvent && activeEvent.id) {
           try {
             const dashRes = await api(
-              `${SUPABASE_URL}/rest/v1/event_dashboard?event_id=eq.${encodeURIComponent(activeEvent.id)}&select=total_guests,signed,waiting,inside_now,checked_out,by_date,by_slot`
+              `${SUPABASE_URL}/rest/v1/event_dashboard?event_id=eq.${encodeURIComponent(activeEvent.id)}&select=total_guests,signed,waiting,inside_now,checked_out,by_date,by_slot,unique_persons,multi_day_count,multi_day_attendees`
             );
             if (dashRes && dashRes.ok) {
               const arr = await dashRes.json();
@@ -7288,7 +7410,9 @@
                 dashWaiting    = d.waiting;
                 dashInside     = d.inside_now;
                 dashCheckedOut = d.checked_out;
-                window._eventDashboardLast = d;  // disponibile per altre UI (es. pillole future)
+                window._eventDashboardLast = d;  // disponibile per altre UI
+                // Aggiorna sub-label "persone uniche" e box multi-giornata
+                renderUniqueAndMultiDay(d);
               }
             }
           } catch (e) {
