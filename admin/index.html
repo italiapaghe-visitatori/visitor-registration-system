@@ -1944,6 +1944,35 @@
     body.event-type-qr-only #gate-bar {
       display: none !important;
     }
+    /* Bottoni Pausa/Rientro — tracking manuale per qr_only (no tornello). */
+    .btn-pause {
+      background: linear-gradient(135deg, #fff 0%, #f7fafc 100%);
+      border: 1.5px solid #cbd5e0;
+      color: #2d3748;
+      border-radius: 7px;
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-right: 4px;
+      white-space: nowrap;
+    }
+    .btn-pause:hover  { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.08); }
+    .btn-pause:disabled { opacity: 0.55; cursor: wait; }
+    .btn-pause.btn-pause-enter {
+      border-color: #38a169; color: #22543d; background: linear-gradient(135deg, #f0fff4, #c6f6d5);
+    }
+    .btn-pause.btn-pause-out {
+      border-color: #d69e2e; color: #744210; background: linear-gradient(135deg, #fffff0, #fefcbf);
+    }
+    .btn-pause.btn-pause-back {
+      border-color: #3182ce; color: #2c5282; background: linear-gradient(135deg, #ebf8ff, #bee3f8);
+    }
+    .pause-state-closed {
+      display: inline-block; padding: 4px 10px; font-size: 11.5px; font-weight: 700;
+      color: #2d3748; background: #edf2f7; border-radius: 7px; margin-right: 4px;
+    }
     /* Box multi-giornata (eventi con ospiti su piu' date). */
     .multi-day-box {
       margin: 14px 0;
@@ -6827,6 +6856,21 @@
 
     function setGuestDayFilter(date) {
       guestDayFilter = (guestDayFilter === date) ? null : date;  // click toggle
+      // FIX UX 2026-06-10: se clicchi una giornata COMPLETATA (tutti firmati,
+      // waiting=0) e "Mostra arrivati" e' OFF, la lista sarebbe vuota. Auto-attivo
+      // "Mostra arrivati" cosi' vedi i nominativi firmati della giornata.
+      if (guestDayFilter && !showArrived) {
+        const dash = window._eventDashboardLast;
+        const info = dash && dash.by_date ? dash.by_date[guestDayFilter] : null;
+        if (info && (info.waiting || 0) === 0 && (info.signed || 0) > 0) {
+          showArrived = true;
+          const btn = document.getElementById('btn-toggle-arrived');
+          if (btn) {
+            btn.textContent = 'Nascondi arrivati';
+            btn.classList.add('active-tab');
+          }
+        }
+      }
       renderGuestFilters();
       renderGuestTable(guestData, arrivedSet);
     }
@@ -7113,6 +7157,115 @@
       box.classList.toggle('open', !open);
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // PAUSA / RIENTRO — Tracking manuale uscite per eventi qr_only
+    // ══════════════════════════════════════════════════════════════════════
+    // In modalita' turnstile il tornello registra automaticamente IN/OUT.
+    // In modalita' qr_only no tornello → niente traccia delle pause/uscite.
+    // Soluzione: l'operatrice al desk clicca un bottone per segnare che
+    // l'ospite e' uscito (pausa caffe', pranzo, fine) e poi rientrato.
+    //
+    // Stato deduce da visitors:
+    //   entry_time IS NOT NULL AND exit_time IS NULL   → DENTRO
+    //   entry_time IS NOT NULL AND exit_time IS NOT NULL → FUORI
+    //   entrambi NULL → MAI ENTRATO (firma da casa, non ancora al desk)
+    //
+    // Bottone:
+    //   "🚶 Entra"    se mai entrato (entry_time null)
+    //   "🚶 Esce"     se DENTRO
+    //   "🚶 Rientra"  se FUORI (pausa)
+    let _visitorStateMap = new Map(); // visitor_id → {entry_time, exit_time, xatlas_status}
+
+    function _getVisitorState(visitorId) {
+      const s = _visitorStateMap.get(visitorId);
+      if (!s) return 'unknown';
+      if (s.xatlas_status === 'checked_out') return 'closed';
+      if (!s.entry_time)               return 'never_entered';
+      if (!s.exit_time)                return 'inside';
+      return 'on_break';   // entry e exit entrambi popolati
+    }
+
+    function renderPauseButton(g) {
+      if (!g.matched_visitor_id) return '';
+      const state = _getVisitorState(g.matched_visitor_id);
+      if (state === 'closed') {
+        // Gia' chiuso definitivamente, no bottone
+        return '<span class="pause-state-closed" title="Visita gia conclusa">🏁 Conclusa</span>';
+      }
+      let label, cls, title;
+      if (state === 'never_entered') {
+        label = '🚶 Entra';
+        cls   = 'btn-pause-enter';
+        title = 'Segna ingresso al desk (orario corrente). Usalo quando l\'ospite arriva fisicamente.';
+      } else if (state === 'inside') {
+        label = '🚶 Esce';
+        cls   = 'btn-pause-out';
+        title = 'Segna uscita (pausa caffe, pranzo, fine). Orario corrente.';
+      } else if (state === 'on_break') {
+        label = '🚶 Rientra';
+        cls   = 'btn-pause-back';
+        title = 'Segna rientro dalla pausa (orario corrente).';
+      } else {
+        return '';
+      }
+      return `<button type="button" class="btn-pause ${cls}" data-id="${esc(g.id)}" data-vid="${esc(g.matched_visitor_id)}" onclick="onPauseClick(this)" title="${esc(title)}">${label}</button>`;
+    }
+
+    async function onPauseClick(btn) {
+      const visitorId = btn.dataset.vid;
+      const guestId   = btn.dataset.id;
+      if (!visitorId) return;
+      const state = _getVisitorState(visitorId);
+      const nowIso = new Date().toISOString();
+      let patchBody, action;
+      if (state === 'never_entered') {
+        patchBody = { entry_time: nowIso, exit_time: null };
+        action = 'manual_enter';
+      } else if (state === 'inside') {
+        patchBody = { exit_time: nowIso };
+        action = 'manual_exit';
+      } else if (state === 'on_break') {
+        patchBody = { entry_time: nowIso, exit_time: null };
+        action = 'manual_return';
+      } else {
+        return;
+      }
+      btn.disabled = true;
+      try {
+        const res = await api(
+          `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(visitorId)}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+            body: JSON.stringify(patchBody)
+          }
+        );
+        if (!res || !res.ok) {
+          const e = await res?.json().catch(() => ({}));
+          throw new Error(e.message || `HTTP ${res?.status}`);
+        }
+        const arr = await res.json();
+        if (arr && arr[0]) {
+          _visitorStateMap.set(visitorId, {
+            entry_time: arr[0].entry_time,
+            exit_time:  arr[0].exit_time,
+            xatlas_status: arr[0].xatlas_status
+          });
+        }
+        // Audit log
+        try {
+          auditLog(action, 'visitor', visitorId, { guest_id: guestId, time: nowIso });
+        } catch (_) { /* silent */ }
+        // Re-render della tabella per aggiornare il bottone
+        renderGuestTable(guestData, arrivedSet);
+        // Refresh stats card "dentro ora" / "usciti"
+        loadGuests(true);
+      } catch (err) {
+        alert('Errore nel tracciamento: ' + err.message);
+        btn.disabled = false;
+      }
+    }
+
     // ── STAMPA ELENCO OSPITI (per il desk) ──────────────────
     // Apre una finestra dedicata con layout printable A4 dell'elenco ospiti
     // dell'evento attivo, rispettando i filtri pillole (giorno + turno).
@@ -7369,10 +7522,19 @@
           : '';
         const rangeHeaders = { 'Range-Unit': 'items', 'Range': '0-4999' };
         const visitorRes  = await api(
-          `${SUPABASE_URL}/rest/v1/visitors?select=id,guest_id,badge_number,xatlas_status,entry_time,exit_time&guest_id=not.is.null${evFilter}`,
+          `${SUPABASE_URL}/rest/v1/visitors?select=id,guest_id,badge_number,xatlas_status,entry_time,exit_time${evFilter}`,
           { headers: rangeHeaders }
         );
         const visitorData = visitorRes?.ok ? await visitorRes.json() : [];
+        // Popola _visitorStateMap per il rendering bottoni Pausa/Rientro
+        _visitorStateMap = new Map();
+        visitorData.forEach(v => {
+          _visitorStateMap.set(v.id, {
+            entry_time:    v.entry_time,
+            exit_time:     v.exit_time,
+            xatlas_status: v.xatlas_status
+          });
+        });
         // FIX 2026-06-10 (Fix #1 audit workflow): includi anche id visitor per
         // matchare matched_visitor_id dei guest (caso Clelia/Tranchino: visitor
         // firmato ma visitor.guest_id NULL, mentre guest_list.matched_visitor_id
@@ -9698,6 +9860,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
               <button type="button" class="btn-gate-out" onclick="openGateForGuest(this,'exit')"  title="Apri TORNELLO_OUT per ${esc(g.first_name || '')} ${esc(g.last_name || '')}. Click → tornello apre in ~1 sec. Registra uscita.">🚪 OUT</button>
             </span>
             ${g.matched_visitor_id ? `<button type="button" class="btn-icon btn-details-icon" data-id="${esc(g.id)}" onclick="openGuestVisitorDetails(this)" title="Storico timbrature completo (ingressi e uscite multipli) + dettagli firma, documento, badge. Disponibile dopo il primo passaggio al tornello.">ℹ️</button>` : ''}
+            ${g.matched_visitor_id ? renderPauseButton(g) : ''}
             ${!arrived ? `<button type="button" class="btn-signature-handoff" data-id="${esc(g.id)}" onclick="reopenSignatureHandoff(this)" title="Riapre il dialog per passare la firma all'ospite (tablet kiosk, QR cellulare o email). Disponibile finché l'ospite non ha firmato.">✍️ Firma</button>` : ''}
             ${(!arrived && !preAssign) ? `<button type="button" class="btn-badge-assign" data-id="${esc(g.id)}" onclick="openPreAssignModal(this)" title="Apri modale per pre-assegnare un badge a questo ospite (creazione visitor stub xatlas_status='pending', l'agente attiverà il badge nei tornelli).">Pre-assegna Badge</button>` : ''}
             <button type="button" class="btn-delete" data-id="${esc(g.id)}" onclick="deleteGuest(this)" title="Rimuove questo ospite dalla guest_list. NON è permesso se ha già firmato il QR o ha un visitor pre-assegnato (audit/integrità).">Rimuovi</button>
