@@ -2144,6 +2144,8 @@
     .btn-cockpit-qr:hover { box-shadow: 0 4px 14px rgba(14,165,233,0.4); }
     .btn-cockpit-mail { background: linear-gradient(135deg, #06b6d4, #0e7490); color: #fff; border-color: transparent; }
     .btn-cockpit-mail:hover { box-shadow: 0 4px 14px rgba(6,182,212,0.4); }
+    .btn-cockpit-verbale { background: #fff; border-color: #c7d2fe; color: #3730a3; }
+    .btn-cockpit-verbale:hover { background: #eef2ff; border-color: #a5b4fc; }
 
     /* Gestione ospiti */
     .btn-cockpit-add {
@@ -4112,6 +4114,14 @@
             <button type="button" class="btn-cockpit btn-cockpit-print" id="btn-print-unsigned" onclick="printGuestList(true)" title="Stampa SOLO gli ospiti che devono ancora firmare/arrivare (rispetta i filtri pillole attivi). Utile al desk per sapere a colpo d'occhio chi manca." aria-label="Stampa solo da firmare">
               <span class="bc-icon">✍️</span>
               <span class="bc-text">Stampa da firmare</span>
+            </button>
+            <button type="button" class="btn-cockpit btn-cockpit-verbale" id="btn-print-verbale" onclick="printVerbale()" title="Genera il Verbale di Presenza legale dell'evento: per ogni firmato nome, azienda, documento, orari ingresso/uscita, miniatura firma e consensi GDPR + Norme con data/versione. Documento di prova-presenza stampabile/PDF." aria-label="Verbale presenze legale">
+              <span class="bc-icon">📋</span>
+              <span class="bc-text">Verbale presenze</span>
+            </button>
+            <button type="button" class="btn-cockpit btn-cockpit-verbale" id="btn-event-report" onclick="printEventReport()" title="Report di fine evento: attesi vs firmati vs no-show con percentuale, e istogramma degli arrivi per fascia oraria. Utile per dimensionare il desk e da mostrare al cliente." aria-label="Report fine evento">
+              <span class="bc-icon">📊</span>
+              <span class="bc-text">Report evento</span>
             </button>
             <button type="button" class="btn-cockpit btn-cockpit-qr" onclick="openQrModal()" title="Genera QR generico al desk per registrazione self-service" aria-label="Genera QR per il desk">
               <span class="bc-icon">📱</span>
@@ -8047,6 +8057,231 @@
     // dell'evento attivo, rispettando i filtri pillole (giorno + turno).
     // Il foglio mostra: cognome+nome | azienda | mansione | turno | firma OK/da fare.
     // Adattato a qr_only/turnstile: titolo + colonne pertinenti.
+    // ── REPORT FINE EVENTO (statistiche + istogramma arrivi) ──
+    // Attesi vs firmati vs no-show + % completamento + istogramma firme per
+    // fascia oraria (da created_at del visitor = momento firma). Stampabile.
+    async function printEventReport() {
+      if (!activeEvent || !activeEvent.id) { alert('Nessun evento attivo.'); return; }
+      const btn = document.getElementById('btn-event-report');
+      if (btn) btn.disabled = true;
+      try {
+        // Totali dalla view (authoritative)
+        const d = window._eventDashboardLast || {};
+        let total = d.total_guests, signed = d.signed, waiting = d.waiting;
+        if (total == null) {
+          const dr = await api(`${SUPABASE_URL}/rest/v1/event_dashboard?event_id=eq.${encodeURIComponent(activeEvent.id)}&select=total_guests,signed,waiting`);
+          if (dr && dr.ok) { const a = await dr.json(); if (a[0]) { total = a[0].total_guests; signed = a[0].signed; waiting = a[0].waiting; } }
+        }
+        total = total || 0; signed = signed || 0; waiting = waiting != null ? waiting : (total - signed);
+        const pct = total > 0 ? Math.round(signed / total * 100) : 0;
+
+        // Istogramma: firme per ora (created_at del visitor, ora locale)
+        const vr = await api(
+          `${SUPABASE_URL}/rest/v1/visitors?select=created_at&event_id=eq.${encodeURIComponent(activeEvent.id)}&signature=not.is.null&order=created_at.asc`,
+          { headers: { 'Range-Unit': 'items', 'Range': '0-4999' } }
+        );
+        const vis = (vr && vr.ok) ? await vr.json() : [];
+        const buckets = {}; // "HH" -> count
+        vis.forEach(v => {
+          if (!v.created_at) return;
+          let h;
+          try { h = new Date(v.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', hour12: false }).slice(0,2); }
+          catch (_) { h = (v.created_at.slice(11,13) || '??'); }
+          buckets[h] = (buckets[h] || 0) + 1;
+        });
+        const hours = Object.keys(buckets).sort();
+        const maxB = hours.reduce((m,h) => Math.max(m, buckets[h]), 0) || 1;
+
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+        const fmtDate = iso => iso ? iso.split('-').reverse().join('/') : '';
+        const periodo = activeEvent.event_start_date === activeEvent.event_end_date
+          ? fmtDate(activeEvent.event_start_date)
+          : `${fmtDate(activeEvent.event_start_date)} → ${fmtDate(activeEvent.event_end_date)}`;
+        const bars = hours.length
+          ? hours.map(h => {
+              const n = buckets[h];
+              const w = Math.round(n / maxB * 100);
+              return `<div class="rp-bar-row"><span class="rp-bar-lbl">${esc(h)}:00</span><span class="rp-bar"><span class="rp-bar-fill" style="width:${w}%"></span></span><span class="rp-bar-n">${n}</span></div>`;
+            }).join('')
+          : '<p style="color:#718096">Nessuna firma registrata con orario.</p>';
+
+        const w = window.open('', '_blank', 'width=900,height=1100');
+        if (!w) { alert('Popup bloccato dal browser.'); if (btn) btn.disabled = false; return; }
+        const todayStr = new Date().toLocaleString('it-IT');
+        const html = `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><title> </title>
+<style>
+  @page { size:A4; margin:14mm; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,'Segoe UI',Roboto,sans-serif; color:#1a202c; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  header { border-bottom:3px solid #0e7490; padding-bottom:10px; margin-bottom:18px; }
+  header h1 { margin:0 0 4px; font-size:18pt; color:#155e75; }
+  header .meta { font-size:10.5pt; color:#4a5568; }
+  .rp-cards { display:flex; gap:12px; margin:18px 0; flex-wrap:wrap; }
+  .rp-card { flex:1; min-width:120px; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; text-align:center; }
+  .rp-card .v { font-size:26pt; font-weight:800; line-height:1; }
+  .rp-card .l { font-size:9.5pt; color:#718096; margin-top:6px; text-transform:uppercase; letter-spacing:0.5px; }
+  .rp-card.tot .v { color:#0e7490; } .rp-card.sig .v { color:#15803d; } .rp-card.noshow .v { color:#c2410c; } .rp-card.pct .v { color:#6d28d9; }
+  .rp-progress { height:22px; background:#edf2f7; border-radius:11px; overflow:hidden; margin:6px 0 24px; }
+  .rp-progress-fill { height:100%; background:linear-gradient(90deg,#22c55e,#15803d); display:flex; align-items:center; justify-content:flex-end; color:#fff; font-weight:700; font-size:10pt; padding-right:8px; }
+  h2 { font-size:13pt; color:#2d3748; margin:18px 0 10px; }
+  .rp-bar-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+  .rp-bar-lbl { width:54px; font-size:9.5pt; color:#4a5568; font-variant-numeric:tabular-nums; }
+  .rp-bar { flex:1; height:18px; background:#edf2f7; border-radius:5px; overflow:hidden; }
+  .rp-bar-fill { display:block; height:100%; background:linear-gradient(90deg,#0ea5e9,#0369a1); }
+  .rp-bar-n { width:30px; text-align:right; font-size:9.5pt; font-weight:700; color:#2d3748; }
+  footer { margin-top:24px; padding-top:8px; border-top:1px solid #e2e8f0; font-size:8.5pt; color:#718096; }
+  @media print { .no-print { display:none !important; } }
+  .no-print { position:fixed; bottom:14px; right:14px; }
+  .no-print button { padding:10px 18px; border:none; border-radius:8px; background:#0e7490; color:#fff; font-weight:700; cursor:pointer; }
+</style></head><body>
+  <header>
+    <h1>📊 Report Evento — ${esc(activeEvent.name)}</h1>
+    <div class="meta">Periodo: <b>${esc(periodo)}</b> · Generato: ${esc(todayStr)}</div>
+  </header>
+  <div class="rp-cards">
+    <div class="rp-card tot"><div class="v">${total}</div><div class="l">Attesi</div></div>
+    <div class="rp-card sig"><div class="v">${signed}</div><div class="l">Firmati</div></div>
+    <div class="rp-card noshow"><div class="v">${waiting}</div><div class="l">No-show</div></div>
+    <div class="rp-card pct"><div class="v">${pct}%</div><div class="l">Completamento</div></div>
+  </div>
+  <div class="rp-progress"><div class="rp-progress-fill" style="width:${pct}%">${pct}%</div></div>
+  <h2>Arrivi per fascia oraria (momento firma)</h2>
+  ${bars}
+  <footer>Gestione Visitatori — Italia Paghe / Service to Service Srl · Report generato da ${esc(CURRENT_USER_EMAIL || '')}</footer>
+  <div class="no-print"><button onclick="window.print()">🖨️ Stampa / Salva PDF</button></div>
+  <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},500);});<\/script>
+</body></html>`;
+        w.document.open(); w.document.write(html); w.document.close();
+        try { auditLog('event_report_generated', 'event', activeEvent.id, { signed, total }); } catch (_) {}
+      } catch (err) {
+        alert('Errore generazione report: ' + err.message);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    // ── VERBALE DI PRESENZA (documento legale stampabile) ──
+    // Per ogni firmato dell'evento attivo: anagrafica, documento, orari
+    // ingresso/uscita, miniatura firma, consensi GDPR + Norme con data/versione.
+    // Fetch on-demand della signature (non in VISITOR_COLS per egress) — l'admin
+    // e' authenticated quindi legge tutto. Stampa A4 multi-pagina.
+    async function printVerbale() {
+      if (!activeEvent || !activeEvent.id) {
+        alert('Nessun evento attivo. Avvia un evento dalla tab Eventi.');
+        return;
+      }
+      const btn = document.getElementById('btn-print-verbale');
+      if (btn) { btn.disabled = true; }
+      try {
+        // Solo i firmati (signature reale) dell'evento attivo
+        const cols = 'first_name,last_name,company,job_title,document_type,document_id,'
+          + 'entry_time,exit_time,visit_reason,person_to_visit,visit_date,signature,'
+          + 'data_consent,access_rules_consent,access_rules_at,access_rules_version,created_at';
+        const res = await api(
+          `${SUPABASE_URL}/rest/v1/visitors?select=${cols}`
+          + `&event_id=eq.${encodeURIComponent(activeEvent.id)}`
+          + `&signature=not.is.null&order=last_name.asc,first_name.asc`,
+          { headers: { 'Range-Unit': 'items', 'Range': '0-4999' } }
+        );
+        if (!res || !res.ok) throw new Error('HTTP ' + (res ? res.status : '?'));
+        const rows = await res.json();
+        if (!rows.length) { alert('Nessun visitatore firmato per questo evento: niente da verbalizzare.'); if (btn) btn.disabled = false; return; }
+
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+        const fmtDate = iso => iso ? iso.split('-').reverse().join('/') : '';
+        const fmtDt = iso => { if (!iso) return '—'; try { return new Date(iso).toLocaleString('it-IT'); } catch (_) { return iso; } };
+        const hhmm = t => t ? String(t).slice(0,5) : '—';
+        const periodo = activeEvent.event_start_date === activeEvent.event_end_date
+          ? fmtDate(activeEvent.event_start_date)
+          : `${fmtDate(activeEvent.event_start_date)} → ${fmtDate(activeEvent.event_end_date)}`;
+
+        const cards = rows.map((v, i) => {
+          const nome = `${esc((v.last_name||'').toUpperCase())} ${esc(v.first_name||'')}`.trim() || '—';
+          const doc = (v.document_type || v.document_id) ? `${esc(v.document_type||'')} ${esc(v.document_id||'')}`.trim() : '—';
+          const sig = (v.signature && v.signature.length > 100)
+            ? `<img class="vb-sig" src="${v.signature.startsWith('data:') ? v.signature : 'data:image/png;base64,' + v.signature}" alt="firma">`
+            : '<span class="vb-nosig">—</span>';
+          const gdpr = v.data_consent ? '✅' : '❌';
+          const norme = v.access_rules_consent ? '✅' : '❌';
+          const normeMeta = v.access_rules_consent
+            ? `(${esc(v.access_rules_version || 'v?')} · ${esc(fmtDt(v.access_rules_at))})`
+            : '';
+          return `<tr>
+            <td class="vb-n">${i+1}</td>
+            <td><strong>${nome}</strong>${v.company ? '<br><span class="vb-sub">'+esc(v.company)+'</span>':''}${v.job_title ? '<br><span class="vb-sub">'+esc(v.job_title)+'</span>':''}</td>
+            <td>${doc}</td>
+            <td class="vb-time">IN ${hhmm(v.entry_time)}<br>OUT ${hhmm(v.exit_time)}</td>
+            <td class="vb-consent">GDPR ${gdpr}<br>Norme ${norme} <span class="vb-sub">${normeMeta}</span></td>
+            <td class="vb-sigcell">${sig}</td>
+          </tr>`;
+        }).join('');
+
+        const w = window.open('', '_blank', 'width=900,height=1100');
+        if (!w) { alert('Popup bloccato dal browser. Abilita i popup per stampare.'); if (btn) btn.disabled = false; return; }
+        const todayStr = new Date().toLocaleString('it-IT');
+        const html = `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><title> </title>
+<style>
+  @page { size: A4; margin: 12mm 12mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system,'Segoe UI',Roboto,sans-serif; color:#1a202c; margin:0; padding:0; font-size:10pt; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  header { border-bottom:3px solid #4338ca; padding-bottom:10px; margin-bottom:14px; }
+  header h1 { margin:0 0 4px; font-size:17pt; color:#312e81; }
+  header .meta { font-size:10pt; color:#4a5568; display:flex; gap:16px; flex-wrap:wrap; }
+  header .meta b { color:#2d3748; }
+  .vb-intro { font-size:9pt; color:#4a5568; margin:8px 0 14px; line-height:1.4; }
+  table { width:100%; border-collapse:collapse; font-size:9.5pt; }
+  thead th { background:#312e81; color:#fff; text-align:left; padding:6px 8px; font-size:8.5pt; }
+  tbody td { padding:6px 8px; border-bottom:1px solid #e2e8f0; vertical-align:top; }
+  tbody tr:nth-child(even) td { background:#f7f8fc; }
+  .vb-n { width:26px; color:#718096; text-align:right; }
+  .vb-sub { font-size:8pt; color:#718096; }
+  .vb-time { white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .vb-consent { white-space:nowrap; font-size:8.5pt; }
+  .vb-sigcell { width:120px; text-align:center; }
+  .vb-sig { max-width:110px; max-height:40px; object-fit:contain; border:1px solid #e2e8f0; border-radius:4px; background:#fff; }
+  .vb-nosig { color:#cbd5e0; }
+  tbody tr { break-inside:avoid; }
+  footer { margin-top:18px; padding-top:8px; border-top:1px solid #e2e8f0; font-size:8pt; color:#718096; display:flex; justify-content:space-between; }
+  @media print { .no-print { display:none !important; } }
+  .no-print { position:fixed; bottom:14px; right:14px; display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+  .no-print .hint { background:#fef3c7; color:#78350f; padding:8px 14px; border-radius:8px; font-size:10pt; max-width:260px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+  .no-print .hint b { display:block; margin-bottom:3px; }
+  .no-print button { padding:10px 18px; border:none; border-radius:8px; background:#4338ca; color:#fff; font-weight:700; cursor:pointer; }
+</style></head><body>
+  <header>
+    <h1>📋 Verbale di Presenza — ${esc(activeEvent.name)}</h1>
+    <div class="meta">
+      <span><b>Periodo:</b> ${esc(periodo)}</span>
+      <span><b>Firmatari:</b> ${rows.length}</span>
+      <span><b>Generato:</b> ${esc(todayStr)}</span>
+    </div>
+  </header>
+  <p class="vb-intro">Il presente verbale attesta la presenza dei visitatori sotto elencati all'evento indicato.
+  Per ciascuno sono riportati documento d'identità, orari di ingresso/uscita registrati, firma autografa digitale
+  e prestazione dei consensi (Privacy GDPR Reg. UE 2016/679 e Norme di accesso, con versione e data/ora di accettazione).</p>
+  <table>
+    <thead><tr><th>#</th><th>VISITATORE</th><th>DOCUMENTO</th><th>ORARI</th><th>CONSENSI</th><th>FIRMA</th></tr></thead>
+    <tbody>${cards}</tbody>
+  </table>
+  <footer>
+    <span>Generato il ${esc(todayStr)} da ${esc(CURRENT_USER_EMAIL || '')}</span>
+    <span>Gestione Visitatori — Italia Paghe / Service to Service Srl</span>
+  </footer>
+  <div class="no-print">
+    <div class="hint"><b>💡 Se vedi data/URL nei bordi</b>Dialog stampa → Altre opzioni → togli "Intestazioni e piè di pagina"</div>
+    <button onclick="window.print()">🖨️ Stampa / Salva PDF</button>
+  </div>
+  <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},500);});<\/script>
+</body></html>`;
+        w.document.open(); w.document.write(html); w.document.close();
+        try { auditLog('verbale_generated', 'event', activeEvent.id, { event_name: activeEvent.name, signers: rows.length }); } catch (_) {}
+      } catch (err) {
+        alert('Errore generazione verbale: ' + err.message);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
     function printGuestList(onlyUnsigned) {
       if (!activeEvent || !activeEvent.id) {
         alert('Nessun evento attivo. Avvia un evento dalla tab Eventi prima di stampare l\'elenco.');
