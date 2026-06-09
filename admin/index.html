@@ -2144,8 +2144,8 @@
       background: #fff !important;
       border: 1px solid #d6d3d1 !important;
       border-radius: 8px !important;
-      min-width: 240px !important;
-      height: 30px !important;
+      min-width: 260px !important;
+      height: 32px !important;
       box-sizing: border-box !important;
       position: static !important;
       transition: border-color 0.14s, box-shadow 0.14s;
@@ -2167,7 +2167,8 @@
       outline: none !important;
       padding: 0 !important;
       margin: 0 !important;
-      font-size: 12.5px !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
       line-height: 1.2 !important;
       background: transparent !important;
       flex: 1 1 auto !important;
@@ -2177,15 +2178,20 @@
       color: #1c1917 !important;
       border-radius: 0 !important;
       box-shadow: none !important;
+      letter-spacing: 0.15px !important;
       -webkit-appearance: none !important;
       appearance: none !important;
     }
     .cockpit-search input[type="search"]::-webkit-search-cancel-button,
     .cockpit-search input[type="search"]::-webkit-search-decoration { display: none !important; }
     .cockpit-search input[type="search"]::placeholder {
-      color: #a8a29e !important;
+      color: #78716c !important;       /* contrasto piu' alto: era #a8a29e troppo soft */
       opacity: 1 !important;
+      font-weight: 500 !important;
+      font-style: normal !important;
     }
+    .cockpit-search input[type="search"]:-ms-input-placeholder { color: #78716c !important; }
+    .cockpit-search input[type="search"]::-ms-input-placeholder { color: #78716c !important; }
     .cockpit-search .cockpit-search-clear {
       position: static !important;
       border: none !important;
@@ -4009,7 +4015,7 @@
             </button>
             <span class="cockpit-search">
               <span class="cockpit-search-icon" aria-hidden="true">🔍</span>
-              <input type="search" id="guest-search-input" placeholder="Cerca cognome/nome..." oninput="onGuestSearchInput(this.value)" aria-label="Ricerca ospite per nome o cognome">
+              <input type="search" id="guest-search-input" placeholder="Cerca per cognome o nome" oninput="onGuestSearchInput(this.value)" aria-label="Ricerca ospite per nome o cognome">
               <button type="button" class="cockpit-search-clear" id="guest-search-clear" onclick="clearGuestSearch()" title="Pulisci ricerca" style="display:none" aria-label="Pulisci ricerca">×</button>
             </span>
           </div>
