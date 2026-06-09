@@ -10516,7 +10516,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
               <button type="button" class="btn-gate-out" onclick="openGateForGuest(this,'exit')"  title="Apri TORNELLO_OUT per ${esc(g.first_name || '')} ${esc(g.last_name || '')}. Click → tornello apre in ~1 sec. Registra uscita.">🚪 OUT</button>
             </span>
             ${g.matched_visitor_id ? `<button type="button" class="btn-icon btn-details-icon" data-id="${esc(g.id)}" onclick="openGuestVisitorDetails(this)" title="Storico timbrature completo (ingressi e uscite multipli) + dettagli firma, documento, badge. Disponibile dopo il primo passaggio al tornello.">ℹ️</button>` : ''}
-            ${(arrived && g.matched_visitor_id) ? renderPauseButton(g) : ''}
+            ${g.matched_visitor_id ? renderPauseButton(g) : ''}
             ${!arrived ? `<button type="button" class="btn-signature-handoff" data-id="${esc(g.id)}" onclick="reopenSignatureHandoff(this)" title="Riapre il dialog per passare la firma all'ospite (tablet kiosk, QR cellulare o email). Disponibile finché l'ospite non ha firmato.">✍️ Firma</button>` : ''}
             ${(!arrived && !preAssign) ? `<button type="button" class="btn-badge-assign" data-id="${esc(g.id)}" onclick="openPreAssignModal(this)" title="Apri modale per pre-assegnare un badge a questo ospite (creazione visitor stub xatlas_status='pending', l'agente attiverà il badge nei tornelli).">Pre-assegna Badge</button>` : ''}
             <button type="button" class="btn-delete" data-id="${esc(g.id)}" onclick="deleteGuest(this)" title="Rimuove questo ospite dalla guest_list. NON è permesso se ha già firmato il QR o ha un visitor pre-assegnato (audit/integrità).">Rimuovi</button>
