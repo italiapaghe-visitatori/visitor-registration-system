@@ -7564,19 +7564,74 @@
       // Candidati: ospiti del targetDay che sono dentro o in pausa
       // (entry_time set, indipendente da exit_time)
       const candidates = [];
+      const neverEntered = [];   // firmati ma mai segnati come entrati
       (Array.isArray(guestData) ? guestData : []).forEach(g => {
         if (!g.matched_visitor_id) return;
         if (g.expected_date !== targetDay) return;
         const state = _getVisitorState(g.matched_visitor_id);
-        // Da chiudere: chi e' dentro O in pausa (chiusura sicura). Skip "closed" e "never_entered".
+        // Da chiudere: chi e' dentro O in pausa (chiusura sicura). Skip "closed".
         if (state === 'inside' || state === 'on_break') candidates.push(g);
+        else if (state === 'never_entered') neverEntered.push(g);
       });
+
+      // CASO PRATICO (2026-06-09): il desk non ha tracciato gli ingressi durante
+      // la giornata (feature nata a meta' giornata, o semplicemente dimenticato).
+      // Gli ospiti hanno firmato ed erano presenti, ma entry_time e' NULL.
+      // Invece di bloccare con "nessuno da chiudere", proponiamo di registrare
+      // la presenza completa (entrata + uscita = adesso) in un colpo solo.
+      if (candidates.length === 0 && neverEntered.length > 0) {
+        const ok2 = confirm(
+          `Nessun ospite risulta "dentro" per il ${dayLabel}, ma ci sono\n`
+          + `${neverEntered.length} ospiti FIRMATI mai segnati come entrati\n`
+          + `(il tracking ingressi non e' stato usato oggi).\n\n`
+          + `Vuoi registrare per tutti loro la PRESENZA COMPLETA?\n`
+          + `  • entry_time = adesso\n`
+          + `  • exit_time  = adesso\n\n`
+          + `Cosi' la giornata risulta chiusa con presenza tracciata.\n`
+          + `(L'orario preciso di entrata non e' disponibile, verra' usato\n`
+          + `l'orario corrente per entrambi.)\n\n`
+          + `Procedere?`
+        );
+        if (!ok2) return;
+        const btn0 = document.getElementById('btn-mass-closeday');
+        if (btn0) btn0.disabled = true;
+        const now0 = new Date().toISOString();
+        let okc0 = 0, fail0 = 0;
+        await Promise.allSettled(neverEntered.map(async g => {
+          try {
+            const res = await api(
+              `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(g.matched_visitor_id)}`,
+              {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                body: JSON.stringify({ entry_time: now0, exit_time: now0 })
+              }
+            );
+            if (res && res.ok) okc0++; else fail0++;
+          } catch (_) { fail0++; }
+        }));
+        try {
+          auditLog('day_closed_with_presence', 'event', activeEvent.id, {
+            event_name: activeEvent.name,
+            day: targetDay,
+            guests_closed: okc0,
+            failed: fail0,
+            note: 'presenza completa registrata a posteriori (tracking ingressi non usato in giornata)'
+          });
+        } catch (_) {}
+        if (btn0) btn0.disabled = false;
+        alert(fail0 > 0
+          ? `✔ ${okc0} ospiti chiusi con presenza\n✖ ${fail0} errori`
+          : `✔ Giornata del ${dayLabel} chiusa: ${okc0} ospiti con presenza registrata.\n\nEvento "${activeEvent.name}" resta attivo per le altre giornate.`);
+        await loadGuests(true);
+        return;
+      }
 
       if (candidates.length === 0) {
         alert(`Nessun ospite da chiudere per il ${dayLabel}.\n\n`
             + `Possibili cause:\n`
-            + `• Nessuno e' ancora entrato (clicca prima "🟢 Entrano tutti")\n`
-            + `• Tutti gia' chiusi (xatlas_status=checked_out)\n`
+            + `• Tutti gia' chiusi o usciti\n`
+            + `• Nessun ospite firmato per questa giornata\n`
             + `• Stai filtrando una giornata sbagliata`);
         return;
       }
