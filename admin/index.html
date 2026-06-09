@@ -4048,9 +4048,9 @@
             <span class="ts-title">Vista</span>
           </div>
           <div class="toolbar-station-buttons">
-            <button type="button" class="btn-cockpit btn-cockpit-vista active-tab" id="btn-toggle-arrived" onclick="toggleArrivedFilter()" title="Commuta tra lista completa (default: tutti gli ospiti, con bottone Entra/Esce) e vista ridotta solo di chi deve ancora firmare." aria-label="Mostra o nascondi gli ospiti arrivati">
+            <button type="button" class="btn-cockpit btn-cockpit-vista" id="btn-toggle-arrived" onclick="toggleArrivedFilter()" title="Commuta tra vista ridotta (default: solo chi deve ancora firmare) e lista completa. Per il tracking Entra/Esce di tutti i visitatori usa la Panoramica visitatori qui sotto." aria-label="Mostra o nascondi gli ospiti arrivati">
               <span class="bc-icon">👁️</span>
-              <span class="bc-text">Nascondi arrivati</span>
+              <span class="bc-text">Mostra arrivati</span>
             </button>
             <span class="cockpit-search">
               <span class="cockpit-search-icon" aria-hidden="true">🔍</span>
@@ -6345,6 +6345,7 @@
                 <button type="button" class="btn-gate-in"  onclick="openGateForVisitor(this,'entry')" title="Apri ingresso (TORNELLO_IN) per questo visitatore. Registra movimento entrata.">🚪 IN</button>
                 <button type="button" class="btn-gate-out" onclick="openGateForVisitor(this,'exit')"  title="Apri uscita (TORNELLO_OUT) per questo visitatore. Registra movimento uscita.">🚪 OUT</button>
               </span>
+              ${renderVisitorPauseButton(row)}
               ${assignBtn}
               ${concludeBtn}
               <button type="button" class="btn-icon btn-details-icon" data-id="${esc(row.id)}" onclick="openDetailsModal(this)" title="Dettagli (doc completo, firma, storico timbrature)">ℹ️</button>
@@ -7213,11 +7214,11 @@
     let arrivedSet     = new Set();   // ospiti già arrivati e firmati al kiosk
     let preAssignedMap = new Map();   // guest_id → badge_number per ospiti pre-attivati
     let emailStatusByGuest = new Map(); // guest_id → ultimo status email_queue ('pending'/'sent'/'failed')
-    // DEFAULT true dal 2026-06-09 sera (decisione titolare): al desk serve la
-    // lista COMPLETA per il flusso "ospite arriva → controllo nominativo →
-    // premo Entra". Con false i firmati sparivano e il bottone Entra non si
-    // trovava. Il toggle resta per chi vuole concentrarsi su chi manca.
-    let showArrived    = true;
+    // Default false (rev. 9/06 sera): la tabella Ospiti Attesi mostra SOLO chi
+    // deve ancora firmare (focus desk). La lista completa con bottone
+    // Entra/Esce per OGNI visitatore vive nella Panoramica visitatori /
+    // tab Visitatori (vedi renderVisitorPauseButton).
+    let showArrived    = false;
 
     // ── RICERCA OSPITE (filtro client-side su nome/cognome/email/azienda) ──
     let guestSearchTerm = '';
@@ -7584,6 +7585,64 @@
       if (!s.entry_time)               return 'never_entered';
       if (!s.exit_time)                return 'inside';
       return 'on_break';   // entry e exit entrambi popolati
+    }
+
+    // ── ENTRA/ESCE per riga della tabella VISITATORI (Panoramica) ──
+    // Variante di renderPauseButton che lavora direttamente sul record
+    // visitor (currentData) invece che sul guest. Per ogni visitatore al
+    // desk: controllo nominativo/documento → click Entra → tracking presenza
+    // con valore probatorio (entry/exit_time + audit_log con operatore).
+    function renderVisitorPauseButton(row) {
+      if ((row.xatlas_status || '') === 'checked_out') {
+        return '<span class="pause-state-closed" title="Visita conclusa">🏁</span>';
+      }
+      let label, cls, title;
+      if (!row.entry_time) {
+        label = '🚶 Entra';   cls = 'btn-pause-enter';
+        title = 'Segna ingresso al desk (orario corrente). Registrato in audit log con il tuo operatore.';
+      } else if (!row.exit_time) {
+        label = '🚶 Esce';    cls = 'btn-pause-out';
+        title = 'Segna uscita (pausa o fine visita). Orario corrente, tracciato in audit log.';
+      } else {
+        label = '🚶 Rientra'; cls = 'btn-pause-back';
+        title = 'Segna rientro dalla pausa. Orario corrente, tracciato in audit log.';
+      }
+      return `<button type="button" class="btn-pause ${cls}" data-id="${esc(row.id)}" onclick="onVisitorPauseClick(this)" title="${esc(title)}">${label}</button>`;
+    }
+
+    async function onVisitorPauseClick(btn) {
+      const id = btn.dataset.id;
+      const row = (Array.isArray(currentData) ? currentData : []).find(r => String(r.id) === String(id));
+      if (!row) return;
+      const nowHms = nowLocalTimeHMS();
+      let patchBody, action;
+      if (!row.entry_time)      { patchBody = { entry_time: nowHms, exit_time: null }; action = 'manual_enter'; }
+      else if (!row.exit_time)  { patchBody = { exit_time: nowHms };                   action = 'manual_exit'; }
+      else                      { patchBody = { entry_time: nowHms, exit_time: null }; action = 'manual_return'; }
+      btn.disabled = true;
+      try {
+        const res = await api(
+          `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(id)}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+            body: JSON.stringify(patchBody)
+          }
+        );
+        if (!res || !res.ok) throw new Error('HTTP ' + (res ? res.status : '?'));
+        try {
+          auditLog(action, 'visitor', id, {
+            time: nowHms,
+            source: 'visitors_table',
+            visitor_name: `${row.last_name || ''} ${row.first_name || ''}`.trim()
+          });
+        } catch (_) { /* silent */ }
+        // force=true: il refresh deve funzionare anche dalla Panoramica
+        await loadData(true, true);
+      } catch (err) {
+        alert('Errore tracciamento: ' + err.message);
+        btn.disabled = false;
+      }
     }
 
     function renderPauseButton(g) {
@@ -10442,7 +10501,10 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
         // il bottone Firma deve restare visibile e lo stato e' "Da firmare".
         const arrived    = arrivedSet.has(g.id);
         const matchedNoSig = !arrived && !!g.matched_visitor_id;
-        const preAssign  = !arrived && preAssignedMap.get(g.id);
+        // In qr_only il numero badge e' irrilevante (nessun badge fisico
+        // distribuito): lo stato non deve citarlo per non confondere il desk.
+        const _qrOnlyUi = document.body.classList.contains('event-type-qr-only');
+        const preAssign  = !arrived && !_qrOnlyUi && preAssignedMap.get(g.id);
         let statusHtml;
         if (arrived) {
           statusHtml = '<span class="gtype gtype-atteso" title="Visitor firmato">Arrivato</span>';
