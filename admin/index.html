@@ -6787,14 +6787,25 @@
       }
       bar.style.display = '';
 
-      const totale = baseData.length;
+      // FIX 2026-06-10 (Fix #6 audit workflow): label + count espliciti.
+      // - showArrived=false (default): "Da arrivare X / Y" — visibili / totali
+      // - showArrived=true: "Tutti X" — totali assoluti
+      // Risolve ambiguità "Tutti 54" che confondeva con stat card "Totale 67".
+      const totaleVisibili = baseData.length;
+      const totaleAssoluto = data.length;
       // Costruisco le pillole con createElement per evitare interpolation in attributi
       // (XSS hardening): textContent + dataset + addEventListener.
       dayCont.innerHTML = '';
       const allPill = document.createElement('span');
       allPill.className = 'guest-pill' + (!guestDayFilter ? ' active' : '');
-      allPill.innerHTML = 'Tutti <span class="pill-count"></span>';
-      allPill.querySelector('.pill-count').textContent = String(totale);
+      const allLabel = showArrived ? 'Tutti ' : 'Da arrivare ';
+      allPill.appendChild(document.createTextNode(allLabel));
+      const cnt = document.createElement('span');
+      cnt.className = 'pill-count';
+      cnt.textContent = showArrived || totaleVisibili === totaleAssoluto
+        ? String(totaleAssoluto)
+        : `${totaleVisibili} / ${totaleAssoluto}`;
+      allPill.appendChild(cnt);
       allPill.addEventListener('click', () => setGuestDayFilter(null));
       dayCont.appendChild(allPill);
 
@@ -7116,12 +7127,36 @@
         // solo come boolean "ha firmato?". Usiamo query separata filtrata server-side
         // su signature=not.is.null che ritorna solo guest_id (~30 bytes ciascuno).
         // Risparmio: 96 visitor × 50KB = ~5MB per refresh × auto-poll 10s = enorme.
-        const visitorRes  = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id,badge_number,xatlas_status,entry_time,exit_time&guest_id=not.is.null`);
+        //
+        // FIX 2026-06-10 (Fix #2 audit workflow):
+        // - event_id filter: limita le query all'evento attivo. Previene cap PostgREST
+        //   default 1000 righe (con MD+DM+PS+walk-in storici superato silenziosamente).
+        // - Range header 0-4999: aumenta cap esplicitamente.
+        // Risolve anche pollution preAssignedMap di eventi chiusi.
+        const evFilter = (activeEvent && activeEvent.id)
+          ? `&event_id=eq.${encodeURIComponent(activeEvent.id)}`
+          : '';
+        const rangeHeaders = { 'Range-Unit': 'items', 'Range': '0-4999' };
+        const visitorRes  = await api(
+          `${SUPABASE_URL}/rest/v1/visitors?select=id,guest_id,badge_number,xatlas_status,entry_time,exit_time&guest_id=not.is.null${evFilter}`,
+          { headers: rangeHeaders }
+        );
         const visitorData = visitorRes?.ok ? await visitorRes.json() : [];
-        // Query lean: solo guest_id dei visitor che hanno firmato.
-        const signedRes = await api(`${SUPABASE_URL}/rest/v1/visitors?select=guest_id&guest_id=not.is.null&signature=not.is.null`);
+        // FIX 2026-06-10 (Fix #1 audit workflow): includi anche id visitor per
+        // matchare matched_visitor_id dei guest (caso Clelia/Tranchino: visitor
+        // firmato ma visitor.guest_id NULL, mentre guest_list.matched_visitor_id
+        // = visitor.id — fixiamo arrivedSet via guest_list "inverso").
+        const signedRes = await api(
+          `${SUPABASE_URL}/rest/v1/visitors?select=id,guest_id&signature=not.is.null${evFilter}`,
+          { headers: rangeHeaders }
+        );
         const signedData = signedRes?.ok ? await signedRes.json() : [];
-        arrivedSet = new Set(signedData.map(v => v.guest_id));
+        const signedVisitorIds = new Set(signedData.map(v => v.id));
+        arrivedSet = new Set();
+        signedData.forEach(v => { if (v.guest_id) arrivedSet.add(v.guest_id); });
+        (Array.isArray(guestData) ? guestData : []).forEach(g => {
+          if (g.matched_visitor_id && signedVisitorIds.has(g.matched_visitor_id)) arrivedSet.add(g.id);
+        });
         // Pre-assegnazione: visitor stub ancora attivi (non checked_out) e NON firmati.
         // "Non firmato" = guest_id presente in visitorData ma NON in arrivedSet.
         preAssignedMap = new Map(
@@ -7147,7 +7182,12 @@
         const totale  = guestData.length;
         const dentro  = guestData.filter(g => insideIds.has(g.id)).length;
         const usciti  = guestData.filter(g => outIds.has(g.id)).length;
-        const attesa  = totale - dentro - usciti;
+        // FIX 2026-06-10 (Fix #4 audit workflow): sottrarre anche i firmati che
+        // non sono dentro/usciti (caso qr_only: ospiti firmano da casa giorni
+        // prima del passaggio fisico, sono "in attesa di arrivare" ma da
+        // pianificare diversamente). Formula simmetrica vs "Firmati".
+        const firmatiInList = guestData.filter(g => arrivedSet.has(g.id) || g.matched_visitor_id).length;
+        const attesa  = Math.max(0, totale - firmatiInList - dentro - usciti);
 
         // Carica stato email_queue per ogni guest (best-effort, non blocca)
         // emailStatusByGuest: Map<guest_id, { status, sent_at, created_at, error, attempts }>
@@ -7176,9 +7216,10 @@
         // arrivedSet contiene TUTTI i visitor firmati cross-event: senza questo filtro,
         // il count includerebbe firme di eventi passati gia' chiusi (es. 89 di MD anche
         // dopo aver creato l'evento giugno). Soluzione: intersect con guestData.
-        const firmati = arrivedSet
-          ? guestData.filter(g => arrivedSet.has(g.id)).length
-          : 0;
+        // FIX 2026-06-10 (Fix #5 audit workflow): includi matched_visitor_id
+        // come fallback (coerente con printGuestList che gia' lo usa); evita
+        // divergenza tra schermo e cartoncino stampato.
+        const firmati = guestData.filter(g => arrivedSet.has(g.id) || g.matched_visitor_id).length;
         const signedEl = document.getElementById('g-stat-signed');
         if (signedEl) signedEl.textContent = firmati;
         document.getElementById('g-stat-waiting').textContent = attesa;
@@ -9308,11 +9349,17 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       tbody.innerHTML = '';
 
       visible.forEach(g => {
-        const arrived    = arrivedSet.has(g.id);
-        const preAssign  = preAssignedMap.get(g.id);
+        // FIX 2026-06-10 (Fix #3 audit workflow): matched_visitor_id da solo
+        // basta a considerare "arrivato" anche se arrivedSet non e' aggiornato
+        // (race kiosk o INSERT manuale guest a posteriori). Label distinta per
+        // debug: 'Matchato (firma assente)' = c'e' il link ma signature ancora
+        // non vista; 'Arrivato' = visitor con signature confermata.
+        const arrived    = arrivedSet.has(g.id) || !!g.matched_visitor_id;
+        const preAssign  = !arrived && preAssignedMap.get(g.id);
         let statusHtml;
         if (arrived) {
-          statusHtml = '<span class="gtype gtype-atteso">Arrivato</span>';
+          const label = arrivedSet.has(g.id) ? 'Arrivato' : 'Matchato';
+          statusHtml = `<span class="gtype gtype-atteso" title="${esc(label === 'Matchato' ? 'Collegato a visitor, firma non ancora propagata' : 'Visitor firmato')}">${esc(label)}</span>`;
         } else if (preAssign) {
           statusHtml = `<span class="xstatus xstatus-pending" title="Badge gia attivato in anticipo">&#9201; Badge ${esc(preAssign.badge)} pronto</span>`;
         } else {
