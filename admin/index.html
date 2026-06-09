@@ -2762,6 +2762,10 @@
           <input type="text" id="det-reason" placeholder="Motivo">
         </div>
         <div class="modal-field">
+          <label>Note acquisizione</label>
+          <textarea id="det-notes" readonly placeholder="—" style="min-height: 60px; resize: vertical;"></textarea>
+        </div>
+        <div class="modal-field">
           <label>🎫 Evento</label>
           <input type="text" id="det-event-name" readonly placeholder="—">
         </div>
@@ -4682,14 +4686,27 @@
           alert('Visitor associato non trovato (id=' + visitorId + '). Probabilmente è stato archiviato.');
           return;
         }
-        // Push in currentData se manca (openDetailsModal cerca li' con find)
+        // Push in currentData se manca (openDetailsModal cerca li' con find).
+        // Arricchisce con le note di guest_list (campo guest_notes letto da
+        // openDetailsModal). Questo risolve il bug "nota inserita in
+        // Aggiungi Ospite ma invisibile nei dettagli" (notes vive in
+        // guest_list, non in visitors).
+        const visitor = arr[0];
+        if (guest && guest.notes) {
+          visitor.guest_notes = guest.notes;
+        }
         if (!Array.isArray(currentData)) {
           currentData = [];
         }
-        if (!currentData.find(r => String(r.id) === String(visitorId))) {
-          currentData.push(arr[0]);
+        const existing = currentData.find(r => String(r.id) === String(visitorId));
+        if (existing) {
+          // Aggiorna guest_notes se mancante (cache fresh)
+          if (!existing.guest_notes && visitor.guest_notes) {
+            existing.guest_notes = visitor.guest_notes;
+          }
+        } else {
+          currentData.push(visitor);
         }
-        // Costruisce un finto bottone con data-id per riusare openDetailsModal as-is
         const fakeBtn = { dataset: { id: visitorId } };
         openDetailsModal(fakeBtn);
       } catch (err) {
@@ -6282,6 +6299,34 @@
       document.getElementById('det-badge').value       = row.badge_number || '';
       document.getElementById('det-person').value      = row.person_to_visit || '';
       document.getElementById('det-reason').value      = row.visit_reason   || '';
+      // Note acquisizione (FIX 2026-06-10): le note inserite in "Aggiungi Ospite"
+      // vivono in guest_list.notes, NON in visitors. Vengono qui arricchite via
+      // row.guest_notes da openGuestVisitorDetails (lookup guest_list per
+      // matched_visitor_id). Se l'utente apre il modal direttamente dal tab
+      // Visitatori, facciamo lookup async qui sotto come fallback.
+      const detNotesEl = document.getElementById('det-notes');
+      if (detNotesEl) {
+        const initial = row.guest_notes || row.notes || '';
+        detNotesEl.value = initial;
+        detNotesEl.placeholder = initial ? '' : '—';
+        // Fallback: lookup async guest_list se non e' gia' valorizzata
+        if (!initial && row.id) {
+          (async () => {
+            try {
+              const r = await api(`${SUPABASE_URL}/rest/v1/guest_list?matched_visitor_id=eq.${encodeURIComponent(row.id)}&select=notes&limit=1`);
+              if (!r || !r.ok) return;
+              const arr = await r.json();
+              if (arr && arr[0] && arr[0].notes) {
+                // Solo se modal ancora aperto sullo stesso visitor
+                if (detailsCurrentId === row.id) {
+                  detNotesEl.value = arr[0].notes;
+                  detNotesEl.placeholder = '';
+                }
+              }
+            } catch (_) { /* silent */ }
+          })();
+        }
+      }
 
       // Evento snapshot
       const evNameEl = document.getElementById('det-event-name');
