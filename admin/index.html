@@ -3898,8 +3898,8 @@
                 <th class="th-sort" data-col="entry_time" onclick="sortBy('entry_time')" title="Clicca per ordinare per Ora Ingresso al tornello.">Orari</th>
                 <th class="th-sort" data-col="visit_reason" onclick="sortBy('visit_reason')" title="Clicca per ordinare per Motivo Visita (alfabetico).">Motivo / Persona</th>
                 <th class="th-sort" data-col="event_name" onclick="sortBy('event_name')" title="Clicca per ordinare per Nome Evento.">🎫 Evento</th>
-                <th class="th-sort" data-col="xatlas_status" onclick="sortBy('xatlas_status')" title="Clicca per ordinare per stato XAtlas (pending, active, checked_out).">Tipo</th>
-                <th class="th-sort" data-col="badge_number" onclick="sortBy('badge_number')" title="Clicca per ordinare per Numero Badge.">Badge</th>
+                <th class="th-sort js-badge-only" data-col="xatlas_status" onclick="sortBy('xatlas_status')" title="Clicca per ordinare per stato XAtlas (pending, active, checked_out).">Tipo</th>
+                <th class="th-sort js-badge-only" data-col="badge_number" onclick="sortBy('badge_number')" title="Clicca per ordinare per Numero Badge.">Badge</th>
                 <th class="no-sort">Azioni</th>
               </tr>
             </thead>
@@ -6290,11 +6290,11 @@
           <td>${orariHtml}</td>
           <td>${visitDetailsHtml}</td>
           <td>${eventHtml}</td>
-          <td>${gTypeHtml}</td>
-          <td>${badgeHtml}</td>
+          <td class="js-badge-only">${gTypeHtml}</td>
+          <td class="js-badge-only">${badgeHtml}</td>
           <td>
             <div class="action-row">
-              <span class="gate-actions" title="Apertura tornello manuale per ${esc(row.first_name || '')} ${esc(row.last_name || '')}">
+              <span class="gate-actions js-badge-only" title="Apertura tornello manuale per ${esc(row.first_name || '')} ${esc(row.last_name || '')}">
                 <button type="button" class="btn-gate-in"  onclick="openGateForVisitor(this,'entry')" title="Apri ingresso (TORNELLO_IN) per questo visitatore. Registra movimento entrata.">🚪 IN</button>
                 <button type="button" class="btn-gate-out" onclick="openGateForVisitor(this,'exit')"  title="Apri uscita (TORNELLO_OUT) per questo visitatore. Registra movimento uscita.">🚪 OUT</button>
               </span>
@@ -7574,6 +7574,8 @@
       const neverEntered = [];   // firmati ma mai segnati come entrati
       (Array.isArray(guestData) ? guestData : []).forEach(g => {
         if (!g.matched_visitor_id) return;
+        // REV 9/06 sera: solo ospiti con FIRMA reale (no stub badge senza firma)
+        if (!arrivedSet.has(g.id)) return;
         if (g.expected_date !== targetDay) return;
         const state = _getVisitorState(g.matched_visitor_id);
         // Da chiudere: chi e' dentro O in pausa (chiusura sicura). Skip "closed".
@@ -7710,6 +7712,8 @@
       const candidates = [];
       (Array.isArray(guestData) ? guestData : []).forEach(g => {
         if (!g.matched_visitor_id) return;
+        // REV 9/06 sera: solo ospiti con FIRMA reale (no stub badge senza firma)
+        if (!arrivedSet.has(g.id)) return;
         // Rispetta filtro giorno se attivo
         if (guestDayFilter && g.expected_date !== guestDayFilter) return;
         const state = _getVisitorState(g.matched_visitor_id);
@@ -7894,7 +7898,9 @@
 
       const isQrOnly = activeEvent.event_type === 'qr_only';
       const totale   = rows.length;
-      const firmati  = rows.filter(g => g.matched_visitor_id).length;
+      // REV 9/06 sera: firma reale = arrivedSet (signature-based), non
+      // matched_visitor_id che include stub badge senza firma.
+      const firmati  = rows.filter(g => arrivedSet.has(g.id)).length;
       const daArrivare = totale - firmati;
 
       // 4. Costruisce HTML printable
@@ -7904,7 +7910,7 @@
         const azienda  = esc(g.company || '');
         const mansione = esc(g.job_title || '');
         const turno    = esc(g.notes || '');
-        const firmato  = !!g.matched_visitor_id;
+        const firmato  = arrivedSet.has(g.id);
         return `<tr class="${firmato ? 'firmato' : ''}">
           <td class="n">${i + 1}</td>
           <td class="nome">${fullName}</td>
@@ -8160,10 +8166,9 @@
         const dentro  = guestData.filter(g => insideIds.has(g.id)).length;
         const usciti  = guestData.filter(g => outIds.has(g.id)).length;
         // FIX 2026-06-10 (Fix #4 audit workflow): sottrarre anche i firmati che
-        // non sono dentro/usciti (caso qr_only: ospiti firmano da casa giorni
-        // prima del passaggio fisico, sono "in attesa di arrivare" ma da
-        // pianificare diversamente). Formula simmetrica vs "Firmati".
-        const firmatiInList = guestData.filter(g => arrivedSet.has(g.id) || g.matched_visitor_id).length;
+        // non sono dentro/usciti. REV 9/06 sera: SOLO arrivedSet (firma reale),
+        // matched_visitor_id da solo e' uno stub badge senza firma.
+        const firmatiInList = guestData.filter(g => arrivedSet.has(g.id)).length;
         const attesa  = Math.max(0, totale - firmatiInList - dentro - usciti);
 
         // Carica stato email_queue per ogni guest (best-effort, non blocca)
@@ -8222,9 +8227,10 @@
 
         document.getElementById('g-stat-total').textContent   = dashTotal     != null ? dashTotal     : totale;
         const signedEl = document.getElementById('g-stat-signed');
+        // REV 9/06 sera: fallback SOLO arrivedSet (firma reale, no stub badge)
         if (signedEl) signedEl.textContent = dashSigned != null
           ? dashSigned
-          : guestData.filter(g => arrivedSet.has(g.id) || g.matched_visitor_id).length;
+          : guestData.filter(g => arrivedSet.has(g.id)).length;
         document.getElementById('g-stat-waiting').textContent = dashWaiting   != null ? dashWaiting   : attesa;
         document.getElementById('g-stat-inside').textContent  = dashInside    != null ? dashInside    : dentro;
         document.getElementById('g-stat-out').textContent     = dashCheckedOut!= null ? dashCheckedOut: usciti;
@@ -10358,17 +10364,21 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
       tbody.innerHTML = '';
 
       visible.forEach(g => {
-        // FIX 2026-06-10 (Fix #3 audit workflow): matched_visitor_id da solo
-        // basta a considerare "arrivato" anche se arrivedSet non e' aggiornato
-        // (race kiosk o INSERT manuale guest a posteriori). Label distinta per
-        // debug: 'Matchato (firma assente)' = c'e' il link ma signature ancora
-        // non vista; 'Arrivato' = visitor con signature confermata.
-        const arrived    = arrivedSet.has(g.id) || !!g.matched_visitor_id;
+        // FIX 2026-06-09 sera (rev. del Fix #3): "arrivato" = SOLO firma reale
+        // (arrivedSet, signature-based). matched_visitor_id da solo NON basta:
+        // i visitor stub creati per pre-attivazione badge (es. DM maggio) hanno
+        // matched_visitor_id ma signature NULL → l'ospite deve ANCORA firmare,
+        // il bottone Firma deve restare visibile e lo stato e' "Da firmare".
+        const arrived    = arrivedSet.has(g.id);
+        const matchedNoSig = !arrived && !!g.matched_visitor_id;
         const preAssign  = !arrived && preAssignedMap.get(g.id);
         let statusHtml;
         if (arrived) {
-          const label = arrivedSet.has(g.id) ? 'Arrivato' : 'Matchato';
-          statusHtml = `<span class="gtype gtype-atteso" title="${esc(label === 'Matchato' ? 'Collegato a visitor, firma non ancora propagata' : 'Visitor firmato')}">${esc(label)}</span>`;
+          statusHtml = '<span class="gtype gtype-atteso" title="Visitor firmato">Arrivato</span>';
+        } else if (matchedNoSig && preAssign) {
+          statusHtml = `<span class="xstatus xstatus-pending" title="Badge pre-attivato ma firma ancora mancante">&#9201; Badge ${esc(preAssign.badge)} — da firmare</span>`;
+        } else if (matchedNoSig) {
+          statusHtml = '<span class="gtype gtype-walkin" title="Collegato a visitor ma senza firma: deve ancora firmare">Da firmare</span>';
         } else if (preAssign) {
           statusHtml = `<span class="xstatus xstatus-pending" title="Badge gia attivato in anticipo">&#9201; Badge ${esc(preAssign.badge)} pronto</span>`;
         } else {
@@ -10444,7 +10454,7 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
               <button type="button" class="btn-gate-out" onclick="openGateForGuest(this,'exit')"  title="Apri TORNELLO_OUT per ${esc(g.first_name || '')} ${esc(g.last_name || '')}. Click → tornello apre in ~1 sec. Registra uscita.">🚪 OUT</button>
             </span>
             ${g.matched_visitor_id ? `<button type="button" class="btn-icon btn-details-icon" data-id="${esc(g.id)}" onclick="openGuestVisitorDetails(this)" title="Storico timbrature completo (ingressi e uscite multipli) + dettagli firma, documento, badge. Disponibile dopo il primo passaggio al tornello.">ℹ️</button>` : ''}
-            ${g.matched_visitor_id ? renderPauseButton(g) : ''}
+            ${(arrived && g.matched_visitor_id) ? renderPauseButton(g) : ''}
             ${!arrived ? `<button type="button" class="btn-signature-handoff" data-id="${esc(g.id)}" onclick="reopenSignatureHandoff(this)" title="Riapre il dialog per passare la firma all'ospite (tablet kiosk, QR cellulare o email). Disponibile finché l'ospite non ha firmato.">✍️ Firma</button>` : ''}
             ${(!arrived && !preAssign) ? `<button type="button" class="btn-badge-assign" data-id="${esc(g.id)}" onclick="openPreAssignModal(this)" title="Apri modale per pre-assegnare un badge a questo ospite (creazione visitor stub xatlas_status='pending', l'agente attiverà il badge nei tornelli).">Pre-assegna Badge</button>` : ''}
             <button type="button" class="btn-delete" data-id="${esc(g.id)}" onclick="deleteGuest(this)" title="Rimuove questo ospite dalla guest_list. NON è permesso se ha già firmato il QR o ha un visitor pre-assegnato (audit/integrità).">Rimuovi</button>
