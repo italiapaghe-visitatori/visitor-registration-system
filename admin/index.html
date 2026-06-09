@@ -3819,9 +3819,9 @@
       </div>
       <!-- Riga 2: tab di navigazione -->
       <div class="header-tabs">
-        <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')" title="Registro passaggi: chi è dentro ora, chi è uscito, stato badge XAtlas, firme e documenti. La vista 'security/reception' durante l'evento.">Visitatori</button>
-        <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')" title="Lista ospiti invitati prima dell'evento: stato invio email QR, badge pronti, arrivi. La vista 'segreteria' nella fase preparatoria.">Ospiti Attesi</button>
-        <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')" title="Gestione eventi: crea/avvia/chiudi, pool badge dedicato, generazione QR pubblico. Solo un evento può essere attivo alla volta.">🎫 Eventi</button>
+        <button type="button" class="btn btn-light active-tab" id="tab-visitors" onclick="switchView('visitors')" title="Registro passaggi: chi è dentro ora, chi è uscito, stato accesso, firme e documenti. La vista 'security/reception' durante l'evento.">Visitatori</button>
+        <button type="button" class="btn btn-light" id="tab-guests" onclick="switchView('guests')" title="Lista ospiti invitati prima dell'evento: stato invio email QR, firme, arrivi. La vista 'segreteria' nella fase preparatoria.">Ospiti Attesi</button>
+        <button type="button" class="btn btn-light" id="tab-events" onclick="switchView('events')" title="Gestione eventi: crea/avvia/chiudi, scelta tipo (Solo QR o Con badge), generazione QR pubblico. Solo un evento può essere attivo alla volta.">🎫 Eventi</button>
         <button type="button" class="btn btn-light" id="tab-summary" onclick="switchView('summary')" title="Dashboard riepilogo: ogni evento (attivo/futuro/pronto + ultimi 30 giorni chiusi) con conteggi totali, firmati, dentro ora, usciti, %. Vista cross-evento utile per supervisione.">📊 Riepilogo</button>
         <button type="button" class="btn btn-light js-badge-only" id="tab-drafts" onclick="switchView('drafts')" title="Editor pre-assegnazione massiva badge: importa CSV partecipanti, assegna badge (manuale/auto-numera/pool) con validazione live e cross-check multi-utente, esporta o importa direttamente in Ospiti Attesi.">📝 Pre-assegnazione</button>
         <button type="button" class="btn btn-light js-badge-only" id="tab-acquire" onclick="switchView('acquire')" title="Modalità Acquisizione &amp; Pair Badge: scansiona velocemente i badge fisici col lettore RFID USB (o digitazione manuale) per popolare il pool, poi assegnali agli ospiti in 3 modalità (auto-sequenziale, click+scan, drag-drop). 96 badge in 5 minuti totali.">🔍 Acquisizione</button>
@@ -3842,7 +3842,7 @@
       </div>
       <div class="aeb-actions">
         <button type="button" class="btn-aeb-qr" onclick="openQrModalForActiveEvent()" title="Apri modale QR dell'evento attivo: copia link, scarica PNG QR, invia massivo via email a tutti gli ospiti.">📱 QR</button>
-        <button type="button" class="btn-aeb-close" onclick="closeActiveEvent()" title="Concludi l'evento corrente: imposta closed_at, archivia massivamente i visitor dell'evento, libera i badge del pool. Non reversibile.">Chiudi evento</button>
+        <button type="button" class="btn-aeb-close" onclick="closeActiveEvent()" title="Concludi DEFINITIVAMENTE l'evento corrente: imposta closed_at, archivia massivamente i visitor dell'evento (e libera eventuali badge del pool). Non reversibile.">Chiudi evento</button>
       </div>
     </div>
 
@@ -3947,7 +3947,7 @@
                 <th class="th-sort" data-col="company"    onclick="sortBy('company')" title="Clicca per ordinare per Azienda (1° click A-Z, 2° Z-A).">Azienda</th>
                 <th class="th-sort" data-col="document_id" onclick="sortBy('document_id')" title="Clicca per ordinare per Numero Documento.">📄 Documento</th>
                 <th class="th-sort" data-col="visit_date" onclick="sortBy('visit_date')" title="Clicca per ordinare per Data Visita (più recenti / più vecchi).">Data</th>
-                <th class="th-sort" data-col="entry_time" onclick="sortBy('entry_time')" title="Clicca per ordinare per Ora Ingresso al tornello.">Orari</th>
+                <th class="th-sort" data-col="entry_time" onclick="sortBy('entry_time')" title="Clicca per ordinare per Ora Ingresso.">Orari</th>
                 <th class="th-sort" data-col="visit_reason" onclick="sortBy('visit_reason')" title="Clicca per ordinare per Motivo Visita (alfabetico).">Motivo / Persona</th>
                 <th class="th-sort" data-col="event_name" onclick="sortBy('event_name')" title="Clicca per ordinare per Nome Evento.">🎫 Evento</th>
                 <th class="th-sort js-badge-only" data-col="xatlas_status" onclick="sortBy('xatlas_status')" title="Clicca per ordinare per stato XAtlas (pending, active, checked_out).">Tipo</th>
@@ -4145,7 +4145,7 @@
               <span class="bc-icon">➕</span>
               <span class="bc-text">Aggiungi</span>
             </button>
-            <button type="button" class="btn-cockpit btn-cockpit-import" onclick="document.getElementById('file-import').click()" title="Import massivo da CSV/Excel: crea righe in guest_list. Se il CSV contiene Numero_Badge, pre-attiva automaticamente i badge sui tornelli (creazione utente XAtlas + assegnazione card)." aria-label="Importa CSV o Excel">
+            <button type="button" class="btn-cockpit btn-cockpit-import" onclick="document.getElementById('file-import').click()" title="Import massivo da CSV/Excel: crea righe in guest_list (nome, cognome, email, azienda, data, motivo). Negli eventi 'Con badge' la colonna Numero_Badge pre-attiva i badge; negli eventi 'Solo QR' viene ignorata." aria-label="Importa CSV o Excel">
               <span class="bc-icon">📥</span>
               <span class="bc-text">Importa</span>
             </button>
@@ -4265,7 +4265,7 @@
         <div class="ecrb-text">
           <strong>Quando chiudere un evento:</strong> aspetta <strong>1 ora dopo</strong> l'orario di fine ufficiale per dare buffer agli ospiti in uscita.
           <br>
-          <small>Esempio: evento dichiarato fino alle 18:00 → clicca "🛑 Chiudi evento" alle 19:00. Se chiudi subito, i badge si disattivano al tornello e gli ospiti ancora dentro restano bloccati fuori.</small>
+          <small>Esempio: evento dichiarato fino alle 18:00 → clicca "🛑 Chiudi evento" alle 19:00. La chiusura archivia i visitatori (e negli eventi con badge li disattiva ai tornelli): chiudendo troppo presto si rischia di bloccare chi è ancora dentro.</small>
         </div>
       </div>
 
