@@ -1973,27 +1973,195 @@
       display: inline-block; padding: 4px 10px; font-size: 11.5px; font-weight: 700;
       color: #2d3748; background: #edf2f7; border-radius: 7px; margin-right: 4px;
     }
-    /* Bottoni MASSA Pausa/Rientro nella toolbar */
-    .btn-mass-enter {
-      background: linear-gradient(135deg, #48bb78 0%, #2f855a 100%);
-      color: #fff; border: none;
+    /* ════════════════════════════════════════════════════════════════
+       TOOLBAR COCKPIT — Operatore desk reception
+       Layout a stazioni semantiche: ogni gruppo e' una "card" con
+       header label proprio. Color coding per dominio funzionale.
+       ════════════════════════════════════════════════════════════════ */
+    .toolbar-cockpit {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: stretch;
+      padding: 0;
+      background: transparent;
     }
-    .btn-mass-enter:hover { box-shadow: 0 4px 12px rgba(72,187,120,0.4); }
-    .btn-mass-out {
-      background: linear-gradient(135deg, #ecc94b 0%, #d69e2e 100%);
-      color: #744210; border: none;
+    .toolbar-station {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      padding: 9px 12px 11px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #fafafa 0%, #f5f5f4 100%);
+      border: 1px solid #e7e5e4;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 1px 2px rgba(0,0,0,0.04);
+      transition: box-shadow 0.18s, transform 0.18s;
     }
-    .btn-mass-out:hover { box-shadow: 0 4px 12px rgba(214,158,46,0.4); }
-    .btn-mass-back {
-      background: linear-gradient(135deg, #4299e1 0%, #2c5282 100%);
-      color: #fff; border: none;
+    .toolbar-station:hover {
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 4px 14px rgba(0,0,0,0.06);
     }
-    .btn-mass-back:hover { box-shadow: 0 4px 12px rgba(66,153,225,0.4); }
-    .btn-mass-enter:disabled,
-    .btn-mass-out:disabled,
-    .btn-mass-back:disabled {
-      opacity: 0.45; cursor: not-allowed; box-shadow: none;
+    .toolbar-station-header {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      color: #57534e;
+      padding: 0 2px;
+      user-select: none;
     }
+    .toolbar-station-header .ts-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: currentColor;
+      opacity: 0.85;
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+    }
+    .toolbar-station-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    /* Color coding per stazione */
+    .station-vista          { background: linear-gradient(180deg, #fafafa, #f5f5f4); border-color: #e7e5e4; }
+    .station-vista .toolbar-station-header          { color: #57534e; }
+    .station-presenze       { background: linear-gradient(180deg, #f0fdf4, #ecfdf5); border-color: #bbf7d0; }
+    .station-presenze .toolbar-station-header       { color: #15803d; }
+    .station-comunicazione  { background: linear-gradient(180deg, #eff6ff, #dbeafe); border-color: #bfdbfe; }
+    .station-comunicazione .toolbar-station-header  { color: #1d4ed8; }
+    .station-gestione       { background: linear-gradient(180deg, #faf5ff, #f3e8ff); border-color: #e9d5ff; }
+    .station-gestione .toolbar-station-header       { color: #7c3aed; }
+    .station-badge          { background: linear-gradient(180deg, #fff7ed, #ffedd5); border-color: #fed7aa; }
+    .station-badge .toolbar-station-header          { color: #c2410c; }
+
+    /* ── Bottoni cockpit (compatti, uniformi, semantici) ────────── */
+    .btn-cockpit {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 9px;
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: 0.1px;
+      cursor: pointer;
+      border: 1px solid #d6d3d1;
+      background: #fff;
+      color: #1c1917;
+      transition: all 0.16s cubic-bezier(0.4,0,0.2,1);
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+    .btn-cockpit:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+    .btn-cockpit:active { transform: translateY(0); }
+    .btn-cockpit:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+    .btn-cockpit:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-cockpit .bc-icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
+    .btn-cockpit .bc-text { font-weight: 600; }
+
+    /* Vista */
+    .btn-cockpit-vista { background: #fff; border-color: #d6d3d1; color: #44403c; }
+    .btn-cockpit-vista:hover { background: #fafaf9; border-color: #a8a29e; }
+    .btn-cockpit-vista.active-tab { background: #1c1917; color: #fff; border-color: #1c1917; }
+
+    /* Presenze: 3 stati semantici netti */
+    .btn-cockpit-enter {
+      background: linear-gradient(135deg, #22c55e, #15803d);
+      color: #fff; border-color: transparent;
+    }
+    .btn-cockpit-enter:hover { box-shadow: 0 4px 14px rgba(34,197,94,0.42); }
+    .btn-cockpit-out {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff; border-color: transparent;
+    }
+    .btn-cockpit-out:hover { box-shadow: 0 4px 14px rgba(245,158,11,0.42); }
+    .btn-cockpit-back {
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: #fff; border-color: transparent;
+    }
+    .btn-cockpit-back:hover { box-shadow: 0 4px 14px rgba(59,130,246,0.42); }
+
+    /* Stampa & QR */
+    .btn-cockpit-print { background: #fff; border-color: #bfdbfe; color: #1e3a8a; }
+    .btn-cockpit-print:hover { background: #eff6ff; border-color: #93c5fd; }
+    .btn-cockpit-qr { background: linear-gradient(135deg, #0ea5e9, #0369a1); color: #fff; border-color: transparent; }
+    .btn-cockpit-qr:hover { box-shadow: 0 4px 14px rgba(14,165,233,0.4); }
+    .btn-cockpit-mail { background: linear-gradient(135deg, #06b6d4, #0e7490); color: #fff; border-color: transparent; }
+    .btn-cockpit-mail:hover { box-shadow: 0 4px 14px rgba(6,182,212,0.4); }
+
+    /* Gestione ospiti */
+    .btn-cockpit-add {
+      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+      color: #fff; border-color: transparent;
+    }
+    .btn-cockpit-add:hover { box-shadow: 0 4px 14px rgba(139,92,246,0.42); }
+    .btn-cockpit-import {
+      background: #fff; border-color: #ddd6fe; color: #5b21b6;
+    }
+    .btn-cockpit-import:hover { background: #f5f3ff; border-color: #c4b5fd; }
+    .btn-cockpit-template {
+      background: #fff; border-color: #e5e7eb; color: #44403c;
+    }
+    .btn-cockpit-template:hover { background: #fafafa; border-color: #d1d5db; }
+
+    /* Badge fisici (turnstile only) */
+    .btn-cockpit-badge {
+      background: linear-gradient(135deg, #fb923c, #ea580c);
+      color: #fff; border-color: transparent;
+    }
+    .btn-cockpit-badge:hover { box-shadow: 0 4px 14px rgba(251,146,60,0.42); }
+    .btn-cockpit-badge-warn {
+      background: linear-gradient(135deg, #f59e0b, #b45309);
+      color: #fff; border-color: transparent;
+    }
+    .btn-cockpit-badge-warn:hover { box-shadow: 0 4px 14px rgba(245,158,11,0.42); }
+    .btn-cockpit-badge-soft {
+      background: #fff; border-color: #fed7aa; color: #9a3412;
+    }
+    .btn-cockpit-badge-soft:hover { background: #fff7ed; border-color: #fdba74; }
+
+    /* Search inline nella stazione Vista */
+    .cockpit-search {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px 4px 10px;
+      background: #fff;
+      border: 1px solid #d6d3d1;
+      border-radius: 9px;
+      min-width: 220px;
+      transition: border-color 0.16s, box-shadow 0.16s;
+    }
+    .cockpit-search:focus-within {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    }
+    .cockpit-search .guest-search-icon { font-size: 13px; opacity: 0.6; }
+    .cockpit-search input[type="search"] {
+      border: none; outline: none; padding: 4px 0;
+      font-size: 12.5px; background: transparent; min-width: 160px;
+      color: #1c1917;
+    }
+    .cockpit-search input[type="search"]::placeholder { color: #a8a29e; }
+    .cockpit-search .guest-search-clear {
+      border: none; background: transparent; color: #a8a29e;
+      cursor: pointer; font-size: 16px; padding: 0 4px; line-height: 1;
+    }
+    .cockpit-search .guest-search-clear:hover { color: #1c1917; }
+
+    /* Responsive: stack verticale su schermi stretti */
+    @media (max-width: 900px) {
+      .toolbar-cockpit { flex-direction: column; }
+      .toolbar-station { width: 100%; }
+      .cockpit-search { min-width: 100%; }
+    }
+
+    /* Backward-compat: legacy classi mantenute funzionanti ma non piu' usate nel render principale.
+       (alcuni handler/codice JS potrebbero fare riferimento via id.) */
+    .btn-mass-enter, .btn-mass-out, .btn-mass-back { display: inline-flex; }
     /* Box multi-giornata (eventi con ospiti su piu' date). */
     .multi-day-box {
       margin: 14px 0;
@@ -3769,46 +3937,126 @@
         </div>
       </div>
 
-      <!-- Azioni -->
-      <div class="toolbar-actions">
-        <button type="button" class="btn btn-secondary" id="btn-toggle-arrived" onclick="toggleArrivedFilter()" title="Commuta tra mostrare/nascondere gli ospiti che hanno già firmato il QR (signature popolata). Default: nasconde gli arrivati per concentrarsi sui non ancora arrivati.">👁️ Mostra arrivati</button>
+      <!-- ═══════════════════════════════════════════════════════════════
+           TOOLBAR COCKPIT — Stazioni operative per il desk reception
+           Layout a stazioni semantiche: ogni gruppo ha label + colore
+           proprio per orientamento visivo rapido. Su mobile collassa
+           in colonna mantenendo le stazioni separate.
+           ═══════════════════════════════════════════════════════════════ -->
+      <div class="toolbar-actions toolbar-cockpit" role="toolbar" aria-label="Azioni gestione ospiti">
 
-        <button type="button" class="btn btn-secondary" id="btn-print-guests" onclick="printGuestList()" title="Stampa un elenco cartaceo degli ospiti attesi (rispetta i filtri pillole giorno+turno attivi). Genera una pagina A4 con nome/azienda/mansione/turno/stato firma, ottima da tenere sotto mano al desk.">🖨️ Stampa elenco</button>
+        <!-- STAZIONE 1: VISTA -->
+        <div class="toolbar-station station-vista">
+          <div class="toolbar-station-header">
+            <span class="ts-dot"></span>
+            <span class="ts-title">Vista</span>
+          </div>
+          <div class="toolbar-station-buttons">
+            <button type="button" class="btn-cockpit btn-cockpit-vista" id="btn-toggle-arrived" onclick="toggleArrivedFilter()" title="Commuta tra mostrare/nascondere gli ospiti che hanno già firmato il QR (signature popolata). Default: nasconde gli arrivati per concentrarsi sui non ancora arrivati." aria-label="Mostra o nascondi gli ospiti arrivati">
+              <span class="bc-icon">👁️</span>
+              <span class="bc-text">Mostra arrivati</span>
+            </button>
+            <span class="guest-search-wrap cockpit-search">
+              <span class="guest-search-icon" aria-hidden="true">🔍</span>
+              <input type="search" id="guest-search-input" placeholder="Cerca cognome/nome..." oninput="onGuestSearchInput(this.value)" aria-label="Ricerca ospite per nome o cognome">
+              <button type="button" class="guest-search-clear" id="guest-search-clear" onclick="clearGuestSearch()" title="Pulisci ricerca" style="display:none" aria-label="Pulisci ricerca">×</button>
+            </span>
+          </div>
+        </div>
 
-        <span class="toolbar-divider"></span>
-        <span class="toolbar-label">Massa</span>
-        <button type="button" class="btn btn-mass-enter" id="btn-mass-enter" onclick="bulkPauseAction('enter')" title="Segna ENTRATA per TUTTI gli ospiti che hanno firmato ma non sono ancora dentro. Usalo all'inizio della giornata quando tutti arrivano insieme. Chiede conferma prima di applicare.">🟢 Entrano tutti</button>
-        <button type="button" class="btn btn-mass-out" id="btn-mass-out" onclick="bulkPauseAction('exit')" title="Segna USCITA per TUTTI gli ospiti dentro adesso (pausa pranzo, intervallo, fine giornata). Chiede conferma prima di applicare.">🍽️ Tutti in pausa</button>
-        <button type="button" class="btn btn-mass-back" id="btn-mass-back" onclick="bulkPauseAction('return')" title="Segna RIENTRO per TUTTI gli ospiti in pausa (rientro dalla pausa pranzo). Chiede conferma prima di applicare.">🔄 Tutti rientrati</button>
+        <!-- STAZIONE 2: PRESENZE AL DESK (bulk actions per qr_only) -->
+        <div class="toolbar-station station-presenze">
+          <div class="toolbar-station-header">
+            <span class="ts-dot"></span>
+            <span class="ts-title">Presenze al desk</span>
+          </div>
+          <div class="toolbar-station-buttons">
+            <button type="button" class="btn-cockpit btn-cockpit-enter" id="btn-mass-enter" onclick="bulkPauseAction('enter')" title="Segna ENTRATA per TUTTI gli ospiti che hanno firmato ma non sono ancora dentro. Usalo all'inizio della giornata quando tutti arrivano insieme. Chiede conferma prima di applicare." aria-label="Segna entrata di massa">
+              <span class="bc-icon">🟢</span>
+              <span class="bc-text">Entrano tutti</span>
+            </button>
+            <button type="button" class="btn-cockpit btn-cockpit-out" id="btn-mass-out" onclick="bulkPauseAction('exit')" title="Segna USCITA per TUTTI gli ospiti dentro adesso (pausa pranzo, intervallo, fine giornata). Chiede conferma prima di applicare." aria-label="Segna pausa di massa">
+              <span class="bc-icon">🍽️</span>
+              <span class="bc-text">Tutti in pausa</span>
+            </button>
+            <button type="button" class="btn-cockpit btn-cockpit-back" id="btn-mass-back" onclick="bulkPauseAction('return')" title="Segna RIENTRO per TUTTI gli ospiti in pausa (rientro dalla pausa pranzo). Chiede conferma prima di applicare." aria-label="Segna rientro di massa">
+              <span class="bc-icon">🔄</span>
+              <span class="bc-text">Tutti rientrati</span>
+            </button>
+          </div>
+        </div>
 
-        <span class="toolbar-divider"></span>
-        <span class="toolbar-label">Ospiti</span>
-        <button type="button" class="btn btn-primary" onclick="openAddGuestModal()" title="Aggiungi un singolo ospite alla guest_list manualmente: anagrafica completa (nome, cognome, email, telefono, azienda, mansione, reparto), dettagli visita (data, persona da visitare, motivo), documento + badge opzionali. Si può collegare all'evento attivo.">➕ Aggiungi</button>
+        <!-- STAZIONE 3: COMUNICAZIONE & STAMPA -->
+        <div class="toolbar-station station-comunicazione">
+          <div class="toolbar-station-header">
+            <span class="ts-dot"></span>
+            <span class="ts-title">Stampa & QR</span>
+          </div>
+          <div class="toolbar-station-buttons">
+            <button type="button" class="btn-cockpit btn-cockpit-print" id="btn-print-guests" onclick="printGuestList()" title="Stampa un elenco cartaceo degli ospiti attesi (rispetta i filtri pillole giorno+turno attivi). Genera una pagina A4 con nome/azienda/mansione/turno/stato firma, ottima da tenere sotto mano al desk." aria-label="Stampa elenco ospiti">
+              <span class="bc-icon">🖨️</span>
+              <span class="bc-text">Stampa elenco</span>
+            </button>
+            <button type="button" class="btn-cockpit btn-cockpit-qr" onclick="openQrModal()" title="Genera QR generico al desk per registrazione self-service" aria-label="Genera QR per il desk">
+              <span class="bc-icon">📱</span>
+              <span class="bc-text">Genera QR</span>
+            </button>
+            <button type="button" class="btn-cockpit btn-cockpit-mail" onclick="bulkSendQrEmail()" title="Invia QR personale via email agli ospiti VISIBILI nella lista. Se hai un filtro attivo (es. solo 9 giugno), invia solo a quelli filtrati. Per inviare a tutti, clicca prima la pillola 'Tutti'." aria-label="Invia QR ai visibili">
+              <span class="bc-icon">📧</span>
+              <span class="bc-text">Invia QR ai visibili</span>
+            </button>
+          </div>
+        </div>
 
-        <span class="toolbar-divider"></span>
-        <span class="toolbar-label">Import</span>
-        <button type="button" class="btn btn-success" onclick="document.getElementById('file-import').click()" title="Import massivo da CSV/Excel: crea righe in guest_list. Se il CSV contiene Numero_Badge, pre-attiva automaticamente i badge sui tornelli (creazione utente XAtlas + assegnazione card).">📥 Importa CSV/Excel</button>
-        <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
-        <button type="button" class="btn btn-secondary" onclick="downloadTemplate()" title="Scarica un CSV vuoto con le colonne corrette (Nome, Cognome, Email, Azienda, Persona_da_Visitare, Motivo_Visita, Data_Prevista, Numero_Badge) + 3 righe di esempio.">📄 Template</button>
+        <!-- STAZIONE 4: GESTIONE OSPITI -->
+        <div class="toolbar-station station-gestione">
+          <div class="toolbar-station-header">
+            <span class="ts-dot"></span>
+            <span class="ts-title">Gestione ospiti</span>
+          </div>
+          <div class="toolbar-station-buttons">
+            <button type="button" class="btn-cockpit btn-cockpit-add" onclick="openAddGuestModal()" title="Aggiungi un singolo ospite alla guest_list manualmente: anagrafica completa (nome, cognome, email, telefono, azienda, mansione, reparto), dettagli visita (data, persona da visitare, motivo), documento + badge opzionali. Si può collegare all'evento attivo." aria-label="Aggiungi nuovo ospite">
+              <span class="bc-icon">➕</span>
+              <span class="bc-text">Aggiungi</span>
+            </button>
+            <button type="button" class="btn-cockpit btn-cockpit-import" onclick="document.getElementById('file-import').click()" title="Import massivo da CSV/Excel: crea righe in guest_list. Se il CSV contiene Numero_Badge, pre-attiva automaticamente i badge sui tornelli (creazione utente XAtlas + assegnazione card)." aria-label="Importa CSV o Excel">
+              <span class="bc-icon">📥</span>
+              <span class="bc-text">Importa</span>
+            </button>
+            <input type="file" id="file-import" accept=".csv,.xlsx,.xls" aria-label="Importa file ospiti" onchange="importFile(this)">
+            <button type="button" class="btn-cockpit btn-cockpit-template" onclick="downloadTemplate()" title="Scarica un CSV vuoto con le colonne corrette (Nome, Cognome, Email, Azienda, Persona_da_Visitare, Motivo_Visita, Data_Prevista, Numero_Badge) + 3 righe di esempio." aria-label="Scarica template CSV">
+              <span class="bc-icon">📄</span>
+              <span class="bc-text">Template</span>
+            </button>
+          </div>
+        </div>
 
-        <span class="toolbar-divider js-badge-only"></span>
-        <span class="toolbar-label js-badge-only">Badge</span>
-        <button type="button" class="btn btn-primary js-badge-only" onclick="openFillBadgesModal()" title="Griglia editabile per assegnare badge ai nominativi importati senza usare Excel">📝 Compila</button>
-        <button type="button" class="btn btn-warning js-badge-only" onclick="startBulkPreAssign()" title="Wizard sequenziale: pre-assegna badge a tutti gli ospiti senza badge">⚡ Pre-assegna</button>
-        <button type="button" class="btn btn-secondary js-badge-only" onclick="openMiniLabelsModal()" title="Stampa miniature da incollare sui badge fisici dei pre-assegnati">🏷️ Miniature</button>
-        <button type="button" class="btn btn-secondary js-badge-only" onclick="openCardListText()" title="Lista testuale copia-incolla (cognome + nome + badge) per design cartoncini esterni con loghi.">📋 Cartoncini</button>
+        <!-- STAZIONE 5: BADGE (solo turnstile, nascosta in qr_only) -->
+        <div class="toolbar-station station-badge js-badge-only">
+          <div class="toolbar-station-header">
+            <span class="ts-dot"></span>
+            <span class="ts-title">Badge fisici</span>
+          </div>
+          <div class="toolbar-station-buttons">
+            <button type="button" class="btn-cockpit btn-cockpit-badge" onclick="openFillBadgesModal()" title="Griglia editabile per assegnare badge ai nominativi importati senza usare Excel" aria-label="Compila assegnazione badge">
+              <span class="bc-icon">📝</span>
+              <span class="bc-text">Compila</span>
+            </button>
+            <button type="button" class="btn-cockpit btn-cockpit-badge-warn" onclick="startBulkPreAssign()" title="Wizard sequenziale: pre-assegna badge a tutti gli ospiti senza badge" aria-label="Pre-assegna badge in batch">
+              <span class="bc-icon">⚡</span>
+              <span class="bc-text">Pre-assegna</span>
+            </button>
+            <button type="button" class="btn-cockpit btn-cockpit-badge-soft" onclick="openMiniLabelsModal()" title="Stampa miniature da incollare sui badge fisici dei pre-assegnati" aria-label="Stampa miniature badge">
+              <span class="bc-icon">🏷️</span>
+              <span class="bc-text">Miniature</span>
+            </button>
+            <button type="button" class="btn-cockpit btn-cockpit-badge-soft" onclick="openCardListText()" title="Lista testuale copia-incolla (cognome + nome + badge) per design cartoncini esterni con loghi." aria-label="Lista cartoncini">
+              <span class="bc-icon">📋</span>
+              <span class="bc-text">Cartoncini</span>
+            </button>
+          </div>
+        </div>
 
-        <span class="toolbar-divider"></span>
-        <span class="toolbar-label">QR</span>
-        <button type="button" class="btn btn-info" onclick="openQrModal()" title="Genera QR generico al desk per registrazione self-service">📱 Genera QR</button>
-        <button type="button" class="btn btn-info" onclick="bulkSendQrEmail()" title="Invia QR personale via email agli ospiti VISIBILI nella lista. Se hai un filtro attivo (es. solo 9 giugno), invia solo a quelli filtrati. Per inviare a tutti, clicca prima la pillola 'Tutti'.">📧 Invia QR ai visibili</button>
-
-        <span class="toolbar-divider"></span>
-        <span class="guest-search-wrap">
-          <span class="guest-search-icon">🔍</span>
-          <input type="search" id="guest-search-input" placeholder="Cerca cognome/nome..." oninput="onGuestSearchInput(this.value)" aria-label="Ricerca ospite per nome o cognome">
-          <button type="button" class="guest-search-clear" id="guest-search-clear" onclick="clearGuestSearch()" title="Pulisci ricerca" style="display:none">×</button>
-        </span>
       </div>
 
       <!-- FILTRI RAPIDI: pillole per giorno + per turno orario.
