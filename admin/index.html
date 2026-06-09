@@ -7242,20 +7242,44 @@
 
         renderGuestTable(guestData, arrivedSet);
 
-        document.getElementById('g-stat-total').textContent   = totale;
-        // C2 — FIRMATI limitato alla guest_list visibile (gia' filtrata per eventi NON chiusi).
-        // arrivedSet contiene TUTTI i visitor firmati cross-event: senza questo filtro,
-        // il count includerebbe firme di eventi passati gia' chiusi (es. 89 di MD anche
-        // dopo aver creato l'evento giugno). Soluzione: intersect con guestData.
-        // FIX 2026-06-10 (Fix #5 audit workflow): includi matched_visitor_id
-        // come fallback (coerente con printGuestList che gia' lo usa); evita
-        // divergenza tra schermo e cartoncino stampato.
-        const firmati = guestData.filter(g => arrivedSet.has(g.id) || g.matched_visitor_id).length;
+        // FIX 2026-06-10 (DEFINITIVO via migration v27): i conteggi stats card
+        // vengono ora dalla VIEW server-side event_dashboard, fonte unica di
+        // verita'. Niente piu' calcoli client-side che potevano divergere per
+        // race polling, guest cross-event, fallback matched_visitor_id, ecc.
+        // Se la view fallisce o nessun evento attivo, fallback ai calcoli
+        // locali (degrado leggibile, non hard-fail).
+        let dashTotal = null, dashSigned = null, dashWaiting = null,
+            dashInside = null, dashCheckedOut = null;
+        if (activeEvent && activeEvent.id) {
+          try {
+            const dashRes = await api(
+              `${SUPABASE_URL}/rest/v1/event_dashboard?event_id=eq.${encodeURIComponent(activeEvent.id)}&select=total_guests,signed,waiting,inside_now,checked_out,by_date,by_slot`
+            );
+            if (dashRes && dashRes.ok) {
+              const arr = await dashRes.json();
+              if (arr && arr[0]) {
+                const d = arr[0];
+                dashTotal      = d.total_guests;
+                dashSigned     = d.signed;
+                dashWaiting    = d.waiting;
+                dashInside     = d.inside_now;
+                dashCheckedOut = d.checked_out;
+                window._eventDashboardLast = d;  // disponibile per altre UI (es. pillole future)
+              }
+            }
+          } catch (e) {
+            console.warn('[event_dashboard] fetch fallito, uso fallback locale:', e);
+          }
+        }
+
+        document.getElementById('g-stat-total').textContent   = dashTotal     != null ? dashTotal     : totale;
         const signedEl = document.getElementById('g-stat-signed');
-        if (signedEl) signedEl.textContent = firmati;
-        document.getElementById('g-stat-waiting').textContent = attesa;
-        document.getElementById('g-stat-inside').textContent  = dentro;
-        document.getElementById('g-stat-out').textContent     = usciti;
+        if (signedEl) signedEl.textContent = dashSigned != null
+          ? dashSigned
+          : guestData.filter(g => arrivedSet.has(g.id) || g.matched_visitor_id).length;
+        document.getElementById('g-stat-waiting').textContent = dashWaiting   != null ? dashWaiting   : attesa;
+        document.getElementById('g-stat-inside').textContent  = dashInside    != null ? dashInside    : dentro;
+        document.getElementById('g-stat-out').textContent     = dashCheckedOut!= null ? dashCheckedOut: usciti;
 
         // Banner email fallite: mostra count se ci sono email_queue.status='failed'
         // associate a ospiti ancora visibili (escludo arrivati per evitare rumore)
