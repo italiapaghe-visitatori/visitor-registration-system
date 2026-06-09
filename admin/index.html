@@ -2088,6 +2088,11 @@
       color: #fff; border-color: transparent;
     }
     .btn-cockpit-back:hover { box-shadow: 0 4px 14px rgba(59,130,246,0.42); }
+    .btn-cockpit-close-day {
+      background: linear-gradient(135deg, #475569, #1e293b);
+      color: #fff; border-color: transparent;
+    }
+    .btn-cockpit-close-day:hover { box-shadow: 0 4px 14px rgba(71,85,105,0.5); }
 
     /* Stampa & QR */
     .btn-cockpit-print { background: #fff; border-color: #bfdbfe; color: #1e3a8a; }
@@ -3987,6 +3992,10 @@
             <button type="button" class="btn-cockpit btn-cockpit-back" id="btn-mass-back" onclick="bulkPauseAction('return')" title="Segna RIENTRO per TUTTI gli ospiti in pausa (rientro dalla pausa pranzo). Chiede conferma prima di applicare." aria-label="Segna rientro di massa">
               <span class="bc-icon">🔄</span>
               <span class="bc-text">Tutti rientrati</span>
+            </button>
+            <button type="button" class="btn-cockpit btn-cockpit-close-day" id="btn-mass-closeday" onclick="closeCurrentDay()" title="🏁 CHIUDI GIORNATA: segna USCITA FINALE per tutti gli ospiti dentro/in pausa della giornata correntemente filtrata (o di oggi). NON chiude l'evento — i giorni successivi restano attesi. Usalo a fine giornata quando tutti sono usciti." aria-label="Chiudi giornata corrente">
+              <span class="bc-icon">🏁</span>
+              <span class="bc-text">Chiudi giornata</span>
             </button>
           </div>
         </div>
@@ -7489,6 +7498,95 @@
         return '';
       }
       return `<button type="button" class="btn-pause ${cls}" data-id="${esc(g.id)}" data-vid="${esc(g.matched_visitor_id)}" onclick="onPauseClick(this)" title="${esc(title)}">${label}</button>`;
+    }
+
+    // CHIUDI GIORNATA: marca exit_time=now per TUTTI gli ospiti dentro/in pausa
+    // della giornata corrente (filtro pillola attiva, fallback a oggi). NON chiude
+    // l'evento — closed_at resta null, is_active resta true, le giornate successive
+    // restano in attesa. Per eventi multi-giornata (es. corso PS 9/06+18/06+19/06)
+    // questo e' il "fine turno" serale che NON conclude l'evento intero.
+    async function closeCurrentDay() {
+      if (!activeEvent || !activeEvent.id) {
+        alert('Nessun evento attivo.');
+        return;
+      }
+      // Target: giornata filtrata via pillola, fallback a oggi
+      const targetDay = guestDayFilter || todayLocalIso();
+      const dayLabel = targetDay.split('-').reverse().join('/');
+
+      // Candidati: ospiti del targetDay che sono dentro o in pausa
+      // (entry_time set, indipendente da exit_time)
+      const candidates = [];
+      (Array.isArray(guestData) ? guestData : []).forEach(g => {
+        if (!g.matched_visitor_id) return;
+        if (g.expected_date !== targetDay) return;
+        const state = _getVisitorState(g.matched_visitor_id);
+        // Da chiudere: chi e' dentro O in pausa (chiusura sicura). Skip "closed" e "never_entered".
+        if (state === 'inside' || state === 'on_break') candidates.push(g);
+      });
+
+      if (candidates.length === 0) {
+        alert(`Nessun ospite da chiudere per il ${dayLabel}.\n\n`
+            + `Possibili cause:\n`
+            + `• Nessuno e' ancora entrato (clicca prima "🟢 Entrano tutti")\n`
+            + `• Tutti gia' chiusi (xatlas_status=checked_out)\n`
+            + `• Stai filtrando una giornata sbagliata`);
+        return;
+      }
+
+      const ok = confirm(
+        `🏁 CHIUDI GIORNATA — ${dayLabel}\n\n`
+        + `Stai per segnare USCITA FINALE per ${candidates.length} ospiti.\n\n`
+        + `Cosa fa:\n`
+        + `  • exit_time = orario corrente\n`
+        + `  • Stat card "Usciti" salira' a ${candidates.length}\n`
+        + `  • Stat card "Dentro" tornera' a 0 per questa giornata\n\n`
+        + `Cosa NON fa (importante):\n`
+        + `  • NON chiude l'evento "${activeEvent.name}"\n`
+        + `  • Le altre giornate (es. 18/06, 19/06) restano attese\n\n`
+        + `Per chiudere l'evento intero in modo definitivo usa il\n`
+        + `bottone "Chiudi evento" nel banner arancione in alto.\n\n`
+        + `Procedere?`
+      );
+      if (!ok) return;
+
+      const btn = document.getElementById('btn-mass-closeday');
+      if (btn) btn.disabled = true;
+
+      const nowIso = new Date().toISOString();
+      let okc = 0, fail = 0;
+      const promises = candidates.map(async g => {
+        try {
+          const res = await api(
+            `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(g.matched_visitor_id)}`,
+            {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+              body: JSON.stringify({ exit_time: nowIso })
+            }
+          );
+          if (res && res.ok) okc++; else fail++;
+        } catch (_) { fail++; }
+      });
+      await Promise.allSettled(promises);
+
+      try {
+        auditLog('day_closed', 'event', activeEvent.id, {
+          event_name: activeEvent.name,
+          day: targetDay,
+          guests_closed: okc,
+          failed: fail
+        });
+      } catch (_) {}
+
+      if (btn) btn.disabled = false;
+
+      if (fail > 0) {
+        alert(`✔ ${okc} ospiti chiusi per il ${dayLabel}\n✖ ${fail} errori\n\nProva ad agire singolarmente per quelli falliti.`);
+      } else {
+        alert(`✔ Giornata del ${dayLabel} chiusa: ${okc} ospiti.\n\nEvento "${activeEvent.name}" resta attivo per le altre giornate.`);
+      }
+      await loadGuests(true);
     }
 
     // BULK action: pausa/rientro di massa per tutti gli ospiti dell'evento attivo
