@@ -1944,6 +1944,14 @@
     body.event-type-qr-only #gate-bar {
       display: none !important;
     }
+    /* Radio selettore tipo evento nella modale Nuovo Evento: bordo colorato
+       e background tinto quando selezionato per chiarezza visiva. */
+    .event-type-opt:hover { border-color: #cbd5e0 !important; }
+    .event-type-opt:has(input:checked) {
+      border-color: #667eea !important;
+      background: #f0f4ff !important;
+      box-shadow: 0 4px 12px rgba(102,126,234,0.15);
+    }
 
     /* ── Filtri rapidi a pillole (Ospiti Attesi: per giorno + turno) ──
        Risolve confusione lista eventi multi-giornata (es. Corso Primo Soccorso
@@ -3280,6 +3288,29 @@
           <label>QR attivo dal (opzionale)</label>
           <input type="date" id="event-qrfrom-input" title="Da questo giorno gli ospiti possono pre-registrarsi via QR. Default: oggi.">
           <small style="color:#a0aec0;font-size:12px;display:block;margin-top:4px;">Lascia vuoto per attivare il QR da oggi (gli ospiti possono pre-registrarsi).</small>
+        </div>
+        <!-- TIPO EVENTO (turnstile/qr_only): pilota body class admin + kiosk.
+             Default qr_only finche' i tornelli FMC non tornano operativi
+             (patch 1bcd182 in attesa di deploy srvxatlas). -->
+        <div class="modal-field">
+          <label>Tipo evento <span class="req">*</span></label>
+          <div class="event-type-radio" style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap">
+            <label class="event-type-opt" style="flex:1;min-width:240px;display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:2px solid #e2e8f0;border-radius:12px;cursor:pointer;transition:all 0.18s;background:#fff" title="Solo firma QR. Niente badge fisico, niente tornelli, ospite entra liberamente al desk dopo aver firmato. Workflow snello per corsi/formazioni.">
+              <input type="radio" name="event-type-input" value="qr_only" checked style="margin-top:3px">
+              <span>
+                <strong style="display:block">📱 Solo QR (senza badge)</strong>
+                <small style="color:#4a5568">Ospite firma → entra al desk. Niente tornello, niente cauzione, niente acquisizione badge.</small>
+              </span>
+            </label>
+            <label class="event-type-opt" style="flex:1;min-width:240px;display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:2px solid #e2e8f0;border-radius:12px;cursor:pointer;transition:all 0.18s;background:#fff" title="Workflow classico con badge fisico e tornelli XAtlas. Pool badge, pre-assegnazione, apertura tornello, cauzione 5 euro per smarrimento.">
+              <input type="radio" name="event-type-input" value="turnstile" style="margin-top:3px">
+              <span>
+                <strong style="display:block">🎟️ Con badge e tornello</strong>
+                <small style="color:#4a5568">Ospite firma → ritira badge → passa al tornello. Richiede pool badge configurato.</small>
+              </span>
+            </label>
+          </div>
+          <small style="color:#a0aec0;font-size:12px;display:block;margin-top:4px;">Le sezioni admin "Pool", "Pre-assegnazione", "Acquisizione" e i bottoni IN/OUT al tornello appaiono SOLO per eventi "Con badge".</small>
         </div>
         <div class="modal-field">
           <label>Note</label>
@@ -7888,6 +7919,9 @@
       document.getElementById('event-end-input').value = today;
       document.getElementById('event-qrfrom-input').value = '';
       document.getElementById('event-notes-input').value = '';
+      // Reset tipo evento a default qr_only (decisione titolare 9-10/06/2026)
+      const qrRadio = document.querySelector('input[name="event-type-input"][value="qr_only"]');
+      if (qrRadio) qrRadio.checked = true;
       document.getElementById('event-modal').classList.add('active');
     }
 
@@ -7897,16 +7931,19 @@
       const end   = document.getElementById('event-end-input').value;
       const qrFrom = document.getElementById('event-qrfrom-input').value || null;
       const notes  = document.getElementById('event-notes-input').value.trim() || null;
+      // Tipo evento dal radio (default qr_only). Pilota body class admin + kiosk.
+      const eventTypeEl = document.querySelector('input[name="event-type-input"]:checked');
+      const event_type = (eventTypeEl && eventTypeEl.value === 'turnstile') ? 'turnstile' : 'qr_only';
       if (!name || !start || !end) { alert('Compila nome, data inizio e data fine.'); return; }
       if (end < start) { alert('La data fine deve essere ≥ data inizio.'); return; }
       try {
         const res = await api(`${SUPABASE_URL}/rest/v1/events`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ name, event_start_date: start, event_end_date: end, qr_valid_from: qrFrom, notes })
+          body: JSON.stringify({ name, event_start_date: start, event_end_date: end, qr_valid_from: qrFrom, notes, event_type })
         });
         if (!res || !res.ok) { const b = await res?.json().catch(()=>({})); throw new Error(b.message || `Errore ${res?.status}`); }
-        auditLog('event_create', 'event', null, { name, start, end });
+        auditLog('event_create', 'event', null, { name, start, end, event_type });
         closeModal();
         loadEvents();
         populateEventFilter();
