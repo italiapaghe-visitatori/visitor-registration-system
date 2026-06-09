@@ -3159,7 +3159,7 @@
             <label>Uscita (tornello)</label>
             <input type="text" id="det-exit-time" readonly placeholder="—">
           </div>
-          <div class="modal-field">
+          <div class="modal-field js-badge-only">
             <label>N° Badge</label>
             <input type="text" id="det-badge" readonly placeholder="—">
           </div>
@@ -6833,7 +6833,29 @@
       // Status box (con bottone retry XAtlas se badge pending da troppo tempo)
       const statusBox = document.getElementById('details-status-box');
       const s = row.xatlas_status;
-      if (!s) {
+      // MODALITA' qr_only (DM migrato da turnstile): i visitor hanno ancora
+      // badge_number + xatlas_status='active' dal vecchio setup tornelli, ma
+      // l'evento ora NON usa tornelli. Lo status box deve riflettere lo stato
+      // FIRMA/PRESENZA, non il badge fantasma. Decisione titolare 09/06/2026.
+      const _qrOnlyEvent = document.body.classList.contains('event-type-qr-only');
+      if (_qrOnlyEvent) {
+        const hasSig = row.signature && String(row.signature).length > 100;
+        const inside = row.entry_time && !row.exit_time;
+        const out    = row.exit_time;
+        if (out) {
+          statusBox.className = 'modal-status-box status-checkout';
+          statusBox.textContent = `Visita conclusa — uscito alle ${String(row.exit_time).slice(0,5)}.`;
+        } else if (inside) {
+          statusBox.className = 'modal-status-box status-active';
+          statusBox.textContent = `Presente (entrato alle ${String(row.entry_time).slice(0,5)}). Firma: ${hasSig ? 'acquisita ✓' : 'NON ancora acquisita'}.`;
+        } else if (hasSig) {
+          statusBox.className = 'modal-status-box status-active';
+          statusBox.textContent = 'Registrazione confermata (QR firmato). Non ancora segnato come entrato al desk.';
+        } else {
+          statusBox.className = 'modal-status-box status-pending';
+          statusBox.textContent = 'Da firmare — l\'ospite deve ancora completare la firma (QR o al desk).';
+        }
+      } else if (!s) {
         statusBox.className = 'modal-status-box status-none';
         statusBox.textContent = 'Nessun badge assegnato — premi "Associa Badge" nella tabella per attivare il tornello.';
       } else if (s === 'pending') {
