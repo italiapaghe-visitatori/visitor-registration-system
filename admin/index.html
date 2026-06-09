@@ -4048,9 +4048,9 @@
             <span class="ts-title">Vista</span>
           </div>
           <div class="toolbar-station-buttons">
-            <button type="button" class="btn-cockpit btn-cockpit-vista" id="btn-toggle-arrived" onclick="toggleArrivedFilter()" title="Commuta tra mostrare/nascondere gli ospiti che hanno già firmato il QR (signature popolata). Default: nasconde gli arrivati per concentrarsi sui non ancora arrivati." aria-label="Mostra o nascondi gli ospiti arrivati">
+            <button type="button" class="btn-cockpit btn-cockpit-vista active-tab" id="btn-toggle-arrived" onclick="toggleArrivedFilter()" title="Commuta tra lista completa (default: tutti gli ospiti, con bottone Entra/Esce) e vista ridotta solo di chi deve ancora firmare." aria-label="Mostra o nascondi gli ospiti arrivati">
               <span class="bc-icon">👁️</span>
-              <span class="bc-text">Mostra arrivati</span>
+              <span class="bc-text">Nascondi arrivati</span>
             </button>
             <span class="cockpit-search">
               <span class="cockpit-search-icon" aria-hidden="true">🔍</span>
@@ -7213,7 +7213,11 @@
     let arrivedSet     = new Set();   // ospiti già arrivati e firmati al kiosk
     let preAssignedMap = new Map();   // guest_id → badge_number per ospiti pre-attivati
     let emailStatusByGuest = new Map(); // guest_id → ultimo status email_queue ('pending'/'sent'/'failed')
-    let showArrived    = false;
+    // DEFAULT true dal 2026-06-09 sera (decisione titolare): al desk serve la
+    // lista COMPLETA per il flusso "ospite arriva → controllo nominativo →
+    // premo Entra". Con false i firmati sparivano e il bottone Entra non si
+    // trovava. Il toggle resta per chi vuole concentrarsi su chi manca.
+    let showArrived    = true;
 
     // ── RICERCA OSPITE (filtro client-side su nome/cognome/email/azienda) ──
     let guestSearchTerm = '';
@@ -7251,7 +7255,9 @@
           showArrived = true;
           const btn = document.getElementById('btn-toggle-arrived');
           if (btn) {
-            btn.textContent = 'Nascondi arrivati';
+            const txt = btn.querySelector('.bc-text');
+            if (txt) txt.textContent = 'Nascondi arrivati';
+            else btn.textContent = 'Nascondi arrivati';
             btn.classList.add('active-tab');
           }
         }
@@ -7487,8 +7493,11 @@
     function toggleArrivedFilter() {
       showArrived = !showArrived;
       const btn = document.getElementById('btn-toggle-arrived');
-      btn.textContent = showArrived ? 'Nascondi arrivati' : 'Mostra arrivati';
-      btn.classList.toggle('active-tab', showArrived);
+      // Aggiorna solo lo span testo (struttura cockpit icona+testo)
+      const txt = btn ? btn.querySelector('.bc-text') : null;
+      if (txt) txt.textContent = showArrived ? 'Nascondi arrivati' : 'Mostra arrivati';
+      else if (btn) btn.textContent = showArrived ? 'Nascondi arrivati' : 'Mostra arrivati';
+      if (btn) btn.classList.toggle('active-tab', showArrived);
       renderGuestTable(guestData, arrivedSet);
     }
 
