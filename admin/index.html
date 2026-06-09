@@ -6839,22 +6839,13 @@
       // FIRMA/PRESENZA, non il badge fantasma. Decisione titolare 09/06/2026.
       const _qrOnlyEvent = document.body.classList.contains('event-type-qr-only');
       if (_qrOnlyEvent) {
-        const hasSig = row.signature && String(row.signature).length > 100;
-        const inside = row.entry_time && !row.exit_time;
-        const out    = row.exit_time;
-        if (out) {
-          statusBox.className = 'modal-status-box status-checkout';
-          statusBox.textContent = `Visita conclusa — uscito alle ${String(row.exit_time).slice(0,5)}.`;
-        } else if (inside) {
-          statusBox.className = 'modal-status-box status-active';
-          statusBox.textContent = `Presente (entrato alle ${String(row.entry_time).slice(0,5)}). Firma: ${hasSig ? 'acquisita ✓' : 'NON ancora acquisita'}.`;
-        } else if (hasSig) {
-          statusBox.className = 'modal-status-box status-active';
-          statusBox.textContent = 'Registrazione confermata (QR firmato). Non ancora segnato come entrato al desk.';
-        } else {
-          statusBox.className = 'modal-status-box status-pending';
-          statusBox.textContent = 'Da firmare — l\'ospite deve ancora completare la firma (QR o al desk).';
-        }
+        // IMPORTANTE: row.signature NON e' nel SELECT della tabella Visitatori
+        // (ottimizzazione egress) → e' SEMPRE undefined qui. Quindi NON decidere
+        // "firmato/da firmare" qui in modo sincrono (mostrerebbe tutti come da
+        // firmare, bug). Mettiamo un placeholder e la firma reale viene risolta
+        // dal lazy-fetch della signature piu' sotto (_renderQrOnlyStatusBox).
+        statusBox.className = 'modal-status-box status-pending';
+        statusBox.textContent = '⏳ Verifica stato presenza…';
       } else if (!s) {
         statusBox.className = 'modal-status-box status-none';
         statusBox.textContent = 'Nessun badge assegnato — premi "Associa Badge" nella tabella per attivare il tornello.';
@@ -7007,6 +6998,7 @@
             const arr = r?.ok ? await r.json() : [];
             const sig = arr[0]?.signature;
             const consent = arr[0]?.access_rules_at || arr[0]?.created_at || row.created_at;
+            const hasSig = sig && typeof sig === 'string' && sig.length > 100;
             if (sig && typeof sig === 'string' && sig.startsWith('data:image')) {
               sigWrap.innerHTML = `<img src="${esc(sig)}" alt="Firma autografa visitatore" class="sig-preview-img">
                 <div class="sig-preview-meta">Firma raccolta al momento della registrazione (kiosk/QR self-service).
@@ -7014,9 +7006,24 @@
             } else {
               sigWrap.innerHTML = '<div class="sig-preview-empty">⚠️ Firma non disponibile (record pre-attivato, ospite non ancora passato al kiosk).</div>';
             }
+            // Stato presenza qr_only: ora che ho la firma REALE (hasSig), aggiorno
+            // il box stato. Solo se il modal e' ancora aperto sullo stesso visitor.
+            if (_qrOnlyEvent && detailsCurrentId === row.id) {
+              _renderQrOnlyStatusBox(row, hasSig);
+            }
           } catch (_) {
             sigWrap.innerHTML = '<div class="sig-preview-empty">⚠️ Errore caricamento firma.</div>';
           }
+        })();
+      } else if (_qrOnlyEvent) {
+        // sigWrap mancante ma evento qr_only: fetch leggero solo per lo stato
+        (async () => {
+          try {
+            const r = await api(`${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(row.id)}&select=signature&limit=1`);
+            const arr = r?.ok ? await r.json() : [];
+            const sg = arr[0]?.signature;
+            if (detailsCurrentId === row.id) _renderQrOnlyStatusBox(row, sg && String(sg).length > 100);
+          } catch (_) {}
         })();
       }
 
@@ -7024,6 +7031,29 @@
       loadMovementsForVisitor(row.id);
 
       document.getElementById('details-modal').classList.add('active');
+    }
+
+    // Rende il box stato del detail modal per eventi qr_only, con la firma REALE
+    // (hasSig) risolta dal lazy-fetch. "Da firmare" solo per chi davvero non ha
+    // firmato. entry_time/exit_time vengono dal record (presenza manuale al desk).
+    function _renderQrOnlyStatusBox(row, hasSig) {
+      const statusBox = document.getElementById('details-status-box');
+      if (!statusBox) return;
+      const inside = row.entry_time && !row.exit_time;
+      const out    = row.exit_time;
+      if (out) {
+        statusBox.className = 'modal-status-box status-checkout';
+        statusBox.textContent = `Visita conclusa — uscito alle ${String(row.exit_time).slice(0,5)}.`;
+      } else if (inside) {
+        statusBox.className = 'modal-status-box status-active';
+        statusBox.textContent = `Presente (entrato alle ${String(row.entry_time).slice(0,5)})${hasSig ? ' · firma acquisita ✓' : ''}.`;
+      } else if (hasSig) {
+        statusBox.className = 'modal-status-box status-active';
+        statusBox.textContent = 'Registrazione confermata — QR firmato. Non ancora segnato come entrato al desk.';
+      } else {
+        statusBox.className = 'modal-status-box status-pending';
+        statusBox.textContent = 'Da firmare — l\'ospite deve ancora completare la firma (QR o al desk).';
+      }
     }
 
     async function loadMovementsForVisitor(visitorId) {
