@@ -7512,6 +7512,13 @@
     //   "🚶 Rientra"  se FUORI (pausa)
     let _visitorStateMap = new Map(); // visitor_id → {entry_time, exit_time, xatlas_status}
 
+    // Orario locale italiano "HH:MM:SS" per le colonne entry_time/exit_time
+    // (tipo TIME WITHOUT TIME ZONE in DB, convenzione: ora locale).
+    // NON usare toISOString(): manda l'ora UTC → -2h sulle timbrature.
+    function nowLocalTimeHMS() {
+      return new Date().toLocaleTimeString('it-IT', { hour12: false });
+    }
+
     function _getVisitorState(visitorId) {
       const s = _visitorStateMap.get(visitorId);
       if (!s) return 'unknown';
@@ -7595,7 +7602,7 @@
         if (!ok2) return;
         const btn0 = document.getElementById('btn-mass-closeday');
         if (btn0) btn0.disabled = true;
-        const now0 = new Date().toISOString();
+        const now0 = nowLocalTimeHMS();   // colonne TIME: ora locale, no ISO/UTC
         let okc0 = 0, fail0 = 0;
         await Promise.allSettled(neverEntered.map(async g => {
           try {
@@ -7655,7 +7662,7 @@
       const btn = document.getElementById('btn-mass-closeday');
       if (btn) btn.disabled = true;
 
-      const nowIso = new Date().toISOString();
+      const nowHmsClose = nowLocalTimeHMS();   // colonne TIME: ora locale, no ISO/UTC
       let okc = 0, fail = 0;
       const promises = candidates.map(async g => {
         try {
@@ -7664,7 +7671,7 @@
             {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-              body: JSON.stringify({ exit_time: nowIso })
+              body: JSON.stringify({ exit_time: nowHmsClose })
             }
           );
           if (res && res.ok) okc++; else fail++;
@@ -7741,14 +7748,14 @@
         if (b) b.disabled = true;
       });
 
-      const nowIso = new Date().toISOString();
+      const nowHms = nowLocalTimeHMS();   // colonne TIME: ora locale, no ISO/UTC
       let ok_count = 0, fail = 0;
       // PATCH parallele (Promise.allSettled per non bloccare in caso di errore singolo)
       const promises = candidates.map(async g => {
         let patchBody;
-        if (action === 'enter')  patchBody = { entry_time: nowIso, exit_time: null };
-        if (action === 'exit')   patchBody = { exit_time: nowIso };
-        if (action === 'return') patchBody = { entry_time: nowIso, exit_time: null };
+        if (action === 'enter')  patchBody = { entry_time: nowHms, exit_time: null };
+        if (action === 'exit')   patchBody = { exit_time: nowHms };
+        if (action === 'return') patchBody = { entry_time: nowHms, exit_time: null };
         try {
           const res = await api(
             `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(g.matched_visitor_id)}`,
@@ -7793,16 +7800,16 @@
       const guestId   = btn.dataset.id;
       if (!visitorId) return;
       const state = _getVisitorState(visitorId);
-      const nowIso = new Date().toISOString();
+      const nowHms = nowLocalTimeHMS();   // colonne TIME: ora locale, no ISO/UTC
       let patchBody, action;
       if (state === 'never_entered') {
-        patchBody = { entry_time: nowIso, exit_time: null };
+        patchBody = { entry_time: nowHms, exit_time: null };
         action = 'manual_enter';
       } else if (state === 'inside') {
-        patchBody = { exit_time: nowIso };
+        patchBody = { exit_time: nowHms };
         action = 'manual_exit';
       } else if (state === 'on_break') {
-        patchBody = { entry_time: nowIso, exit_time: null };
+        patchBody = { entry_time: nowHms, exit_time: null };
         action = 'manual_return';
       } else {
         return;
@@ -7831,7 +7838,7 @@
         }
         // Audit log
         try {
-          auditLog(action, 'visitor', visitorId, { guest_id: guestId, time: nowIso });
+          auditLog(action, 'visitor', visitorId, { guest_id: guestId, time: nowHms });
         } catch (_) { /* silent */ }
         // Re-render della tabella per aggiornare il bottone
         renderGuestTable(guestData, arrivedSet);
