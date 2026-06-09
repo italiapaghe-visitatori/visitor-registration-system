@@ -8074,28 +8074,29 @@
       const html = `<!DOCTYPE html>
 <html lang="it"><head><meta charset="utf-8"><title>QR Registrazione — ${esc(eventName)}</title>
 <style>
-  @page { size: A4; margin: 12mm; }
+  @page { size: A4 portrait; margin: 10mm; }
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; color: #1a202c; }
-  .sheet { display: flex; flex-direction: column; align-items: center; padding: 18mm 10mm; }
-  .brand-bar { width: 100%; background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; padding: 16px 28px; border-radius: 14px; margin-bottom: 22px; text-align: center; }
-  .brand-bar h1 { margin: 0; font-size: 22pt; letter-spacing: 0.3px; }
-  .brand-bar .subtitle { margin-top: 4px; font-size: 11pt; opacity: 0.92; }
-  .event-card { width: 100%; max-width: 540px; background: #fff; border: 2px solid #e2e8f0; border-radius: 18px; padding: 18px 24px; margin-bottom: 18px; text-align: center; box-shadow: 0 6px 16px rgba(0,0,0,0.05); }
-  .event-card h2 { margin: 0 0 6px; font-size: 18pt; color: #2d3748; }
-  .event-card .range { font-size: 11pt; color: #4a5568; }
-  .qr-frame { background: #fff; padding: 16px; border: 3px dashed #667eea; border-radius: 22px; margin: 10px 0 22px; box-shadow: 0 8px 24px rgba(102,126,234,0.18); }
-  .qr-frame img { display: block; width: 380px; height: 380px; }
-  .steps { background: #f7fafc; border-radius: 14px; padding: 18px 26px; max-width: 540px; width: 100%; }
-  .steps h3 { margin: 0 0 12px; font-size: 13pt; color: #2d3748; text-align: center; letter-spacing: 0.5px; }
-  .steps ol { margin: 0; padding-left: 22px; font-size: 13pt; line-height: 1.55; color: #2d3748; }
-  .steps ol li { margin-bottom: 6px; }
-  .url-strip { margin-top: 16px; padding: 10px 18px; background: #edf2f7; border-radius: 999px; font-family: 'Courier New', monospace; font-size: 8pt; color: #4a5568; max-width: 540px; word-break: break-all; text-align: center; }
-  footer { margin-top: 22px; font-size: 9pt; color: #718096; text-align: center; }
-  .badge-info { display: inline-block; padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 10pt; margin-top: 8px; ${isQrOnly ? 'background:#c6f6d5;color:#22543d' : 'background:#feebc8;color:#7b341e'} }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1a202c; }
+  .sheet { display: flex; flex-direction: column; align-items: center; padding: 0; }
+  .brand-bar { width: 100%; background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; padding: 10px 22px; border-radius: 12px; margin-bottom: 10px; text-align: center; }
+  .brand-bar h1 { margin: 0; font-size: 18pt; letter-spacing: 0.3px; }
+  .brand-bar .subtitle { margin-top: 2px; font-size: 10pt; opacity: 0.92; }
+  .event-card { width: 100%; max-width: 520px; background: #fff; border: 2px solid #e2e8f0; border-radius: 14px; padding: 10px 18px; margin-bottom: 10px; text-align: center; }
+  .event-card h2 { margin: 0 0 4px; font-size: 14pt; color: #2d3748; }
+  .event-card .range { font-size: 10pt; color: #4a5568; }
+  .qr-frame { background: #fff; padding: 10px; border: 3px dashed #667eea; border-radius: 18px; margin: 6px 0 12px; }
+  .qr-frame img { display: block; width: 300px; height: 300px; }
+  .steps { background: #f7fafc; border-radius: 12px; padding: 12px 22px; max-width: 520px; width: 100%; }
+  .steps h3 { margin: 0 0 8px; font-size: 11pt; color: #2d3748; text-align: center; letter-spacing: 0.5px; }
+  .steps ol { margin: 0; padding-left: 20px; font-size: 11pt; line-height: 1.45; color: #2d3748; }
+  .steps ol li { margin-bottom: 3px; }
+  footer { margin-top: 10px; font-size: 8pt; color: #718096; text-align: center; }
   @media print {
     .no-print { display: none !important; }
-    .brand-bar, .qr-frame, .steps, .event-card { break-inside: avoid; }
+    html, body, .sheet { height: auto !important; }
+    .brand-bar, .qr-frame, .steps, .event-card, footer { page-break-inside: avoid; break-inside: avoid; }
+    .sheet { page-break-after: avoid; break-after: avoid; }
   }
   .no-print { position: fixed; bottom: 14px; right: 14px; }
   .no-print button { padding: 11px 20px; border: none; border-radius: 10px; background: #667eea; color: #fff; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
@@ -8105,7 +8106,6 @@
     <div class="brand-bar">
       <h1>📱 ${esc(eventName)}</h1>
       <div class="subtitle">${esc(subtitle)}</div>
-      <div class="badge-info">${isQrOnly ? '✅ EVENTO QR — NESSUN BADGE FISICO' : '🎟️ RITIRO BADGE ALLA RECEPTION'}</div>
     </div>
     <div class="event-card">
       <h2>Registrazione Visitatore</h2>
@@ -8121,8 +8121,7 @@
         <li>${esc(step4)}</li>
       </ol>
     </div>
-    <div class="url-strip">${esc(url)}</div>
-    <footer>Generato da Gestione Visitatori — Italia Paghe / Service to Service Srl</footer>
+    <footer>Gestione Visitatori — Italia Paghe / S2S</footer>
   </div>
   <div class="no-print"><button onclick="window.print()">🖨️ Stampa</button></div>
   <script>
