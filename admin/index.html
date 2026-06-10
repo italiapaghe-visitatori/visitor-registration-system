@@ -7072,6 +7072,15 @@
           cont.innerHTML = '<div class="movements-empty">Nessuna timbratura registrata per questo visitatore.</div>';
           return;
         }
+        // Dicitura leggibile della sorgente del movimento (no nomi tecnici grezzi)
+        const srcLabel = (s) => {
+          s = (s || '').toLowerCase();
+          if (s.startsWith('manual_desk') || s.startsWith('manual_recover') || s.startsWith('manual_backfill')) return 'Registrato al desk';
+          if (s.startsWith('manual_gate') || s.includes('gate')) return 'Apertura tornello manuale';
+          if (s.includes('xatlas') || s.includes('fmc') || s.includes('transaction')) return 'Tornello (automatico)';
+          if (!s) return '';
+          return s;
+        };
         cont.innerHTML = movements.map(m => {
           const ts = new Date(m.timestamp);
           const tsStr = ts.toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
@@ -7082,7 +7091,7 @@
             <div class="movement-icon">${icon}</div>
             <div class="movement-time">${esc(tsStr)}</div>
             <div class="movement-label">${label}${m.badge_number ? ` — badge ${esc(m.badge_number)}` : ''}</div>
-            <div class="movement-source">${esc(m.source || '')}</div>
+            <div class="movement-source">${esc(srcLabel(m.source))}</div>
           </div>`;
         }).join('');
       } catch (err) {
@@ -10152,6 +10161,9 @@ Questo è un messaggio automatico. Per supporto contatta la reception al indiriz
           body: JSON.stringify(patch)
         });
         if (!res || !res.ok) throw new Error(`Errore ${res?.status}`);
+
+        // Storico: la conclusione = uscita definitiva → movimento in timeline
+        await logManualMovement(id, 'exit', row.event_id || (activeEvent && activeEvent.id));
 
         // Se badge proviene dal pool: marca pool entry come 'released'
         if (row.badge_number) {
