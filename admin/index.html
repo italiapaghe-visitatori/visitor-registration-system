@@ -9779,6 +9779,10 @@
       const safeName = `${guest.first_name || ''} ${guest.last_name || ''}`.trim();
       const visitor = safeName || 'ospite';
       const eventName = event.name || 'Evento';
+      // qr_only: niente badge da ritirare. Chiusura CTA adattata al tipo evento.
+      const closingLine = event.event_type === 'qr_only'
+        ? 'Il giorno dell\'evento ti basterà presentarti al desk.'
+        : 'Il giorno dell\'evento ti basterà passare al desk per ritirare il badge.';
       return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f7fafc;color:#2d3748;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7fafc;padding:24px 0;">
@@ -9791,7 +9795,7 @@
 <tr><td style="padding:28px 32px;">
 <p style="margin:0 0 16px;font-size:16px;">Ciao <strong>${visitor}</strong>,</p>
 <p style="margin:0 0 16px;font-size:14px;line-height:1.6;">sei stato invitato a partecipare a <strong>${eventName}</strong>.</p>
-<p style="margin:0 0 24px;font-size:14px;line-height:1.6;">Per evitare attese al desk il giorno dell'evento, completa la <strong>pre-registrazione online</strong> in 1 minuto: clicca sul pulsante qui sotto, conferma firma, documento e consensi privacy. Il giorno dell'evento ti basterà passare al desk per ritirare il badge.</p>
+<p style="margin:0 0 24px;font-size:14px;line-height:1.6;">Per evitare attese al desk il giorno dell'evento, completa la <strong>pre-registrazione online</strong> in 1 minuto: clicca sul pulsante qui sotto, conferma firma, documento e consensi privacy. ${closingLine}</p>
 <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
 <tr><td style="background:linear-gradient(135deg,#48bb78 0%,#38a169 100%);border-radius:10px;padding:0;">
 <a href="${qrUrl}" style="display:inline-block;padding:14px 28px;color:#fff;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:0.3px;">📱 Pre-registrati ora</a>
