@@ -7863,7 +7863,11 @@
         if (!g.matched_visitor_id) return;
         // REV 9/06 sera: solo ospiti con FIRMA reale (no stub badge senza firma)
         if (!arrivedSet.has(g.id)) return;
-        if (g.expected_date !== targetDay) return;
+        // FIX 2026-06-10: i guest senza expected_date (es. DM, eventi importati
+        // senza data per-giorno) hanno expected_date=NULL. Prima venivano SEMPRE
+        // saltati (NULL !== oggi) → "Chiudi giornata" diceva "niente da chiudere"
+        // anche con 25 persone dentro. Ora NULL = "vale per qualsiasi giornata".
+        if (g.expected_date && g.expected_date !== targetDay) return;
         const state = _getVisitorState(g.matched_visitor_id);
         // Da chiudere: chi e' dentro O in pausa (chiusura sicura). Skip "closed".
         if (state === 'inside' || state === 'on_break') candidates.push(g);
@@ -7997,9 +8001,19 @@
 
     // BULK action: pausa/rientro di massa per tutti gli ospiti dell'evento attivo
     // che sono nello stato compatibile. Rispetta il filtro pillola giorno se attivo.
+    // Guard anti-doppio-click / click accidentale sulle azioni di massa.
+    // Memorizza l'ultima azione bulk e blocca un re-invio della STESSA azione
+    // entro 8s (previene doppio click e ri-click ravvicinati per sbaglio).
+    let _lastBulkAction = { action: null, ts: 0 };
     async function bulkPauseAction(action) {
       if (!activeEvent || !activeEvent.id) {
         alert('Nessun evento attivo. Avvia un evento dalla tab Eventi.');
+        return;
+      }
+      // Anti doppio-click: stessa azione entro 8s → ignora con avviso
+      const nowMs = Date.now();
+      if (_lastBulkAction.action === action && (nowMs - _lastBulkAction.ts) < 8000) {
+        alert('⏱️ Azione già eseguita pochi secondi fa.\n\nSe vuoi davvero ripeterla, attendi qualche secondo. (Protezione anti doppio-click)');
         return;
       }
       // Determina filtro: visitor candidati in base a action
@@ -8075,6 +8089,8 @@
         } catch (_) { fail++; }
       });
       await Promise.allSettled(promises);
+      // Registra l'azione per il guard anti-doppio-click
+      _lastBulkAction = { action: action, ts: Date.now() };
 
       // Audit log unico per la bulk
       try {
