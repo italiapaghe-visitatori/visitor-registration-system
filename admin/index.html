@@ -7775,7 +7775,7 @@
       let patchBody, action;
       if (!row.entry_time)      { patchBody = { entry_time: nowHms, exit_time: null }; action = 'manual_enter'; }
       else if (!row.exit_time)  { patchBody = { exit_time: nowHms };                   action = 'manual_exit'; }
-      else                      { patchBody = { entry_time: nowHms, exit_time: null }; action = 'manual_return'; }
+      else                      { patchBody = { exit_time: null };                     action = 'manual_return'; }  // rientro: non sovrascrive entry_time originale
       btn.disabled = true;
       try {
         const res = await api(
@@ -8045,7 +8045,10 @@
         let patchBody;
         if (action === 'enter')  patchBody = { entry_time: nowHms, exit_time: null };
         if (action === 'exit')   patchBody = { exit_time: nowHms };
-        if (action === 'return') patchBody = { entry_time: nowHms, exit_time: null };
+        // FIX 2026-06-10: il rientro azzera SOLO exit_time, NON sovrascrive
+        // l'entry_time originale (l'ora del primo ingresso resta quella vera).
+        // Il rientro e' comunque tracciato come movimento in visitor_movements.
+        if (action === 'return') patchBody = { exit_time: null };
         try {
           const res = await api(
             `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(g.matched_visitor_id)}`,
@@ -8103,7 +8106,7 @@
         patchBody = { exit_time: nowHms };
         action = 'manual_exit';
       } else if (state === 'on_break') {
-        patchBody = { entry_time: nowHms, exit_time: null };
+        patchBody = { exit_time: null };   // rientro: non sovrascrive entry_time originale
         action = 'manual_return';
       } else {
         return;
