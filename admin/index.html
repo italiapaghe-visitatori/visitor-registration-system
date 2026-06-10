@@ -7710,6 +7710,28 @@
       return new Date().toLocaleTimeString('it-IT', { hour12: false });
     }
 
+    // Logga un movimento in visitor_movements (storico timbrature, prova legale).
+    // entry_time/exit_time sono valori SINGOLI sovrascrivibili; questo invece
+    // tiene lo STORICO completo di ogni ingresso/uscita (anche pause multiple)
+    // → la timeline del detail modal mostra tutti gli orari raggruppati.
+    // direction: 'entry' | 'exit'. timestamp = ISO (colonna timestamptz, ISO ok).
+    async function logManualMovement(visitorId, direction, eventId) {
+      if (!visitorId || (direction !== 'entry' && direction !== 'exit')) return;
+      try {
+        await api(`${SUPABASE_URL}/rest/v1/visitor_movements`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            visitor_id: visitorId,
+            event_id:   eventId || null,
+            timestamp:  new Date().toISOString(),
+            direction:  direction,
+            source:     'manual_desk'
+          })
+        });
+      } catch (_) { /* best-effort: entry/exit_time resta la fonte primaria */ }
+    }
+
     function _getVisitorState(visitorId) {
       const s = _visitorStateMap.get(visitorId);
       if (!s) return 'unknown';
@@ -7765,6 +7787,8 @@
           }
         );
         if (!res || !res.ok) throw new Error('HTTP ' + (res ? res.status : '?'));
+        // Storico movimento (entry/exit) per la timeline del dettaglio
+        await logManualMovement(id, (action === 'manual_exit') ? 'exit' : 'entry', row.event_id || (activeEvent && activeEvent.id));
         try {
           auditLog(action, 'visitor', id, {
             time: nowHms,
@@ -7870,7 +7894,12 @@
                 body: JSON.stringify({ entry_time: now0, exit_time: now0 })
               }
             );
-            if (res && res.ok) okc0++; else fail0++;
+            if (res && res.ok) {
+              okc0++;
+              // Presenza completa registrata a posteriori: logga ingresso + uscita
+              await logManualMovement(g.matched_visitor_id, 'entry', activeEvent.id);
+              await logManualMovement(g.matched_visitor_id, 'exit', activeEvent.id);
+            } else fail0++;
           } catch (_) { fail0++; }
         }));
         try {
@@ -7930,7 +7959,10 @@
               body: JSON.stringify({ exit_time: nowHmsClose })
             }
           );
-          if (res && res.ok) okc++; else fail++;
+          if (res && res.ok) {
+            okc++;
+            await logManualMovement(g.matched_visitor_id, 'exit', activeEvent.id);
+          } else fail++;
         } catch (_) { fail++; }
       });
       await Promise.allSettled(promises);
@@ -8023,7 +8055,11 @@
               body: JSON.stringify(patchBody)
             }
           );
-          if (res && res.ok) { ok_count++; } else { fail++; }
+          if (res && res.ok) {
+            ok_count++;
+            // Storico movimento per la timeline (enter/return = entry, exit = exit)
+            await logManualMovement(g.matched_visitor_id, (action === 'exit') ? 'exit' : 'entry', activeEvent.id);
+          } else { fail++; }
         } catch (_) { fail++; }
       });
       await Promise.allSettled(promises);
@@ -8094,6 +8130,8 @@
             xatlas_status: arr[0].xatlas_status
           });
         }
+        // Storico movimento (entry/exit) per la timeline del dettaglio
+        await logManualMovement(visitorId, (action === 'manual_exit') ? 'exit' : 'entry', activeEvent && activeEvent.id);
         // Audit log
         try {
           auditLog(action, 'visitor', visitorId, { guest_id: guestId, time: nowHms });
