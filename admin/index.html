@@ -8060,25 +8060,6 @@
 
     // BULK action: pausa/rientro di massa per tutti gli ospiti dell'evento attivo
     // che sono nello stato compatibile. Rispetta il filtro pillola giorno se attivo.
-    // NUOVA GIORNATA (eventi multi-giorno): azzera entry_time/exit_time di
-    // tutti i visitor non conclusi dell'evento attivo, cosi' gli ospiti
-    // ripartono da "Entra" con l'ora di oggi. Lo STORICO dei giorni precedenti
-    // resta intatto in visitor_movements (timeline completa per ogni persona).
-    // Da usare la mattina del giorno 2/3 — NON e' "Rientra" (che mantiene
-    // l'ingresso dello stesso giorno per le pause).
-    async function startNewDay() {
-      if (!activeEvent || !activeEvent.id) {
-        alert('Nessun evento attivo.');
-        return;
-      }
-      const ok = confirm(
-        `🌅 NUOVA GIORNATA — ${activeEvent.name}\n\n`
-        + `Cosa fa:\n`
-        + `  • Azzera lo stato presenza di ieri: gli ospiti tornano "da far entrare"\n`
-        + `  • Stamattina usi "🟢 Entrano tutti" (o Entra singolo) con l'ora di OGGI\n`
-        + `  • Lo storico ingressi/uscite dei giorni precedenti RESTA nella timeline\n\n`
-        + `Cosa NON fa:\n`
-        + `  • NON chiude l'evento, NON cancella fir
     // Memorizza l'ultima azione bulk e blocca un re-invio della STESSA azione
     // entro 8s (previene doppio click e ri-click ravvicinati per sbaglio).
     let _lastBulkAction = { action: null, ts: 0 };
