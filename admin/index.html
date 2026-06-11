@@ -2136,6 +2136,11 @@
       color: #fff; border-color: transparent;
     }
     .btn-cockpit-close-day:hover { box-shadow: 0 4px 14px rgba(71,85,105,0.5); }
+    .btn-cockpit-newday {
+      background: linear-gradient(135deg, #f59e0b, #ea580c);
+      color: #fff; border-color: transparent;
+    }
+    .btn-cockpit-newday:hover { box-shadow: 0 4px 14px rgba(245,158,11,0.45); }
 
     /* Stampa & QR */
     .btn-cockpit-print { background: #fff; border-color: #bfdbfe; color: #1e3a8a; }
@@ -4096,6 +4101,10 @@
             <button type="button" class="btn-cockpit btn-cockpit-close-day" id="btn-mass-closeday" onclick="closeCurrentDay()" title="🏁 CHIUDI GIORNATA: segna USCITA FINALE per tutti gli ospiti dentro/in pausa della giornata correntemente filtrata (o di oggi). NON chiude l'evento — i giorni successivi restano attesi. Usalo a fine giornata quando tutti sono usciti." aria-label="Chiudi giornata corrente">
               <span class="bc-icon">🏁</span>
               <span class="bc-text">Chiudi giornata</span>
+            </button>
+            <button type="button" class="btn-cockpit btn-cockpit-newday" id="btn-mass-newday" onclick="startNewDay()" title="🌅 NUOVA GIORNATA: per eventi multi-giorno. Azzera lo stato presenza di ieri (gli ospiti tornano 'da far entrare' col bottone Entra) mantenendo TUTTO lo storico ingressi/uscite dei giorni precedenti nella timeline. Usalo la mattina del giorno 2/3 dell'evento." aria-label="Inizia nuova giornata">
+              <span class="bc-icon">🌅</span>
+              <span class="bc-text">Nuova giornata</span>
             </button>
           </div>
         </div>
@@ -7846,6 +7855,56 @@
     // l'evento — closed_at resta null, is_active resta true, le giornate successive
     // restano in attesa. Per eventi multi-giornata (es. corso PS 9/06+18/06+19/06)
     // questo e' il "fine turno" serale che NON conclude l'evento intero.
+    // 🌅 NUOVA GIORNATA (eventi multi-giorno): azzera lo stato presenza
+    // (entry_time/exit_time) di tutti i firmati dell'evento attivo cosi' la
+    // mattina del giorno 2/3 ripartono da "Entra" con l'orario nuovo. Lo
+    // STORICO ingressi/uscite dei giorni precedenti resta intatto in
+    // visitor_movements (la timeline del dettaglio mostra tutto).
+    async function startNewDay() {
+      if (!activeEvent || !activeEvent.id) { alert('Nessun evento attivo.'); return; }
+      // Candidati: firmati con entry_time o exit_time gia' valorizzati (giorno prec.)
+      const targets = (Array.isArray(guestData) ? guestData : []).filter(g => {
+        if (!g.matched_visitor_id || !arrivedSet.has(g.id)) return false;
+        const s = _visitorStateMap.get(g.matched_visitor_id);
+        if (!s) return false;
+        if ((s.xatlas_status || '') === 'checked_out') return false;
+        return s.entry_time || s.exit_time;   // ha uno stato presenza da azzerare
+      });
+      if (targets.length === 0) {
+        alert('Nessuno stato presenza da azzerare.\n\nGli ospiti sono gia\' tutti "da far entrare" — puoi usare direttamente "🟢 Entrano tutti" quando arrivano.');
+        return;
+      }
+      const ok = confirm(
+        `🌅 NUOVA GIORNATA — ${activeEvent.name}\n\n`
+        + `Stai per azzerare lo stato presenza di ${targets.length} ospiti:\n`
+        + `  • tornano "da far entrare" (bottone 🟢 Entra)\n`
+        + `  • lo storico ingressi/uscite dei giorni precedenti RESTA salvato\n\n`
+        + `Usalo SOLO la mattina di una nuova giornata dell'evento.\n`
+        + `All'arrivo degli ospiti userai "🟢 Entrano tutti" con l'orario di oggi.\n\n`
+        + `Procedere?`
+      );
+      if (!ok) return;
+      const btn = document.getElementById('btn-mass-newday');
+      if (btn) btn.disabled = true;
+      let okc = 0, fail = 0;
+      await Promise.allSettled(targets.map(async g => {
+        try {
+          const res = await api(
+            `${SUPABASE_URL}/rest/v1/visitors?id=eq.${encodeURIComponent(g.matched_visitor_id)}`,
+            { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+              body: JSON.stringify({ entry_time: null, exit_time: null }) }
+          );
+          if (res && res.ok) okc++; else fail++;
+        } catch (_) { fail++; }
+      }));
+      try { auditLog('new_day_reset', 'event', activeEvent.id, { event_name: activeEvent.name, reset: okc, failed: fail }); } catch (_) {}
+      if (btn) btn.disabled = false;
+      alert(fail > 0
+        ? `✔ ${okc} ospiti azzerati\n✖ ${fail} errori`
+        : `✔ Nuova giornata pronta: ${okc} ospiti tornati "da far entrare".\n\nQuando arrivano, clicca "🟢 Entrano tutti".`);
+      await loadGuests(true);
+    }
+
     async function closeCurrentDay() {
       if (!activeEvent || !activeEvent.id) {
         alert('Nessun evento attivo.');
@@ -8001,7 +8060,25 @@
 
     // BULK action: pausa/rientro di massa per tutti gli ospiti dell'evento attivo
     // che sono nello stato compatibile. Rispetta il filtro pillola giorno se attivo.
-    // Guard anti-doppio-click / click accidentale sulle azioni di massa.
+    // NUOVA GIORNATA (eventi multi-giorno): azzera entry_time/exit_time di
+    // tutti i visitor non conclusi dell'evento attivo, cosi' gli ospiti
+    // ripartono da "Entra" con l'ora di oggi. Lo STORICO dei giorni precedenti
+    // resta intatto in visitor_movements (timeline completa per ogni persona).
+    // Da usare la mattina del giorno 2/3 — NON e' "Rientra" (che mantiene
+    // l'ingresso dello stesso giorno per le pause).
+    async function startNewDay() {
+      if (!activeEvent || !activeEvent.id) {
+        alert('Nessun evento attivo.');
+        return;
+      }
+      const ok = confirm(
+        `🌅 NUOVA GIORNATA — ${activeEvent.name}\n\n`
+        + `Cosa fa:\n`
+        + `  • Azzera lo stato presenza di ieri: gli ospiti tornano "da far entrare"\n`
+        + `  • Stamattina usi "🟢 Entrano tutti" (o Entra singolo) con l'ora di OGGI\n`
+        + `  • Lo storico ingressi/uscite dei giorni precedenti RESTA nella timeline\n\n`
+        + `Cosa NON fa:\n`
+        + `  • NON chiude l'evento, NON cancella fir
     // Memorizza l'ultima azione bulk e blocca un re-invio della STESSA azione
     // entro 8s (previene doppio click e ri-click ravvicinati per sbaglio).
     let _lastBulkAction = { action: null, ts: 0 };
