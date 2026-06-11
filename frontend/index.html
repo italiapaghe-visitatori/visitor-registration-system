@@ -2153,18 +2153,28 @@
         // kiosk mostrava tutti i 64. Operatore al desk il 9/06 deve vedere SOLO gli
         // 11 di oggi per evitare confusione. Decisione titolare 08/06/2026.
         const todayKioskIso = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD locale
-        // FIX 2026-06-09 sera: include anche expected_date NULL. Gli ospiti DM
-        // (import maggio) non hanno data per-ospite (evento 2 giorni, stesso
-        // gruppo) → con eq.oggi sparivano TUTTI dal kiosk e chi doveva ancora
-        // firmare non si trovava in lista. NULL = "qualsiasi giornata evento".
-        const guestEventFilter = (typeof CURRENT_EVENT !== 'undefined' && CURRENT_EVENT && CURRENT_EVENT.id)
-          ? `&event_id=eq.${encodeURIComponent(CURRENT_EVENT.id)}&or=(expected_date.eq.${todayKioskIso},expected_date.is.null)`
-          : (() => {
-              // Fallback no evento: 14 gg di expected_date per non mostrare storico antico
-              const cutoff = new Date();
-              cutoff.setDate(cutoff.getDate() - 14);
-              return `&expected_date=gte.${cutoff.toISOString().slice(0,10)}`;
-            })();
+        // FILTRO LISTA OSPITI — logica a 2 fasi (FIX 2026-06-11):
+        // • PRE-EVENTO (oggi < data inizio): fase di pre-registrazione → mostra
+        //   TUTTI gli ospiti dell'evento, cosi' chi scansiona il QR generico nei
+        //   giorni precedenti (o lo prova in anticipo, come Team Building 12/06
+        //   testato l'11/06) trova comunque il suo nome e puo' firmare.
+        // • DAL GIORNO DELL'EVENTO IN POI (oggi >= data inizio): mostra SOLO gli
+        //   ospiti di oggi (+ expected_date NULL) per non confondere il desk negli
+        //   eventi multi-giorno (decisione titolare 08/06: PS il 9/6 vede solo gli
+        //   11 di oggi, non tutti i 64).
+        let guestEventFilter;
+        if (typeof CURRENT_EVENT !== 'undefined' && CURRENT_EVENT && CURRENT_EVENT.id) {
+          const evStart = CURRENT_EVENT.event_start_date;
+          const preEvento = evStart && todayKioskIso < evStart;
+          guestEventFilter = preEvento
+            ? `&event_id=eq.${encodeURIComponent(CURRENT_EVENT.id)}`
+            : `&event_id=eq.${encodeURIComponent(CURRENT_EVENT.id)}&or=(expected_date.eq.${todayKioskIso},expected_date.is.null)`;
+        } else {
+          // Fallback no evento: 14 gg di expected_date per non mostrare storico antico
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - 14);
+          guestEventFilter = `&expected_date=gte.${cutoff.toISOString().slice(0,10)}`;
+        }
 
         // Tutti gli ospiti registrati (filtrati poi per chi non ha ancora passato il tornello)
         const gRes = await fetch(
