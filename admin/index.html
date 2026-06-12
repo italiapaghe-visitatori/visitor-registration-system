@@ -8954,15 +8954,34 @@
         pill.style.display = '';
         // Determina età della pending più vecchia
         const oldestAge = (Date.now() - new Date(rows[0].created_at).getTime()) / 1000;
+        // FIX 2026-06-12: in un invio massivo (es. 100+ email) tutte hanno lo stesso
+        // created_at e l'agente le spedisce a ~6/min (throttle anti-spam M365). Così
+        // la pending più vecchia supera i 5 min mentre l'invio sta procedendo regolarmente
+        // → falso allarme "bloccate". Controlliamo quindi anche QUANDO è stata spedita
+        // l'ultima email: se di recente, la coda sta drenando → non è bloccata.
+        let lastSentAge = Infinity;
+        try {
+          const r2 = await api(`${SUPABASE_URL}/rest/v1/email_queue?select=sent_at&status=eq.sent&order=sent_at.desc&limit=1`);
+          if (r2 && r2.ok) {
+            const sr = await r2.json();
+            if (sr.length && sr[0].sent_at) lastSentAge = (Date.now() - new Date(sr[0].sent_at).getTime()) / 1000;
+          }
+        } catch (_) { /* best-effort */ }
+        const draining = lastSentAge < 120; // ultima email spedita < 2 min fa → coda in movimento
         let cls, label, tooltip;
-        if (oldestAge < 300) { // < 5 min
+        if (draining && oldestAge >= 300) {
+          // Coda lunga ma in attivo svuotamento: NON è un blocco.
+          cls = 'warn';
+          label = `📧 ${n} in invio`;
+          tooltip = `${n} email QR in coda, invio in corso (ultima spedita ${Math.floor(lastSentAge)}s fa). L'agente spedisce ~6/min per anti-spam M365: nessun blocco, attendi lo svuotamento.`;
+        } else if (oldestAge < 300) { // < 5 min
           cls = 'warn';
           label = `📧 ${n} in coda`;
           tooltip = `${n} email QR pending. Più vecchia: ${Math.floor(oldestAge)}s fa. L'agente le processerà nei prossimi 5 sec.`;
-        } else { // >= 5 min = STUCK
+        } else { // >= 5 min E nessun invio recente = davvero STUCK
           cls = 'offline';
           label = `📧 ${n} bloccate (>${Math.floor(oldestAge/60)}min)`;
-          tooltip = `${n} email QR bloccate da oltre ${Math.floor(oldestAge/60)} minuti. Probabilmente l'agente è fermo o M365 ha un problema. Click per dettagli.`;
+          tooltip = `${n} email QR bloccate da oltre ${Math.floor(oldestAge/60)} minuti e nessuna spedita negli ultimi 2 min. Probabilmente l'agente è fermo o M365 ha un problema. Click per dettagli.`;
         }
         pill.className = 'agent-status ' + cls;
         pill.title = tooltip;
