@@ -508,6 +508,26 @@
       border-top: 1px solid #e8ecf4;
     }
 
+    .slot-toggle {
+      display: none;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .slot-pill {
+      border: none;
+      border-radius: 20px;
+      padding: 5px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #f0f2f8;
+      color: #4a5568;
+      transition: background 0.18s, color 0.18s;
+    }
+    .slot-pill.active { background: var(--primary); color: #fff; }
+
     #guest-search {
       height: 44px;
       padding-left: 44px;
@@ -1316,6 +1336,7 @@
               </span>
             </summary>
             <div class="guest-details-body">
+              <div class="slot-toggle" id="slot-toggle"></div>
               <div class="alpha-keyboard" id="alpha-keyboard"></div>
               <div class="guest-or">oppure cerca per nome</div>
               <input type="text" id="guest-search" placeholder="Scrivi cognome o nome..." autocomplete="off" title="Cerca ospite">
@@ -2136,6 +2157,30 @@
 
     // ── GUEST LOOKUP ─────────────────────────────────
     let allGuests                 = [];
+    let allGuestsFull             = [];
+
+    function _buildSlotToggle(activeSlot, full) {
+      const nMat = full.filter(g => !g.notes || /mattina/i.test(g.notes)).length;
+      const nPom = full.filter(g => !g.notes || /pomeriggio/i.test(g.notes)).length;
+      const sf = document.getElementById('slot-toggle');
+      sf.style.display = 'flex';
+      sf.innerHTML =
+        `<button class="slot-pill${activeSlot==='mattina'?' active':''}" onclick="switchSlot('mattina')">Mattina (${nMat})</button>` +
+        `<button class="slot-pill${activeSlot==='pomeriggio'?' active':''}" onclick="switchSlot('pomeriggio')">Pomeriggio (${nPom})</button>` +
+        `<button class="slot-pill${activeSlot==='all'?' active':''}" onclick="switchSlot('all')">Tutti (${full.length})</button>`;
+    }
+
+    function switchSlot(slot) {
+      allGuests = slot === 'all'
+        ? allGuestsFull.slice()
+        : allGuestsFull.filter(g => !g.notes || new RegExp(slot, 'i').test(g.notes));
+      document.getElementById('guest-summary-count').textContent = allGuests.length;
+      _buildSlotToggle(slot, allGuestsFull);
+      activeAlpha = '';
+      buildAlphaKeyboard();
+      renderGuestTiles([], 'Tocca una lettera oppure scrivi il cognome');
+      document.getElementById('guest-search').value = '';
+    }
     let selectedGuestId           = null;
     let selectedGuestRow          = null;   // C1: salviamo l'intero record per guard nome digitato
     let preAssignedVisitorByGuest = new Map();
@@ -2179,7 +2224,7 @@
         // Tutti gli ospiti registrati (filtrati poi per chi non ha ancora passato il tornello)
         const gRes = await fetch(
           `${SUPABASE_URL}/rest/v1/guest_list` +
-          `?select=id,first_name,last_name,email,company,job_title,person_to_visit,visit_reason,expected_date,handoff_requested_at` +
+          `?select=id,first_name,last_name,email,company,job_title,person_to_visit,visit_reason,expected_date,handoff_requested_at,notes` +
           `${guestEventFilter}` +
           `&order=last_name.asc`,
           { headers: hdrs }
@@ -2233,6 +2278,18 @@
           if (signedNames.has(norm(g.first_name) + '|' + norm(g.last_name))) return false;
           return true;
         });
+
+        // Filtro slot orario: se l'evento ha turni Mattina/Pomeriggio, auto-seleziona
+        // la sessione corrente in base all'ora. Toggle manuale disponibile nel pannello.
+        allGuestsFull = allGuests.slice();
+        const hasSlots = allGuestsFull.some(g => g.notes && /mattina|pomeriggio/i.test(g.notes));
+        if (hasSlots) {
+          const autoSlot = new Date().getHours() < 13 ? 'mattina' : 'pomeriggio';
+          allGuests = allGuestsFull.filter(g => !g.notes || new RegExp(autoSlot, 'i').test(g.notes));
+          _buildSlotToggle(autoSlot, allGuestsFull);
+        } else {
+          document.getElementById('slot-toggle').style.display = 'none';
+        }
 
         if (allGuests.length > 0 && !selectedGuestId) {
           activeAlpha = '';
