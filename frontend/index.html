@@ -2224,7 +2224,7 @@
         // Tutti gli ospiti registrati (filtrati poi per chi non ha ancora passato il tornello)
         const gRes = await fetch(
           `${SUPABASE_URL}/rest/v1/guest_list` +
-          `?select=id,first_name,last_name,email,company,job_title,person_to_visit,visit_reason,expected_date,handoff_requested_at,notes` +
+          `?select=id,first_name,last_name,email,company,job_title,person_to_visit,visit_reason,expected_date,handoff_requested_at` +
           `${guestEventFilter}` +
           `&order=last_name.asc`,
           { headers: hdrs }
