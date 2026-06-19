@@ -2908,6 +2908,13 @@
         payload.event_date = CURRENT_EVENT.event_start_date;
       }
 
+      // qr_only (corsi/eventi senza tornello): la firma vale anche come INGRESSO
+      // fisico, così "Dentro ora" riflette i presenti. Per eventi con tornello
+      // l'ingresso lo scrive il passaggio al varco (agente), quindi NON qui.
+      if (CURRENT_EVENT && CURRENT_EVENT.event_type === 'qr_only') {
+        payload.entry_time = new Date().toTimeString().slice(0, 8);
+      }
+
       // C1 — Difesa in profondita' contro mis-aggancio QR generico.
       // Se in modalita' generic (no QR_GUEST_ID) l'utente ha selezionato un guest
       // dalla lista MA poi ha modificato a mano nome/cognome con qualcosa di
