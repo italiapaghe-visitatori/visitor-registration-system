@@ -2908,10 +2908,13 @@
         payload.event_date = CURRENT_EVENT.event_start_date;
       }
 
-      // qr_only (corsi/eventi senza tornello): la firma vale anche come INGRESSO
-      // fisico, così "Dentro ora" riflette i presenti. Per eventi con tornello
-      // l'ingresso lo scrive il passaggio al varco (agente), quindi NON qui.
-      if (CURRENT_EVENT && CURRENT_EVENT.event_type === 'qr_only') {
+      // qr_only (corsi/eventi senza tornello): la firma AL DESK (kiosk) vale anche
+      // come INGRESSO fisico, così "Dentro ora" riflette i presenti. MA la
+      // PRE-REGISTRAZIONE da remoto (QR personale via email: IS_QR_MODE + QR_GUEST_ID)
+      // NON è un ingresso — l'ospite firma da casa e arriverà più tardi: niente
+      // entry_time, altrimenti risulterebbe "Dentro ora" senza essere arrivato.
+      // Per eventi con tornello l'ingresso lo scrive il passaggio al varco (agente).
+      if (CURRENT_EVENT && CURRENT_EVENT.event_type === 'qr_only' && !(IS_QR_MODE && QR_GUEST_ID)) {
         payload.entry_time = new Date().toTimeString().slice(0, 8);
       }
 
