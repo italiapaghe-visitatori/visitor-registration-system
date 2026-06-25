@@ -6436,8 +6436,11 @@
         const [total, todayCount, insideCount, pendingCount] = await Promise.all([
           fetchCount(eventFilter),
           fetchCount(`&created_at=gte.${today}T00:00:00${eventFilter}`),
-          // Dentro ora: entry_time settato, exit_time vuoto, non checked_out
-          fetchCount(`&entry_time=not.is.null&exit_time=is.null&xatlas_status=neq.checked_out${eventFilter}`),
+          // Dentro ora: entry_time settato, exit_time vuoto, non checked_out.
+          // NULL-safe: gli eventi qr_only hanno xatlas_status=NULL e `neq.checked_out`
+          // in SQL scarta i NULL (NULL != 'x' = unknown) → undercount a 0. Usiamo
+          // lo stesso or=() della lista (riga 6093) per includere i NULL.
+          fetchCount(`&entry_time=not.is.null&exit_time=is.null&or=(xatlas_status.is.null,xatlas_status.neq.checked_out)${eventFilter}`),
           fetchCount(`&xatlas_status=eq.pending${eventFilter}`)
         ]);
         document.getElementById('stat-total').textContent   = total;
